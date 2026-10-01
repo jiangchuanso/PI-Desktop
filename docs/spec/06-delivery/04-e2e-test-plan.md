@@ -627,7 +627,11 @@ identify the platform validation still needed.
   restart. 5) Allow the persistence outbox to flush.
 - **Expected**: Active shell processes never exceed the configured global and
   per-session limits. Excess work returns `HOST_OVERLOADED` or waits in the
-  bounded queue. Only one restart loop runs; stale-generation calls fail fast
+  bounded queue. Queued requests do not reserve execution capacity: with four
+  running Bash calls and twelve queued Bash calls, another session can still
+  Read and Write. A saturated session cannot reserve spare class capacity, and
+  admission-future cancellation/timeout restores queue and execution counters.
+  Only one restart loop runs; stale-generation calls fail fast
   as `HOST_UNAVAILABLE`; no repeated `ERR_STREAM_DESTROYED` persistence storm
   is emitted. Temporary OS thread pressure during the same burst does not
   terminate host-core through its stdio control path; the host remains on one
@@ -638,7 +642,10 @@ identify the platform validation still needed.
   `03-runtime/09-logging-and-observability.md`, ADR 0051
 - **Acceptance**: A (runtime health), C (tool execution and recovery)
 - **Milestone**: M5
-- **Status**: Documented; automation pending
+- **Status**: Cross-session admission is automated by
+  `node scripts/e2e-tool-admission.mjs` against an isolated real host. Class,
+  session, global, mutation, queue bounds, fairness, cancellation, and timeout
+  are unit-covered by `tool_budget/tests.rs`; restart coverage remains pending.
 
 ### Release & Packaging
 

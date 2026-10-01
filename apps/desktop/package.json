@@ -82,7 +82,7 @@
   "build": {
     "appId": "net.aiuo.pi-desktop",
     "productName": "PI-Desktop",
-    "afterPack": "../../scripts/after-pack-bundle-libstdc.mjs",
+    "afterPack": "scripts/after-pack-bundle-libstdc.mjs",
     "directories": {
       "output": "release"
     },

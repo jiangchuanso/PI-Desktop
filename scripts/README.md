@@ -31,7 +31,6 @@ disagrees, so a green `check:release-docs` is a precondition, not a substitute.
 | `export-linux-asar.mjs` | `node scripts/export-linux-asar.mjs` | Copy the Linux `linux-unpacked/resources/app.asar` into the versioned release asset used for system-Electron repackaging |
 | `build-desktop-release.mjs` | called by the desktop `dist` / `dist:win` scripts | Build the native runner target without publishing; Windows runs separate NSIS and ZIP passes and stamps their updater distribution metadata |
 | `check-linux-host-glibc.mjs` | `node scripts/check-linux-host-glibc.mjs [bin]` | Fail a Linux host-core binary whose needed glibc is above 2.31 |
-| `after-pack-bundle-libstdc.mjs` | electron-builder `afterPack` hook (Linux) | Bundle a newer `libstdc++.so.6` (GLIBCXX the app needs) next to the executable and inject it via an `LD_LIBRARY_PATH` wrapper, so Electron 43 runs on Ubuntu 20.04 / 银河麒麟 V10 SP1 (glibc 2.31) |
 | `make-icon.py` | `python3 scripts/make-icon.py` | Derive the package PNG, the macOS tray template, and the iconset/ICNS from the canonical PNG |
 | `publish-screenshots.py` | `python3 scripts/publish-screenshots.py` | Publish documentation screenshots |
 

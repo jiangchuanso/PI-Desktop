@@ -121,10 +121,10 @@ jobs:
             platform: linux
             dist: dist:linux
           - name: Linux arm64
-            # arm64 build host for 飞腾/麒麟 V10 SP1. libstdc++ is bundled by
-            # scripts/after-pack-bundle-libstdc.mjs; host-core glibc floor 2.31
-            # is enforced by scripts/check-linux-host-glibc.mjs.
-            os: ubuntu-24.04-arm64
+            # Native arm64 runner for 飞腾/麒麟 V10 SP1. libstdc++ is bundled by
+            # apps/desktop/scripts/after-pack-bundle-libstdc.mjs; host-core glibc
+            # floor 2.31 is enforced by scripts/check-linux-host-glibc.mjs.
+            os: ubuntu-24.04-arm
             arch: arm64
             artifact: linux-arm64
             platform: linux
@@ -214,6 +214,7 @@ jobs:
             -v pi-cargo:/root/.cargo \
             ubuntu:20.04 bash -c '
               set -e
+              export DEBIAN_FRONTEND=noninteractive
               apt-get update
               apt-get install -y --no-install-recommends curl ca-certificates git build-essential pkg-config libssl-dev software-properties-common
               curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
@@ -434,7 +435,7 @@ jobs:
           - arch: x64
             os: ubuntu-22.04
           - arch: arm64
-            os: ubuntu-24.04-arm64
+            os: ubuntu-24.04-arm
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     defaults:
@@ -476,6 +477,7 @@ jobs:
             -v pi-cargo:/root/.cargo \
             ubuntu:20.04 bash -c '
               set -e
+              export DEBIAN_FRONTEND=noninteractive
               apt-get update
               apt-get install -y --no-install-recommends curl ca-certificates git build-essential pkg-config libssl-dev
               curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal

@@ -12,8 +12,10 @@
  * it compiles a recent GCC's libstdc++ on an Ubuntu 20.04 base, so the bundled
  * lib itself only needs glibc 2.31. CI passes its path via PI_BUNDLED_LIBSTDCXX;
  * otherwise we fall back to the build host's system lib for the target arch,
- * which we read from the ELF header (no electron-builder import, so the hook
- * resolves under pnpm's layout where electron-builder lives in apps/desktop).
+ * which we read from the ELF header (no electron-builder import needed).
+ *
+ * This hook lives inside apps/desktop because electron-builder refuses a hook
+ * path that resolves outside the package's workspace root.
  *
  * We do not hardcode a GLIBCXX version: the required version is read from the
  * app's ELF binaries and asserted against what the bundled lib provides, so the

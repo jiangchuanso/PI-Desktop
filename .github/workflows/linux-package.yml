@@ -17,7 +17,7 @@ jobs:
           - arch: x64
             runner: ubuntu-22.04
           - arch: arm64
-            runner: ubuntu-24.04-arm64
+            runner: ubuntu-24.04-arm
     timeout-minutes: 60
     defaults:
       run:
@@ -57,6 +57,7 @@ jobs:
             -v pi-cargo:/root/.cargo \
             ubuntu:20.04 bash -c '
               set -e
+              export DEBIAN_FRONTEND=noninteractive
               apt-get update
               apt-get install -y --no-install-recommends curl ca-certificates git build-essential pkg-config libssl-dev software-properties-common
               curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal

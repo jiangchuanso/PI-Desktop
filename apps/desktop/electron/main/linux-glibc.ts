@@ -4,7 +4,7 @@
  * `version 'GLIBC_2.xx' not found'. Detect the floor before spawn so the
  * UI can name supported releases instead of looping restarts.
  *
- * Electron 43's Chromium needs a newer libstdc++ (GLIBCXX_3.4.30, GCC 11+)
+ * Electron 43's Chromium needs a newer libstdc++ (GLIBCXX_3.4.30+, GCC 12+)
  * than 20.04 ships (GCC 9); that is handled by bundling libstdc++.so.6 via
  * scripts/after-pack-bundle-libstdc.mjs, not by raising this floor.
  */

@@ -120,10 +120,15 @@ test("release artifacts bypass redundant Actions compression", () => {
 
 test("manual Linux package validation covers the RPM desktop identity", () => {
   assert.match(linuxPackageWorkflowSource, /^on:\s*\n\s+workflow_dispatch:/m);
-  assert.match(linuxPackageWorkflowSource, /runs-on: ubuntu-22\.04/);
+  assert.match(linuxPackageWorkflowSource, /runs-on: \$\{\{ matrix\.runner \}\}/);
+  assert.match(linuxPackageWorkflowSource, /runner: ubuntu-22\.04/);
   assert.match(
     linuxPackageWorkflowSource,
-    /run: pnpm --filter @pi-desktop\/desktop run dist:linux -- --x64/,
+    /Build host-core on glibc 2\.31 base[\s\S]*?docker run[\s\S]*?ubuntu:20\.04/,
+  );
+  assert.match(
+    linuxPackageWorkflowSource,
+    /pnpm --filter @pi-desktop\/desktop exec electron-builder --linux --publish never --\$\{\{ matrix\.arch \}\}/,
   );
   assert.match(
     linuxPackageWorkflowSource,
@@ -159,7 +164,7 @@ test("release workflow publishes the Linux ASAR beside installers", () => {
   );
   assert.match(
     releaseAsarScriptSource,
-    /PI-Desktop-\$\{releaseVersion\}-linux-x64\.asar/,
+    /PI-Desktop-\$\{releaseVersion\}-linux-\$\{resolvedArch\}\.asar/,
   );
 });
 
@@ -174,7 +179,11 @@ test("release matrix packages both native macOS architectures", () => {
   );
   assert.match(
     releaseWorkflowSource,
-    /name: Package installers \(\$\{\{ matrix\.dist \}\}\)[\s\S]*?if: matrix\.platform != 'macos'[\s\S]*?run: pnpm --filter @pi-desktop\/desktop run \$\{\{ matrix\.dist \}\} -- --\$\{\{ matrix\.arch \}\}/,
+    /name: Package installers \(\$\{\{ matrix\.dist \}\}\)[\s\S]*?if: matrix\.platform != 'macos'[\s\S]*?electron-builder --linux --publish never --\$\{\{ matrix\.arch \}\}/,
+  );
+  assert.match(
+    releaseWorkflowSource,
+    /name: Package installers \(\$\{\{ matrix\.dist \}\}\)[\s\S]*?pnpm --filter @pi-desktop\/desktop run \$\{\{ matrix\.dist \}\} -- --\$\{\{ matrix\.arch \}\}/,
   );
   assert.equal(
     JSON.parse(desktopPackageSource).build.mac.artifactName,

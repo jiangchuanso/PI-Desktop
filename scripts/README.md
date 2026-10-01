@@ -30,7 +30,8 @@ disagrees, so a green `check:release-docs` is a precondition, not a substitute.
 | `macos-codesign-shim.sh` | used by `macos-signing-watchdog.mjs` | PATH shim that timestamps every `codesign` invocation and then executes the real `codesign`; inert unless `PI_CODESIGN_LOG` is set |
 | `export-linux-asar.mjs` | `node scripts/export-linux-asar.mjs` | Copy the Linux `linux-unpacked/resources/app.asar` into the versioned release asset used for system-Electron repackaging |
 | `build-desktop-release.mjs` | called by the desktop `dist` / `dist:win` scripts | Build the native runner target without publishing; Windows runs separate NSIS and ZIP passes and stamps their updater distribution metadata |
-| `check-linux-host-glibc.mjs` | `node scripts/check-linux-host-glibc.mjs [bin]` | Fail a Linux host-core binary whose needed glibc is above 2.35 |
+| `check-linux-host-glibc.mjs` | `node scripts/check-linux-host-glibc.mjs [bin]` | Fail a Linux host-core binary whose needed glibc is above 2.31 |
+| `after-pack-bundle-libstdc.mjs` | electron-builder `afterPack` hook (Linux) | Bundle a newer `libstdc++.so.6` (GLIBCXX the app needs) next to the executable and inject it via an `LD_LIBRARY_PATH` wrapper, so Electron 43 runs on Ubuntu 20.04 / 银河麒麟 V10 SP1 (glibc 2.31) |
 | `make-icon.py` | `python3 scripts/make-icon.py` | Derive the package PNG, the macOS tray template, and the iconset/ICNS from the canonical PNG |
 | `publish-screenshots.py` | `python3 scripts/publish-screenshots.py` | Publish documentation screenshots |
 
@@ -83,7 +84,7 @@ repeats the `ci.yml` checks (a tag push does not trigger `ci.yml`), and the
 build matrix waits for it. Each platform runner then
 validates the tag against `apps/desktop/package.json` before packaging, then
 runs the native `dist:mac`, `dist:win`, or `dist:linux` command. The Linux
-job uses Ubuntu 22.04 so host-core stays on glibc 2.35, then
+job builds host-core in an Ubuntu 20.04 container so it stays on glibc 2.31, then
 `scripts/check-linux-host-glibc.mjs` refuses a binary that needs a newer
 glibc. The Linux runner also exports the exact app.asar from `linux-unpacked`
 as a versioned release asset; the macOS matrix covers arm64 and Intel x64 and

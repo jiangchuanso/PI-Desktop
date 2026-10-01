@@ -82,7 +82,7 @@
   "build": {
     "appId": "net.aiuo.pi-desktop",
     "productName": "PI-Desktop",
-    "afterPack": "scripts/after-pack-bundle-libstdc.mjs",
+    "afterPack": "../../scripts/after-pack-bundle-libstdc.mjs",
     "directories": {
       "output": "release"
     },
@@ -242,7 +242,11 @@
     },
     "deb": {
       "packageName": "pi-desktop",
-      "artifactName": "pi-desktop_${version}_${arch}.${ext}"
+      "artifactName": "pi-desktop_${version}_${arch}.${ext}",
+      "depends": [
+        "hicolor-icon-theme",
+        "desktop-file-utils"
+      ]
     },
     "rpm": {
       "packageName": "pi-desktop",

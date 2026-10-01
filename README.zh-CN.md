@@ -588,10 +588,11 @@ macOS Release 使用 Developer ID 签名并经过 Apple Notarization。
 
 <br />
 
-Linux x64 需要 **glibc 2.35+**。
+Linux x64 与 arm64 需要 **glibc 2.31+**。
 
 常见支持版本：
 
+* Ubuntu 20.04 / 银河麒麟 V10 SP1
 * Ubuntu 22.04+
 * Debian 12+
 * Fedora 36+

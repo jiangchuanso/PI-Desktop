@@ -1743,16 +1743,16 @@ task-candidate E2E 从请求工作树运行，但使用主工作区已经准备�
 - **里程碑**：M5
 - **状态**：单位覆盖（`main-process-errors.test.mjs`）；打包 Windows 代理旅程已记录
 
-#### E2E-195：Linux glibc 低于 2.35 时列出支持的发行版
+#### E2E-195：Linux glibc 低于 2.31 时列出支持的发行版
 
-- **先决条件**：Linux x64 打包应用；本机 glibc 低于 2.35（例如 Ubuntu 20.04 /
-  Debian 11 / Fedora 35），或测试将 `process.report` 设为 `2.31`。
+- **先决条件**：Linux x64 打包应用；本机 glibc 低于 2.31（例如 Ubuntu 18.04 /
+  Debian 10 / Fedora 32），或测试将 `process.report` 设为 `2.30`。
 - **步骤**：1) 启动 AppImage、deb 或 rpm。2) 观察主窗口和致命横幅。3) 确认
   host-core 没有进入重启循环。
 - **预期**：Electron 仍能打开。没有未捕获的 `write EPIPE` 对话框。致命横幅
-  说明构建需要 glibc 2.35 或更高版本，并列出 Ubuntu 22.04、Debian 12 和
-  Fedora 36+。监管重启不会空转。符号需要 glibc 2.39 的 host-core 二进制会
-  让 `scripts/check-linux-host-glibc.mjs` 失败。
+  说明构建需要 glibc 2.31 或更高版本，并列出 Ubuntu 20.04 / 银河麒麟 V10 SP1、
+  Ubuntu 22.04、Debian 12 和 Fedora 36+。监管重启不会空转。符号需要 glibc 2.39
+  的 host-core 二进制会让 `scripts/check-linux-host-glibc.mjs` 失败。
 - **链接规格**：`03-runtime/07-process-model.md`、
   `01-product/01-product-scope.md`、`06-delivery/06-release-runbook.md`
 - **验收**：H（诊断），质量（主路径无崩溃）

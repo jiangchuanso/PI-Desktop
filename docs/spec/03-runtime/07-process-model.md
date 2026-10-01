@@ -126,11 +126,12 @@ appears on Windows behind a system proxy or gateway that injects Unicode
 header values. The next `net.fetch` or updater request must not re-open that
 native dialog.
 
-Linux packaged host-core is built on Ubuntu 22.04 and needs glibc 2.35 or newer
-(Ubuntu 22.04, Debian 12, Fedora 36+). A lower glibc is a fatal host status,
-not a restart loop: the UI names those releases instead of "Can't reach the
-local service". The Linux tag job must not use a newer runner that would raise
-the needed glibc.
+Linux packaged host-core is built in an Ubuntu 20.04 container and needs glibc
+2.31 or newer (Ubuntu 20.04 / 银河麒麟 V10 SP1, Ubuntu 22.04, Debian 12,
+Fedora 36+). A lower glibc is a fatal host status, not a restart loop: the UI
+names those releases instead of "Can't reach the local service". The Linux tag
+job must build host-core inside a 20.04 base container, not a newer runner that
+would raise the needed glibc.
 
 Two more boot outcomes are named rather than left as a generic outage (D380):
 

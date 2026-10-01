@@ -215,15 +215,19 @@ jobs:
             ubuntu:20.04 bash -c '
               set -e
               apt-get update
-              apt-get install -y --no-install-recommends curl ca-certificates build-essential pkg-config libssl-dev software-properties-common
+              apt-get install -y --no-install-recommends curl ca-certificates git build-essential pkg-config libssl-dev software-properties-common
               curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
               source "$HOME/.cargo/env"
               cargo build --release --locked -p host-core
               add-apt-repository -y ppa:ubuntu-toolchain-r/test
               apt-get update
-              apt-get install -y --no-install-recommends g++-12
+              gcc_ver=""
+              for v in 14 13 12; do
+                if apt-get install -y --no-install-recommends "g++-$v" >/dev/null 2>&1; then gcc_ver="$v"; break; fi
+              done
+              if [ -z "$gcc_ver" ]; then echo "no g++ in ppa:ubuntu-toolchain-r/test" >&2; exit 1; fi
               mkdir -p /work/.ci-bundled-libstdc++
-              cp -L "$(readlink -f /usr/lib/$(gcc-12 -print-multiarch)/libstdc++.so.6)" /work/.ci-bundled-libstdc++/libstdc++.so.6
+              cp -L "$(readlink -f /usr/lib/$(gcc-$gcc_ver -print-multiarch)/libstdc++.so.6)" /work/.ci-bundled-libstdc++/libstdc++.so.6
             '
 
       - name: Package installers (${{ matrix.dist }})
@@ -473,7 +477,7 @@ jobs:
             ubuntu:20.04 bash -c '
               set -e
               apt-get update
-              apt-get install -y --no-install-recommends curl ca-certificates build-essential pkg-config libssl-dev
+              apt-get install -y --no-install-recommends curl ca-certificates git build-essential pkg-config libssl-dev
               curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
               source "$HOME/.cargo/env"
               cargo build --release --locked -p host-core

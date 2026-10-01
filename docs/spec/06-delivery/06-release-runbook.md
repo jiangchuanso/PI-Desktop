@@ -626,10 +626,11 @@ Shell smoke on each native runner:
 - Linux deb/rpm and the Windows portable ZIP remain notify-and-link update
   modes. Packaged macOS, Windows NSIS, and Linux AppImage use in-app
   `electron-updater`.
-- Linux x64 packages are built on Ubuntu 22.04 so host-core needs glibc 2.35
-  or newer (Ubuntu 22.04, Debian 12, Fedora 36+). The tag job runs
-  `scripts/check-linux-host-glibc.mjs` and refuses a binary that needs a
-  newer glibc.
+- Linux x64/arm64 packages build host-core inside an Ubuntu 20.04 container so
+  it needs glibc 2.31 or newer (Ubuntu 20.04 / 银河麒麟 V10 SP1, Ubuntu 22.04,
+  Debian 12, Fedora 36+); the newer libstdc++ Electron 43 needs is bundled into
+  the package. The tag job runs `scripts/check-linux-host-glibc.mjs` and refuses
+  a binary that needs a newer glibc.
 - Rollback, staged rollout, and prerelease channel policy remain open release
   work. Existing unsigned macOS installs may need one manual signed DMG before
   in-app updates succeed.

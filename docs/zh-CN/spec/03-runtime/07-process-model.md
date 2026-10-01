@@ -94,10 +94,11 @@ utility）；应用已经恢复的 renderer 崩溃仍会留下转储，并记为
 （`TypeError: Cannot convert argument to a ByteString`），常见于 Windows 系统
 代理或网关注入 Unicode 头。下一次 `net.fetch` 或更新检查不得再弹出该原生框。
 
-Linux 打包的 host-core 在 Ubuntu 22.04 上构建，需要 glibc 2.35 或更高版本
-（Ubuntu 22.04、Debian 12、Fedora 36+）。更低的 glibc 是致命 host 状态，而不是
-重启循环：界面会列出这些发行版，而不是只显示“无法连接本地服务”。Linux 标签
-作业不得换用会抬高所需 glibc 的更新 runner。
+Linux 打包的 host-core 在 Ubuntu 20.04 容器中构建，需要 glibc 2.31 或更高版本
+（Ubuntu 20.04 / 银河麒麟 V10 SP1、Ubuntu 22.04、Debian 12、Fedora 36+）。更低的
+glibc 是致命 host 状态，而不是重启循环：界面会列出这些发行版，而不是只显示“无法
+连接本地服务”。Linux 标签作业必须在 20.04 基座容器内构建 host-core，不得换用会
+抬高所需 glibc 的更新 runner。
 
 另有两种启动结果会被明确命名，而不是笼统地当作服务不可用（D380）：
 

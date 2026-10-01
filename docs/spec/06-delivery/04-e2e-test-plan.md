@@ -3436,18 +3436,18 @@ identify the platform validation still needed.
 - **Status**: Unit-covered (`main-process-errors.test.mjs`); packaged Windows
   proxy journey Documented
 
-#### E2E-195: Linux glibc below 2.35 names supported distros
+#### E2E-195: Linux glibc below 2.31 names supported distros
 
 - **Preconditions**: Linux x64 packaged app; the machine glibc is older than
-  2.35 (for example Ubuntu 20.04 / Debian 11 / Fedora 35), or a test doubles
-  `process.report` to `2.31`.
+  2.31 (for example Ubuntu 18.04 / Debian 10 / Fedora 32), or a test doubles
+  `process.report` to `2.30`.
 - **Steps**: 1) Launch the AppImage, deb, or rpm. 2) Observe the main window and
   fatal banner. 3) Confirm host-core is not restarted in a loop.
 - **Expected**: Electron still opens. There is no uncaught `write EPIPE`
-  dialog. The fatal banner says the build needs glibc 2.35 or newer and names
-  Ubuntu 22.04, Debian 12, and Fedora 36+. Restart supervision does not spin.
-  A host-core binary whose symbols need glibc 2.39 fails
-  `scripts/check-linux-host-glibc.mjs`.
+  dialog. The fatal banner says the build needs glibc 2.31 or newer and names
+  Ubuntu 20.04 / 银河麒麟 V10 SP1, Ubuntu 22.04, Debian 12, and Fedora 36+.
+  Restart supervision does not spin. A host-core binary whose symbols need glibc
+  2.39 fails `scripts/check-linux-host-glibc.mjs`.
 - **Specs linked**: `03-runtime/07-process-model.md`,
   `01-product/01-product-scope.md`, `06-delivery/06-release-runbook.md`
 - **Acceptance**: H (diagnostics), Quality (main path no crash)

@@ -584,10 +584,11 @@ macOS releases are signed with a Developer ID certificate and notarized by Apple
 
 <br />
 
-Linux x64 packages require **glibc 2.35+**.
+Linux x64 and arm64 packages require **glibc 2.31+**.
 
 Common supported distributions include:
 
+* Ubuntu 20.04 / 银河麒麟 (Kylin) V10 SP1
 * Ubuntu 22.04+
 * Debian 12+
 * Fedora 36+

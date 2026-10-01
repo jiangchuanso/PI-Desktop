@@ -529,5 +529,5 @@ electron PI-Desktop-<version>-linux-x64.asar
 ## 7. 已知限制
 
 - Linux deb/rpm 和 Windows 便携版 ZIP 仍保持通知和链接更新模式。打包的 macOS、Windows NSIS 和 Linux AppImage 使用应用内 `electron-updater`。
-- Linux x64 包在 Ubuntu 22.04 上构建，因此 host-core 需要 glibc 2.35 或更高版本（Ubuntu 22.04、Debian 12、Fedora 36+）。标签作业运行 `scripts/check-linux-host-glibc.mjs`，拒绝需要更新 glibc 的二进制文件。
+- Linux x64/arm64 包在 Ubuntu 20.04 容器中构建 host-core，因此需要 glibc 2.31 或更高版本（Ubuntu 20.04 / 银河麒麟 V10 SP1、Ubuntu 22.04、Debian 12、Fedora 36+）；Electron 43 所需的新版 libstdc++ 随包捆绑。标签作业运行 `scripts/check-linux-host-glibc.mjs`，拒绝需要更新 glibc 的二进制文件。
 - 回滚、分阶段部署和预发布渠道政策仍是开放的发布工作。现有未签名 macOS 安装可能需要先手动安装一次已签名 DMG，之后应用内更新才能成功。

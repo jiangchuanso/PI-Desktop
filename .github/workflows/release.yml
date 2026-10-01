@@ -195,6 +195,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Prepare package inputs
+        # Skip the (expensive) install and JS build on macOS runs that are not
+        # going to package anything.
+        if: env.BUILD_MACOS == 'true' || matrix.platform != 'macos'
         run: |
           set -euo pipefail
           if [ "${{ matrix.platform }}" != "linux" ]; then

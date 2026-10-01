@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "local.officecli-mcp",
+  "name": "OfficeCli (MCP)",
+  "version": "0.1.0",
+  "description": "Expose officecli as an MCP server so the Agent can create, read and modify .docx / .xlsx / .pptx documents.",
+  "main": "main.js",
+  "contributes": {
+    "mcpServers": [
+      {
+        "id": "officecli",
+        "label": "Office CLI",
+        "transport": "stdio",
+        "command": "officecli",
+        "args": ["mcp"]
+      }
+    ]
+  },
+  "permissions": ["mcp.server.local"],
+  "engines": {
+    "piDesktop": ">=0.1.0"
+  },
+  "activationEvents": ["onStartup"]
+}

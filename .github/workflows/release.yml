@@ -86,8 +86,10 @@ jobs:
     name: Build ${{ matrix.name }}
     needs: verify
     env:
-      # Tag pushes always sign. workflow_dispatch signs unless explicitly disabled.
-      MACOS_SIGN_RELEASE: ${{ github.event_name != 'workflow_dispatch' || inputs.sign_macos == true }}
+      # Signing is only possible when the notarization secrets exist; forks and
+      # clones without them fall through to the unsigned debug lane instead of
+      # failing the release. workflow_dispatch also honours sign_macos.
+      MACOS_SIGN_RELEASE: ${{ (github.event_name != 'workflow_dispatch' || inputs.sign_macos == true) && secrets.CSC_LINK != '' && secrets.APPLE_TEAM_ID != '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -555,6 +557,12 @@ jobs:
           require "yaml"
 
           paths = Dir["latest-mac-*.yml"].sort
+          # Forks without macOS notarization secrets ship no macOS updater feeds;
+          # skip the merge instead of aborting the whole release.
+          if paths.empty?
+            puts "No macOS updater feeds; skipping merge."
+            exit 0
+          end
           expected_paths = ["latest-mac-arm64.yml", "latest-mac-x64.yml"]
           abort "Expected both macOS updater feeds" unless paths == expected_paths
 
@@ -577,7 +585,7 @@ jobs:
           )
           File.write("latest-mac.yml", merged.to_yaml)
           RUBY
-          rm latest-mac-arm64.yml latest-mac-x64.yml
+          rm -f latest-mac-arm64.yml latest-mac-x64.yml
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3

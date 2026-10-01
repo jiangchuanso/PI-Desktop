@@ -222,10 +222,16 @@ test("macOS release signing is required on tag pushes", () => {
     releaseWorkflowSource,
     /workflow_dispatch:\s+inputs:\s+sign_macos:[\s\S]*?default:\s*true[\s\S]*?type:\s*boolean/,
   );
+  // Tag pushes sign when the notarization secrets exist; a fork without them
+  // falls through to the unsigned lane instead of failing the release.
   assert.ok(
     releaseWorkflowSource.includes(
-      "MACOS_SIGN_RELEASE: ${{ github.event_name != 'workflow_dispatch' || inputs.sign_macos == true }}",
+      "MACOS_SIGN_RELEASE: ${{ (github.event_name != 'workflow_dispatch' || inputs.sign_macos == true) && secrets.CSC_LINK != '' && secrets.APPLE_TEAM_ID != '' }}",
     ),
+  );
+  assert.match(
+    releaseWorkflowSource,
+    /MACOS_SIGN_RELEASE[\s\S]*?secrets\.CSC_LINK != ''/,
   );
 
   const unsignedBlock = releaseWorkflowSource.match(

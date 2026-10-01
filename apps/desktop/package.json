@@ -82,6 +82,7 @@
   "build": {
     "appId": "net.aiuo.pi-desktop",
     "productName": "PI-Desktop",
+    "afterPack": "scripts/after-pack-bundle-libstdc.mjs",
     "directories": {
       "output": "release"
     },
@@ -258,19 +259,22 @@
         {
           "target": "AppImage",
           "arch": [
-            "x64"
+            "x64",
+            "arm64"
           ]
         },
         {
           "target": "deb",
           "arch": [
-            "x64"
+            "x64",
+            "arm64"
           ]
         },
         {
           "target": "rpm",
           "arch": [
-            "x64"
+            "x64",
+            "arm64"
           ]
         }
       ],

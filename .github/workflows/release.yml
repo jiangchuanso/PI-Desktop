@@ -113,12 +113,20 @@ jobs:
             platform: windows
             dist: dist:win
           - name: Linux x64
-            # Ubuntu 22.04 keeps host-core at glibc 2.35 so Ubuntu 22.04,
-            # Debian 12, and Fedora 36+ can load the binary. ubuntu-latest
-            # (24.04) would raise the floor to 2.39.
+            # glibc floor is 2.31 (Ubuntu 20.04 / 银河麒麟 V10 SP1); the
+            # host-core check enforces it, so Ubuntu 22.04 is a safe build host.
             os: ubuntu-22.04
             arch: x64
             artifact: linux-x64
+            platform: linux
+            dist: dist:linux
+          - name: Linux arm64
+            # arm64 build host for 飞腾/麒麟 V10 SP1. libstdc++ is bundled by
+            # scripts/after-pack-bundle-libstdc.mjs; host-core glibc floor 2.31
+            # is enforced by scripts/check-linux-host-glibc.mjs.
+            os: ubuntu-24.04-arm64
+            arch: arm64
+            artifact: linux-arm64
             platform: linux
             dist: dist:linux
     runs-on: ${{ matrix.os }}
@@ -179,23 +187,64 @@ jobs:
       - name: Prepare package inputs
         run: |
           set -euo pipefail
-          cargo build --release --locked -p host-core &
-          host_build_pid=$!
-          trap 'kill "$host_build_pid" 2>/dev/null || true' EXIT
+          if [ "${{ matrix.platform }}" != "linux" ]; then
+            cargo build --release --locked -p host-core &
+            host_build_pid=$!
+            trap 'kill "$host_build_pid" 2>/dev/null || true' EXIT
+          fi
 
           pnpm install --frozen-lockfile
           pnpm --filter '@pi-desktop/desktop^...' --fail-if-no-match build
 
-          wait "$host_build_pid"
-          trap - EXIT
+          if [ "${{ matrix.platform }}" != "linux" ]; then
+            wait "$host_build_pid"
+            trap - EXIT
+          fi
+
+      - name: Build host-core on glibc 2.31 base
+        if: matrix.platform == 'linux'
+        # Container build pins the Rust sidecar to glibc 2.31, and extracts a
+        # GCC 12 libstdc++.so.6 (GLIBCXX_3.4.30) that Electron 43 needs on
+        # 20.04 / 麒麟 V10 SP1. afterPack bundles that lib into the package.
+        run: |
+          set -euo pipefail
+          PLATFORM="${{ matrix.arch == 'arm64' && 'linux/arm64' || 'linux/amd64' }}"
+          docker run --rm --platform "$PLATFORM" \
+            -v "$PWD":/work -w /work \
+            -v pi-cargo:/root/.cargo \
+            ubuntu:20.04 bash -c '
+              set -e
+              apt-get update
+              apt-get install -y --no-install-recommends curl ca-certificates build-essential pkg-config libssl-dev software-properties-common
+              curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+              source "$HOME/.cargo/env"
+              cargo build --release --locked -p host-core
+              add-apt-repository -y ppa:ubuntu-toolchain-r/test
+              apt-get update
+              apt-get install -y --no-install-recommends g++-12
+              mkdir -p /work/.ci-bundled-libstdc++
+              cp -L "$(readlink -f /usr/lib/$(gcc-12 -print-multiarch)/libstdc++.so.6)" /work/.ci-bundled-libstdc++/libstdc++.so.6
+            '
 
       - name: Package installers (${{ matrix.dist }})
         if: matrix.platform != 'macos'
         # The dist scripts pass --publish never themselves: electron-builder
         # must not self-publish on tag builds (no token; softprops owns it).
         # The explicit architecture keeps the package and native Rust sidecar
-        # aligned with the runner selected by this matrix entry.
-        run: pnpm --filter @pi-desktop/desktop run ${{ matrix.dist }} -- --${{ matrix.arch }}
+        # aligned with the runner selected by this matrix entry. On Linux we
+        # bypass `build:host-release` (would recompile host-core at glibc 2.35+)
+        # and bundle the gcc-12 libstdc++ extracted above.
+        env:
+          PI_BUNDLED_LIBSTDCXX: ${{ github.workspace }}/.ci-bundled-libstdc++/libstdc++.so.6
+        run: |
+          set -euo pipefail
+          if [ "${{ matrix.platform }}" = "linux" ]; then
+            pnpm --filter @pi-desktop/desktop run bundle:runtime
+            pnpm --filter @pi-desktop/desktop exec electron-vite build
+            pnpm --filter @pi-desktop/desktop exec electron-builder --linux --publish never --${{ matrix.arch }}
+          else
+            pnpm --filter @pi-desktop/desktop run ${{ matrix.dist }} -- --${{ matrix.arch }}
+          fi
 
       - name: Package unsigned macOS installer
         if: matrix.platform == 'macos' && env.MACOS_SIGN_RELEASE != 'true'
@@ -377,11 +426,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Every Linux platform the desktop release publishes. The desktop
-          # matrix ships Linux x64 only today; add arm64 here in lockstep if
-          # the desktop starts publishing it.
+          # Mirrors the desktop release matrix: Linux x64 + arm64.
           - arch: x64
             os: ubuntu-22.04
+          - arch: arm64
+            os: ubuntu-24.04-arm64
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     defaults:
@@ -411,22 +460,32 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      - name: Build inputs (host-core, workspace, sidecar bundle)
+      - name: Build host-core on glibc 2.31 base
+        # Container build pins the Rust sidecar to glibc 2.31 so pi-host loads on
+        # Ubuntu 20.04 / 银河麒麟 V10 SP1. (Electron's libstdc++ bundling is only
+        # needed for the desktop app, not for pi-host.)
         run: |
           set -euo pipefail
-          # Ubuntu 22.04 keeps the host-core glibc floor at 2.35, matching the
-          # desktop Linux build so the bundled binary loads on the same distros.
-          cargo build --release --locked -p host-core &
-          host_build_pid=$!
-          trap 'kill "$host_build_pid" 2>/dev/null || true' EXIT
+          PLATFORM="${{ matrix.arch == 'arm64' && 'linux/arm64' || 'linux/amd64' }}"
+          docker run --rm --platform "$PLATFORM" \
+            -v "$PWD":/work -w /work \
+            -v pi-cargo:/root/.cargo \
+            ubuntu:20.04 bash -c '
+              set -e
+              apt-get update
+              apt-get install -y --no-install-recommends curl ca-certificates build-essential pkg-config libssl-dev
+              curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+              source "$HOME/.cargo/env"
+              cargo build --release --locked -p host-core
+            '
 
+      - name: Build inputs (workspace, sidecar bundle)
+        run: |
+          set -euo pipefail
           pnpm install --frozen-lockfile
           pnpm build:js
           pnpm --filter @pi-desktop/agent-runtime bundle
           pnpm --filter @pi-desktop/pi-host build
-
-          wait "$host_build_pid"
-          trap - EXIT
 
       - name: Verify host-core glibc floor
         run: node scripts/check-linux-host-glibc.mjs target/release/pi-desktop-host-core

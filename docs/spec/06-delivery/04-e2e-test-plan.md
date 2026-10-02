@@ -8,6 +8,35 @@
 
 ## 1. Goals
 
+### E2E-STORAGE-custom-location-and-maintenance
+
+- **Preconditions:** Dedicated request worktree, current remote-main base, shared
+  compatible host toolchain, built host-core and desktop, isolated temporary data
+  and Chromium profiles. No user's running desktop, provider, or network is used.
+- **Steps:** Through the production Settings page, choose/cancel a destination,
+  confirm/retry migration, and confirm cache/backup cleanup. Seed a real host with
+  sessions, queued attachments, project metadata, credentials and a local installed
+  plugin. Stop it, copy with the production migration service, invoke the real Rust
+  offline relocation process, and reopen the host. Seed default/persistent Chromium
+  localStorage, execute the production cold bootstrap in real Electron, restart with
+  its pointer, clear caches, and then separately remove old backups.
+- **Expected:** Data and browser source paths are visible, confirmation receives
+  focus, duplicate actions are locked, environment overrides disable changes and
+  failures allow recovery. Copy/verification/path-relocation progress is localized
+  and uses a sandboxed nonpersistent window. Host data, credential decryption,
+  installed plugin locations, main localStorage and plugin persistent storage
+  survive migration/restart. Cache cleanup preserves durable state; backup cleanup
+  retains active data and the stable bootstrap pointer. Filesystem regression tests
+  reject unsafe targets, redirecting links, wrong ownership and active-root overlap.
+- **Coverage:** `pnpm test:e2e:storage` runs `e2e-storage-settings.mjs`,
+  `e2e-storage-migration.mjs`, and `e2e-storage-bootstrap.mjs`. The first uses the
+  production renderer/API with only preload mocked; the latter suites run real
+  host/Electron processes and production maintenance. The bootstrap harness
+  intercepts relaunch to inspect its result, then explicitly starts another isolated
+  child; it does not launch the user's desktop. `storage-maintenance.test.mjs`
+  and Rust `data_relocation` tests cover rollback and path/filesystem boundaries.
+
+
 ### E2E-LIVE-VOICE-public-settings-and-reconnect
 
 - **Preconditions:** A built production Renderer and real Electron/Main/Host,
@@ -262,6 +291,38 @@
   session IPC contract tests, and real-model desktop acceptance. A local model
   fixture or mocked component result is not real-model acceptance evidence.
 
+### E2E-CONVERSATION-minimap-jump-leaves-follow
+
+- **Preconditions:** One Desktop conversation long enough that the transcript
+  overflows its viewport, opened at the bottom so follow mode is pinned, with
+  the conversation outline (minimap) visible on the transcript's left edge.
+- **Steps:** Click the outline dash of an earlier turn without scrolling the
+  transcript first.
+- **Expected:** The transcript scrolls to that turn and stays there: the turn
+  lands just below the scroller's top edge and the jump-to-latest control
+  appears, because the jump leaves follow mode before it scrolls. A pinned
+  follow must never re-bottom the view one frame after the click. The outline's
+  earlier-history control keeps its existing reveal behavior.
+- **Status:** Automated in `pnpm test:e2e:transcript-minimap-jump`, which mounts
+  the production `ChatTranscript` in a real Chromium page with a synthetic
+  session, clicks an outline dash while follow is pinned, and asserts the
+  scroller's distance from the bottom once the exchange has settled.
+
+### E2E-ASKTOOL-compact-card-interaction
+
+- **Preconditions:** No live provider is required; the fixture stubs
+  `api.resolveAskTool` and seeds one two-question ask through the real store
+  slice.
+- **Steps:** Mount the production `AskToolCard`, assert the header Tab order
+  (decline, skip, next) with no legacy bottom action row, then walk select →
+  next → submit, skip → submit, decline-all, and a custom answer, remounting
+  with a fresh request id between flows.
+- **Expected:** Every flow resolves through the store's `resolveAsk` with the
+  exact answers (skips recorded as `null`), and no render errors are reported.
+- **Status:** Automated in `pnpm test:e2e:asktool-card`, which mounts the
+   production `AskToolCard` in a real Chromium page and clicks through the
+   header actions.
+
 ### E2E-POWER-keep-awake-setting
 
 - **Preconditions:** An isolated desktop profile with the setting absent; no
@@ -502,7 +563,7 @@ levels does not waive the relevant E2E gate.
 
 | Requirement | Detail |
 |---|---|
-| Platform | macOS arm64 and Intel x64, Windows x64, and Linux x64 release targets (D126/D285) |
+| Platform | macOS arm64 and Intel x64, Windows x64, and Linux x64 and arm64 release targets (D126/D285, D638 / ADR 0318) |
 | Profile | Clean `~/.pi-desktop` profile (no prior config) |
 | Fixtures | Sample project directory (`examples/fixtures/sample-project/`) |
 | Sample plugin | `examples/plugins/hello` loaded from local path |
@@ -653,7 +714,7 @@ identify the platform validation still needed.
 
 - **Preconditions**: A `vX.Y.Z` tag matches `apps/desktop/package.json`; the
   Linux x64 release runner can complete `dist:linux` and has a system Electron
-  available for repackaging validation.
+  available for repackaging validation. The arm64 lane is E2E-192a.
 - **Steps**: 1) Run the tag release workflow. 2) Inspect the published GitHub
   Release assets. 3) Confirm the versioned
   `PI-Desktop-X.Y.Z-linux-x64.asar` asset is present. 4) Place that archive in
@@ -668,6 +729,31 @@ identify the platform validation still needed.
 - **Milestone**: M6+
 - **Status**: Documented; artifact export is unit-covered, native system-Electron
   repackaging remains runner validation
+
+#### E2E-192a: Linux arm64 release lane publishes native arm64 packages
+
+- **Preconditions**: A `vX.Y.Z` tag matches `apps/desktop/package.json`; GitHub's
+  arm64 `ubuntu-22.04-arm` runner is available to the repository.
+- **Steps**: 1) Run the tag release workflow. 2) Confirm the arm64 lane ran on
+  an `aarch64` runner and that the packaged
+  `target/release/pi-desktop-host-core` is an AArch64 binary. 3) Inspect the
+  published Release assets for `PI-Desktop-X.Y.Z-linux-arm64.AppImage`,
+  `pi-desktop_X.Y.Z_arm64.deb`, `pi-desktop-X.Y.Z-aarch64.rpm`,
+  `PI-Desktop-X.Y.Z-linux-arm64.asar`, and
+  `pi-host-X.Y.Z-linux-arm64.tar.gz` with its `.sha256`. 4) Confirm
+  `latest-linux.yml` still lists the x64 AppImage while
+  `latest-linux-arm64.yml` lists the arm64 one. 5) Install the arm64 AppImage,
+  deb, or rpm on an arm64 Linux machine and launch it.
+- **Expected**: Both feeds describe exactly one architecture-labelled AppImage
+  each, the arm64 packages carry an arm64 host-core, the app starts on arm64
+  Linux, and merging the lanes never replaces the x64 feed with the arm64 one.
+- **Specs linked**: `06-delivery/06-release-runbook.md`, `01-product/01-product-scope.md`
+- **Acceptance**: Quality (release artifact and packaging compatibility)
+- **Milestone**: M6+
+- **Status**: The matrix, feed naming, artifact naming, and the ASAR export are
+  unit/source-contract covered (`ci-workflow.test.mjs`, `release-asar.test.mjs`);
+  native arm64 installation remains runner validation. Microphone capture stays
+  Raspberry Pi only on arm64 Linux (D638 / ADR 0318).
 
 #### E2E-200: Linux RPM preserves the Wayland desktop identity
 
@@ -802,14 +888,19 @@ identify the platform validation still needed.
   resources, and the tray starts without a missing-icon warning. Key lifecycle
   and error records are written to the categorized logs. GitHub auto-update is
   not started until after `ensureWindow`, and a hung feed cannot keep updater
-  status on `checking` for Chromium's ~60s timeout.
+  status on `checking` for Chromium's ~60s timeout. The Main output root also
+  resolves from inside Rollup shared chunks (`out/main/chunks/*.js`), so the
+  renderer entry, preloads, and the forked plugin host keep their authored
+  relative paths instead of resolving one level too deep (black screen).
 - **Specs linked**: `03-runtime/07-process-model.md`, `04-ux/01-ui-ia.md`,
   `03-runtime/09-logging-and-observability.md`
 - **Acceptance**: A (app startup)
 - **Milestone**: M1
 - **Status**: Partially automated (`runtime-build-contract.test.mjs` covers the
   dependency build contract; `update-timeout.test.mjs` and
-  `auto-update.test.mjs` cover the bounded auto-check contract; Electron window
+  `auto-update.test.mjs` cover the bounded auto-check contract;
+  `main-module-path.test.mjs` covers the Main output-root contract from the
+  entry bundle and from inside `out/main/chunks/`; Electron window
   launch remains Draft)
 
 #### E2E-002: IPC bridge is functional
@@ -1218,6 +1309,11 @@ identify the platform validation still needed.
   during the edit debounce after a URL becomes valid. Automatic discovery on
   credential edits is unchanged. The same control is present for both
   credential kinds because both dialogs render the shared picker.
+- **Revocation regression**: Configure two served models, revoke one upstream,
+  add another, then Fetch list. The left service pane shows the current served
+  pair, including when the revoked ID has a published catalog record. The right
+  chosen pane retains both saved bindings and their overrides; refresh does not
+  delete configuration. A manual/offline fallback still exposes configured IDs.
 - **Specs linked**: `03-runtime/13-model-catalog-and-selection.md`,
   `04-ux/06-settings-ia.md`, `04-ux/08-component-spec.md`
 - **Acceptance**: B (multi-model provider configuration)
@@ -3445,7 +3541,7 @@ identify the platform validation still needed.
 
 #### E2E-195: Linux glibc below 2.31 names supported distros
 
-- **Preconditions**: Linux x64 packaged app; the machine glibc is older than
+- **Preconditions**: Linux x64 or arm64 packaged app; the machine glibc is older than
   2.31 (for example Ubuntu 18.04 / Debian 10 / Fedora 32), or a test doubles
   `process.report` to `2.30`.
 - **Steps**: 1) Launch the AppImage, deb, or rpm. 2) Observe the main window and
@@ -9186,9 +9282,8 @@ The `US-UI-*` visual scenarios (§UI shell visual scenarios) trace to the
 Codex parity decisions in [decisions-log §D](../08-meta/decisions-log.md)
 rather than the A–H criteria; their gold source is the capture suite.
 
-The release artifact paths are covered by E2E-192, E2E-196a, E2E-196b, E2E-196c,
-and E2E-200
-(Quality, M6+).
+The release artifact paths are covered by E2E-192, E2E-192a, E2E-196a,
+E2E-196b, E2E-196c, and E2E-200 (Quality, M6+).
 
 ---
 
@@ -14469,6 +14564,21 @@ plugin-form fixtures in an isolated temporary directory at runtime.
 - **Status**: Unit-covered (`apps/desktop/test/project-create-dialog.test.mjs`,
   `apps/desktop/test/git-clone.test.mjs`); full UI scenario Draft (run only in a
   capable environment when this surface changes)
+
+#### E2E-261: Creating from a closed project folder reopens its group
+
+- **Preconditions**: A durable project group exists for a local folder and is
+  closed from the sidebar; its directory remains available.
+- **Steps**: Open Create project, select only that folder, and click Create.
+- **Expected**: The existing group reopens at its primary root, appears in the
+  sidebar, and the dialog closes. Its existing name, roots, chats, instructions,
+  and memory remain intact; no duplicate project group is created.
+- **Specs linked**: `04-ux/08-component-spec.md`, ADR 0249.
+- **Acceptance**: The production creation action resolves the host group before
+  attempting creation and activates the existing primary path.
+- **Milestone**: M5 (project organization maintenance).
+- **Status**: Unit/source-contract covered (`apps/desktop/test/project-create-dialog.test.mjs`);
+  full UI scenario remains Draft.
 #### E2E-257: Importing into an archived project restores its visibility
 
 - **Preconditions**: A durable project has been archived in the renderer

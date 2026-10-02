@@ -120,6 +120,7 @@ Each ADR includes:
 | 0092 | Use a plugin-owned surface with a host window-control capsule | Accepted |
 | 0093 | Keep a strict 46px plugin drag band with a minimal capsule | Accepted |
 | 0094 | Admit one desktop instance per data directory | Accepted |
+| custom-storage-location | [Custom storage location with cold migration](custom-storage-location.md) | Accepted |
 | 0095 | Sign in with a vendor account instead of pasting an API key | Accepted for implementation |
 | 0096 | Flatten the Settings directory and colocate marketplace source configuration | Accepted |
 | 0097 | Place global defaults under the AI settings destination | Accepted |
@@ -354,3 +355,4 @@ Each ADR includes:
 | provider-system-certificates | [Desktop sidecar uses OS-trusted certificates](provider-system-certificates.md) | Accepted |
 | image-generation-capability | [Image generation as a configured Agent capability](image-generation-capability.md) | Accepted |
 | retained-browser-pages-per-tab | [Retain a host-owned browser page per resource tab](retained-browser-pages-per-tab.md) | Accepted |
+| 0318 | [Publish native Linux arm64 artifacts](0318-linux-arm64-release-lane.md) | Accepted (D638) |

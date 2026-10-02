@@ -59,7 +59,7 @@ across devices without synchronizing conversation history or source files.
 
 ## 4. Current shipped scope
 
-- Electron desktop app for macOS arm64 and Intel x64, Windows x64, and Linux x64 release lanes
+- Electron desktop app for macOS arm64 and Intel x64, Windows x64, and Linux x64 and arm64 release lanes
 - English default UI + i18n framework
 - Session create/switch/restore
 - Multi-provider configuration

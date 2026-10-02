@@ -575,7 +575,7 @@ Agent / Plan / Goal
 | macOS    | Apple Silicon | `.dmg` / `.zip`                         |
 | macOS    | Intel         | `.dmg` / `.zip`                         |
 | Windows  | x64           | Installer / `.zip`                      |
-| Linux    | x64           | `.AppImage` / `.deb` / `.rpm` / `.asar` |
+| Linux    | x64 / ARM64   | `.AppImage` / `.deb` / `.rpm` / `.asar` |
 
 macOS releases are signed with a Developer ID certificate and notarized by Apple.
 

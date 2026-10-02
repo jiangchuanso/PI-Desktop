@@ -8,15 +8,15 @@
 #
 # Builds installers for every platform defined in the electron-builder config
 # (macOS dmg/zip arm64 and x64, Windows NSIS and portable ZIP x64, Linux
-# AppImage/deb/rpm x64), each
+# AppImage/deb/rpm x64 and arm64), each
 # with its native pi-desktop-host-core Rust sidecar. The Linux app.asar is also
 # exported as a system-Electron repackaging asset, and all outputs — with their
 # electron-updater latest*.yml feeds — are published to the GitHub Release
 # (D126/D285/D364/D603). macOS tag artifacts are Developer ID-signed, notarized, and
 # stapled before upload (D450 / ADR 0289).
 #
-# It also builds the headless `pi-host` bundle for every Linux platform the
-# desktop publishes (currently x64) and publishes it as
+# It also builds the headless `pi-host` bundle for both Linux architectures the
+# desktop publishes and publishes each as
 # pi-host-<version>-linux-<arch>.tar.gz plus a .sha256 sidecar. The desktop's
 # SSH bootstrap downloads that asset at the desktop's version and verifies the
 # published checksum before installing on the remote machine (rollout
@@ -127,17 +127,22 @@ jobs:
             # host-core check enforces it, so Ubuntu 22.04 is a safe build host.
             os: ubuntu-22.04
             arch: x64
+            runner_arch: x86_64
             artifact: linux-x64
             platform: linux
+            feed: latest-linux.yml
             dist: dist:linux
           - name: Linux arm64
-            # Native arm64 runner for 飞腾/麒麟 V10 SP1. libstdc++ is bundled by
+            # GitHub's native arm64 runner packages the Electron app and the
+            # host-core sidecar at the same architecture. libstdc++ is bundled by
             # apps/desktop/scripts/after-pack-bundle-libstdc.mjs; host-core glibc
             # floor 2.31 is enforced by scripts/check-linux-host-glibc.mjs.
-            os: ubuntu-24.04-arm
+            os: ubuntu-22.04-arm
             arch: arm64
+            runner_arch: aarch64
             artifact: linux-arm64
             platform: linux
+            feed: latest-linux-arm64.yml
             dist: dist:linux
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
@@ -147,8 +152,13 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Verify native macOS runner architecture
-        if: matrix.platform == 'macos' && env.BUILD_MACOS == 'true'
+      - name: Verify native runner architecture
+        # A mislabelled or emulated runner would wrap one architecture's
+        # Electron app around the other architecture's Rust sidecar. The
+        # Windows rows carry no `runner_arch` because electron-builder
+        # cross-builds Windows from any runner, and the macOS rows are exempt
+        # when BUILD_MACOS skips the macOS packaging jobs entirely.
+        if: matrix.runner_arch && (matrix.platform != 'macos' || env.BUILD_MACOS == 'true')
         run: |
           set -euo pipefail
           actual_arch="$(uname -m)"
@@ -396,7 +406,23 @@ jobs:
 
       - name: Export Linux ASAR release asset
         if: matrix.platform == 'linux'
-        run: node scripts/export-linux-asar.mjs
+        run: node scripts/export-linux-asar.mjs --arch ${{ matrix.arch }}
+
+      - name: Verify the Linux update feed
+        # electron-builder names the Linux feed `latest-linux.yml` for x64 and
+        # `latest-linux-<arch>.yml` for every other Linux architecture — the
+        # same names electron-updater requests on those architectures — so the
+        # two lanes cannot overwrite each other's feed when the publish job
+        # merges their artifacts.
+        if: matrix.platform == 'linux'
+        run: |
+          set -euo pipefail
+          feed="apps/desktop/release/${{ matrix.feed }}"
+          if [[ ! -f "$feed" ]]; then
+            echo "::error::Expected the Linux updater feed at $feed"
+            ls apps/desktop/release || true
+            exit 1
+          fi
 
       - name: Verify macOS artifact names
         if: matrix.platform == 'macos' && env.BUILD_MACOS == 'true'
@@ -450,11 +476,17 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Mirrors the desktop release matrix: Linux x64 + arm64.
+          # Every Linux platform the desktop release publishes. Keep this list
+          # in lockstep with the desktop build matrix above and with
+          # PUBLISHED_TARGETS in apps/desktop/electron/main/remote/pi-host-release.ts:
+          # a bundle the desktop refuses to install is dead weight, and a target
+          # the desktop offers without a bundle fails mid-download.
           - arch: x64
             os: ubuntu-22.04
+            runner_arch: x86_64
           - arch: arm64
-            os: ubuntu-24.04-arm
+            os: ubuntu-22.04-arm
+            runner_arch: aarch64
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     defaults:
@@ -470,6 +502,17 @@ jobs:
           APP_VERSION="$(node -p "require('./apps/desktop/package.json').version")"
           if [ "$TAG_VERSION" != "$APP_VERSION" ]; then
             echo "::error::Tag v$TAG_VERSION does not match apps/desktop/package.json version $APP_VERSION."
+            exit 1
+          fi
+
+      - name: Verify native runner architecture
+        if: matrix.runner_arch
+        run: |
+          set -euo pipefail
+          actual_arch="$(uname -m)"
+          expected_arch="${{ matrix.runner_arch }}"
+          if [ "$actual_arch" != "$expected_arch" ]; then
+            echo "::error::Expected $expected_arch runner, got $actual_arch."
             exit 1
           fi
 

@@ -1101,18 +1101,22 @@ identify the platform validation still needed.
 - **Status**: Unit-covered (header merge, one-shot stream options, and the
   compaction summary request)
 
-#### E2E-005E: Model-level wire API wins over the provider style
+#### E2E-005E: Provider and model wire API precedence stays explicit
 
 - **Preconditions**: An OpenCode Go provider is configured; a deterministic
   fixture serves `muse-spark-1.3-contributor` on `/responses` and 500s it on
-  `/chat/completions`. A second generic provider serves the same model id on
-  `/chat/completions`.
+  `/chat/completions`. A generic provider and a custom endpoint each serve the
+  same model id; the custom model metadata pins `openai-completions`, while its
+  saved provider style is Responses.
 - **Steps**: 1) Select the muse model on the OpenCode Go provider and send a
   turn. 2) Capture the outbound request path. 3) Repeat against the generic
-  provider with the same model id.
+  provider with the same model id. 4) Select the model on the custom endpoint
+  and send a turn, then capture its outbound request path.
 - **Expected**: The OpenCode Go turn posts to `/responses` (the model-level
   `api: "openai-responses"` pin wins); the generic turn still posts to
-  `/chat/completions`. Replayed history carries the resolved API.
+  `/chat/completions`; the custom endpoint posts to `/responses` because its
+  saved provider style wins over the model metadata. Replayed history carries
+  the resolved API.
 - **Specs linked**: `03-runtime/11-provider-model-system.md`,
   `03-runtime/12-provider-config-schema.md`, ADR 0116
 - **Acceptance**: F (runtime provider requests)
@@ -3315,6 +3319,28 @@ identify the platform validation still needed.
   `07-plugins/04-plugin-security.md` §8.1
 - **Status**: Client and session-isolation unit-covered; full desktop journey Draft
 
+#### E2E-MCP-tool-requires-approval: User MCP tools prompt under ask and accept-edits
+
+- **Preconditions**: A project-bound Agent session; one user-configured stdio
+  MCP server whose tool list annotates a tool as read-only/low risk.
+- **Steps**: 1) With the session in `ask`, ask the agent to call the MCP tool.
+  2) Answer the card with allow-once, call it again, then answer with
+  allow-session and call it a third time. 3) Switch to `accept-edits` in a new
+  session and repeat the call. 4) Switch to `auto` and call it. 5) Switch to
+  Plan, then Goal, and call it.
+- **Expected**: Under `ask` and `accept-edits` every call shows an approval card
+  with reason "MCP server tool requires approval" at `medium` risk, regardless of
+  the server's self-declared annotation. Allow-once covers only that call;
+  allow-session suppresses further cards for the same `mcp_<serverId>_<tool>`
+  name in that session only, and does not cover other tools of the server.
+  `auto` runs the tool without a card. Plan and Goal deny it even with a
+  session grant.
+- **Specs linked**: `03-runtime/03-tools-and-permissions.md`,
+  `05-security/01-security.md`, D640, ADR `mcp-tool-approval-risk`
+- **Acceptance**: E (tools & permissions) + Security
+- **Status**: Unit-covered (host-core `permissions.rs` MCP risk and mode tests);
+  desktop journey Draft
+
 #### E2E-024L: Resident plugin service is supervised and visible
 
 - **Preconditions**: `examples/plugins/hello` enabled with `background.service` granted.
@@ -4833,7 +4859,12 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   inspect the sidecar model snapshot/request metadata. 4) Use Settings → Model
   configuration to force a models.dev refresh and confirm the new record is
   visible without changing the bundled file or writing a user cache. 5) Repeat
-  with an ID absent from models.dev.
+  with an ID absent from models.dev and confirm its limits display as unknown
+  in Settings. 6) Open the picker at a wide but short
+  viewport (1254 × 772 CSS px): confirm the model panes remain side by side,
+  both lists scroll inside their panes, and a selected model's Advanced fields
+  are reachable. Narrow the viewport to 520 × 480 CSS px and confirm the panes
+  stack while both lists and Advanced remain reachable.
 - **Expected**: The matching models.dev record is authoritative, including its
   `limit`, `modalities`, `reasoning_options`, `tool_call`,
   `structured_output`, dates, and cost fields; no provider secret is sent to
@@ -4842,14 +4873,18 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   model shows PDF in its modality metadata; PDF attachments remain bounded file
   references until the selected transport exposes a native PDF block. A
   provider-discovered or explicitly configured ID absent from models.dev remains
-  runnable with the generic text-only, non-reasoning shape; pi-ai supplies only
-  the selected wire adapter, OAuth flow, and account model availability. A
-  ChatGPT Plus/Pro or GitHub Copilot account lists `gpt-6-sol`, `gpt-6-luna`,
-  and `grok-4.7` from the pinned pi-ai 0.99.1 catalog; the account Pi adapter then
-  supplies their published metadata.
+  runnable with the generic text-only, non-reasoning shape; Settings shows an
+  em dash instead of presenting its 128k / 8.2k runtime fallback as a published
+  model limit. Explicit user limits remain visible. pi-ai supplies only
+  the selected wire adapter, OAuth flow, and fallback account IDs. The custom
+  endpoint keeps its selected API style even if the published model adapter
+  differs; named providers may retain a model-level route when required. A
+  ChatGPT Plus/Pro or GitHub Copilot account lists IDs returned by its live
+  account endpoint; matching models.dev records supply their published metadata, while
+  live-only IDs absent from models.dev keep generic chat limits and capabilities.
 - **Specs linked**: `02-architecture/02-tech-stack.md`,
   `03-runtime/11-provider-model-system.md`,
-  `03-runtime/13-model-catalog-and-selection.md`, ADR 0134
+  `03-runtime/13-model-catalog-and-selection.md`, ADR `models-dev-catalog-authority`
 - **Acceptance**: B (model config), C (conversation & stream), Security
 - **Milestone**: M5
 - **Status**: Unit-covered (`model-capabilities.test.ts`,
@@ -7983,7 +8018,7 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
 
 #### E2E-102e: Unknown model ids fail closed for vision transport
 
-- **Preconditions**: A custom provider/model id absent from the pi-ai catalog,
+- **Preconditions**: A custom provider/model id absent from the models.dev catalog,
   discovery data that incorrectly labels it `vision`, no explicit
   `supportsImages` binding override, and a pasted PNG.
 - **Steps**:
@@ -8803,21 +8838,18 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
      release file or writing a user cache. 4. Add an ID absent from models.dev
      and inspect its generic fallback card. 5. In the OAuth protocol fixture,
      sign in to an account that offers a new Claude ID absent from models.dev
-     but with a pinned same-tier sibling. Resolve its runtime binding, apply
-     runtime model configuration without a saved model binding, and send `high`,
-     `xhigh`, and `max` through the real Anthropic adapter to an intercepted HTTP
-     boundary. Repeat with null-disabled levels, an all-disabled map, a
-     non-reasoning sibling, and an ID with no same-tier sibling.
+     while a same-tier Pi sibling exists. Resolve its runtime binding, apply
+     runtime model configuration without a saved model binding, and send a
+     request through the real Anthropic adapter to an intercepted HTTP boundary.
+     Confirm the sibling does not supply chat limits, reasoning levels or effort
+     mappings.
 - **Expected**: models.dev fields prefill known model bindings and remain the
   published metadata source. Provider keys are never included in the fixed
   models.dev request. Custom IDs without metadata retain generic defaults.
-  An OAuth live-only ID may use the existing same-tier fallback: protocol
-  compatibility and effort mappings travel with borrowed reasoning. Requests
-  use adaptive thinking and the requested effort, without legacy token budgets;
-  sparse mappings retain defaults and explicit nulls remain unsupported. A
-  non-reasoning sibling remains off-only, and no same-tier sibling means no
-  inferred reasoning. Published metadata and explicit mapping/compatibility
-  values take precedence. Copilot Bearer authentication remains unchanged.
+  An OAuth live-only ID does not inherit metadata from a Pi sibling; only an
+  exact models.dev match supplies its chat limits and reasoning shape. The
+  selected adapter keeps its wire behavior, and Copilot Bearer authentication
+  remains unchanged.
 - **Specs linked**: `03-runtime/11-provider-model-system.md` §6.2 and §8a,
   `03-runtime/13-model-catalog-and-selection.md` §11.1–§12, ADR 0134
 - **Acceptance**: B (model config), C (conversation & stream), Security
@@ -11771,7 +11803,9 @@ This test plan spec is accepted when:
   account model and save. 5) Reopen the account editor and read that model's
   chips. 6) For an OpenAI Codex account, inspect `gpt-6-astra` (or another
   account model also published under models.dev's `openai` provider) and confirm
-  its published context/output limits and reasoning levels are present. 7) In
+  its published context/output limits and reasoning levels are present. For
+  `gpt-6.1-sol`, verify a 1,050,000-token context and 128,000-token output cap.
+  7) In
   the account editor, hand-type a custom model ID the catalog does not publish,
   enable a thinking level on it, and save.
 - **Expected**: Both dialogs render the same picker — the same discovered list,
@@ -11784,8 +11818,9 @@ This test plan spec is accepted when:
   generic 128,000 / 8,192 / no-reasoning defaults. The authenticated ChatGPT
   list comes from `GET {base}/codex/models` on the account token, so an id the
   pin does not know yet is selectable when that response includes it; pi-ai is
-  only the fallback when the request fails. models.dev cannot add a missing
-  OAuth ID. A model with no published record keeps its explicit levels, starts
+  only the OAuth/transport adapter; it supplies no sibling chat-model limits.
+  models.dev enriches an ID only when its record matches. A model with no
+  published record keeps its explicit levels, starts
   at `off` when no binding default is stored, and keeps all choices available
   for manual opt-in. The account's default model stays the head binding.
 - **Specs linked**: `04-ux/06-settings-ia.md`,
@@ -15430,14 +15465,14 @@ plugin-form fixtures in an isolated temporary directory at runtime.
 
 #### E2E-MODEL-catalog-window-correction-reaches-saved-bindings
 
-- **Goal**: a Pi catalog limit correction — the context window or the output cap —
+- **Goal**: a models.dev limit correction — the context window or the output cap —
   reaches an already saved binding without deleting and re-adding the model, while
   a number the user entered in Settings is never overwritten.
 - **Steps**:
-  1. Configure a provider, select a model Pi publishes a context window
+  1. Configure a provider, select a model models.dev publishes a context window
      for, and save. Open the row's Advanced body and read the context-window field
      and its hint.
-  2. Serve a corrected catalog record for that model (a different published
+  2. Serve a corrected models.dev record for that model (a different published
      window), reopen Settings, and read the row, the context inspector, and the
      window a new session launches with.
   3. Type a window in the Advanced field — the preset ladder once and a

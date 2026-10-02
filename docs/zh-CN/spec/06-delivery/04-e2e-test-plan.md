@@ -1526,6 +1526,14 @@ task-candidate E2E 从请求工作树运行，但使用主工作区已经准备�
 - **关联规格**：`03-runtime/01-ipc-protocol.md` §12a、`07-plugins/04-plugin-security.md` §8.1
 - **状态**：客户端及会话隔离已有单元测试；完整桌面流程待验证
 
+#### E2E-MCP-tool-requires-approval：用户 MCP 工具在 ask 与 accept-edits 下需要审批
+
+- **先决条件**：一个绑定项目的 Agent 会话；一个用户配置的 stdio MCP 服务器，其工具列表把某个工具标注为只读/低风险。
+- **步骤**：1) 会话处于 `ask` 时，让代理调用该 MCP 工具。2) 以“允许一次”回应卡片后再次调用，再以“本会话允许”回应并第三次调用。3) 在新会话中切到 `accept-edits` 并重复调用。4) 切到 `auto` 调用。5) 依次切到 Plan、Goal 调用。
+- **预期**：在 `ask` 与 `accept-edits` 下，每次调用都显示审批卡片，原因为 "MCP server tool requires approval"，风险为 `medium`，与服务器自行声明的标注无关。“允许一次”只覆盖该次调用；“本会话允许”只在该会话内对同一 `mcp_<serverId>_<tool>` 名称不再提示，不覆盖该服务器的其他工具。`auto` 不显示卡片直接执行。Plan 与 Goal 即使存在会话授权也拒绝。
+- **关联规格**：`03-runtime/03-tools-and-permissions.md`、`05-security/01-security.md`、D640、ADR `mcp-tool-approval-risk`
+- **状态**：已有单元测试（host-core `permissions.rs` MCP 风险与模式测试）；桌面流程待验证
+
 #### E2E-024L：常驻插件服务受监督且可见
 
 - **先决条件**：在授予 `background.service` 的情况下启用 `examples/plugins/hello`。

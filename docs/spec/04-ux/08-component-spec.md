@@ -3905,6 +3905,13 @@ default nor provider configuration. OAuth accounts remain in their separate sect
   and resize; model selection immediately adds or removes its configuration
   row. Configuration rows stay compact until expanded; expanding one row does
   not expand or collapse any other row.
+- Model rows show the published context and output limits. A generic runtime
+  fallback is not shown as a published limit; Settings displays an em dash
+  until models.dev publishes a value or the user pins one in Advanced.
+- The two model panes remain side by side when the viewport is wide enough,
+  including short wide windows; their lists scroll inside the panes. They stack
+  only when the viewport is too narrow for readable columns, and their lists
+  remain reachable in that layout.
 - The left-pane list header carries a checkbox that selects or clears every
   currently visible row. A search filter narrows which rows "all" means;
   already-chosen bindings keep their advanced overrides. The checkbox is

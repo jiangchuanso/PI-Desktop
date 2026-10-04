@@ -178,7 +178,6 @@ export const SETTINGS_NAV: SettingsNavEntry[] = [
     keywordKeys: [
       "settings.providers",
       "settings.models",
-      "settings.defaultModel",
       "settings.apiKey",
       "settings.baseUrl",
       "settings.apiStyle",

@@ -7339,7 +7339,7 @@ eleven-tool-round desktop paths are verified by
 
 - **前提条件**：工作区含 `docs/pixel.png` 的 Agent 会话。用户曾粘贴图片，会话 JSONL 存有带 mimeType 的 `attachments/<sha256>` 图片引用。
 - **步骤**：
-  1. 重新打开该会话。确认粘贴图片与其它附件一样是芯片，悬停或聚焦时浮出预览小卡。
+  1. 重新打开该会话。确认粘贴图片与其它附件一样是芯片、接在正文之后而不是排在正文上方，悬停或聚焦时浮出预览小卡。
   2. 点击芯片。确认宿主文件查看器打开该附件引用并显示图片。
   3. 发送一回合，助手 Markdown 含 `![](docs/pixel.png)` 和 `![](/etc/passwd)`。确认工作区图片内联显示，工作区外路径不加载文件字节。
   4. 确认 `fs/readImageDataUrl` 在 `ref: "/etc/passwd"` 且 `mimeType: "image/png"` 时返回 `missing`，而不是 data URL。
@@ -9388,3 +9388,25 @@ the latest destination. These assertions measure work counts, not device FPS.
 - **状态**：通过 `node scripts/e2e-subagent-parent-error.mjs` 自动验证无头运行时与
   provider 集成；不使用真实账户或桌面数据。运行时测试另行覆盖父级 429 耗尽与
   Stop 和结算之间的竞态。
+
+
+#### E2E-PLAN-HISTORY: Immutable submissions retain current status in chat
+
+Run `node scripts/e2e-plan-history.mjs` against the committed candidate host.
+Use an isolated Electron profile/workspace and the production session IPC,
+preload, API normalization, store events, ToolRow, and Markdown renderer.
+
+1. Submit Plan and read a capped history page: expand the full Markdown and
+   open its exact artifact path in the owning session's work panel.
+2. Approve and deliver a stale pending tool echo: history still says approved.
+   Cover approval-before-message and inactive retained-session events.
+3. Complete execution, submit/reject a revision, and read both newest/older
+   pages: retain both exact bodies and statuses, mark only the older Plan
+   superseded, and leave unrelated sessions/Goal untouched.
+4. Submit/reject Goal and check localized Chinese status.
+5. Continue chat, append a compaction checkpoint, restart host and renderer:
+   both versions remain readable; no historical card has approval controls.
+
+No provider credentials or paid model calls are required. The fixture ends at
+work-panel file-request routing; artifact bytes are verified from the real
+host-created files. The full app's file-preview viewer is covered separately.

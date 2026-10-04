@@ -529,6 +529,8 @@ export const es = {
     "userMessage": "Mensaje de usuario",
     "assistantMessage": "Mensaje del asistente",
     "model": "Modelo",
+    recentModels: "Usados recientemente",
+    otherModels: "Otros modelos",
     "searchModels": "Buscar modelos",
     "noModelResults": "No hay modelos coincidentes",
     "modelBadgeReasoning": "razonamiento",
@@ -565,6 +567,15 @@ export const es = {
     "renameCancel": "Cancelar",
     "renameSave": "Guardar",
     "renameSaving": "Guardando…"
+  },
+  planHistory: {
+    pending: "Pendiente de aprobación",
+    approved: "Aprobado",
+    rejected: "Rechazado",
+    expired: "Caducado",
+    interrupted: "Interrumpido",
+    unknown: "Estado no disponible",
+    superseded: "Sustituido",
   },
   "plan": {
     "planning": "Planificación",

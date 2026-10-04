@@ -811,8 +811,17 @@ type ToolTokenUsage = {
 
 type SessionDetail = SessionSummary & {
  messages: UiMessage[];
+  /** Authoritative metadata for SubmitPlan/SubmitGoal calls in this page. */
+  planHistory?: Array<{ proposal: PlanProposal; superseded: boolean }>;
 };
 ```
+
+历史读取仅为当前会话返回页中的 SubmitPlan/SubmitGoal 调用附加 `planHistory`。
+SQLite 提供真实审批状态、完整 Markdown 快照、文件路径及同类型的新版本替代标记，
+原始 JSONL 工具结果保持不变。显示截断不影响这些有提交大小限制的计划快照。
+该字段兼容旧主机和原生会话；分叉会话不复制审批记录，也不从工具结果或文件名推断状态。
+渲染器可将其投影到 `UiMessage.planHistory`，但不得将显示元数据写回模型证据。
+
 
 Electron 主进程用该会话精确 provider/API URL 与 model 的本地 models.dev
 记录，丰富 session list/get/create/fork/configure 结果中的有效推理能力。

@@ -5263,3 +5263,14 @@ Markdown 源码，不是 `text/html` 负载；对禁用行内 HTML 的外部编�
   `import-format.test.mjs` 覆盖。见 ADR 0319、`04-ux/06-settings-ia.md`、
   `04-ux/08-component-spec.md`、E2E-038 / E2E-043 / E2E-209 与
   E2E-SETTINGS-inline-capability-imports。
+
+## 2026-10-04 —— 空首页在首个会话之前就显示所属项目（D646）
+
+- D646 修复打开项目后的空首页。此前只有当屏幕上的会话带有该项目路径时英雄标题才会写出
+  项目名，因此新建项目、或打开一个会话全部归档/未选中的项目时，标题会停留在通用的
+  “我可以帮你建造什么？”，用户看不出在这里发出的任务会进入哪个项目。
+- 现在没有会话在屏幕上时英雄回落到当前工作区。有会话时仍以会话为准，临时会话保持自己的
+  文案且没有项目切换菜单；没有打开项目时仍是通用标题。会话状态、IPC、持久化与切换菜单
+  的动作均不变。
+- 由 `apps/desktop/test/home-project-name.test.mjs` 覆盖：它用真实 store 渲染真实界面。
+  见 `04-ux/01-ui-ia.md`、`04-ux/08-component-spec.md` 与 E2E-256。

@@ -15,6 +15,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import ts from "typescript";
 import { catalogs } from "@pi-desktop/i18n";
 import { formatSessionLink, isRenderableAttachment } from "@pi-desktop/shared";
+import { splitChatText } from "../src/lib/chat-links.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 register(pathToFileURL(join(here, "helpers/ts-import-hooks.mjs")));
@@ -76,7 +77,8 @@ const shared = load(new URL("../src/features/chat/transcript/shared.tsx", import
   },
   "../../../hooks/use-chat-file-menu": { useChatFileMenu: () => ({}) },
   "../../../hooks/use-verified-chat-text": {
-    useVerifiedChatText: (text) => [{ kind: "text", text: String(text ?? "") }],
+    // The real segmentation, so a session link in the body reaches its chip.
+    useVerifiedChatText: (text) => splitChatText(String(text ?? ""), undefined),
   },
   "../../../components/ContextMenu": { ContextMenu: () => null },
   "../../../components/ImageHoverCard": { ImageHoverCard: () => null },
@@ -141,20 +143,29 @@ const userMessage = {
 };
 
 const renderChip = () =>
-  renderToStaticMarkup(React.createElement(shared.SessionRefChip, { attachment: referenced }));
+  renderToStaticMarkup(React.createElement(shared.SessionLinkChip, { sessionId: "session-a" }));
 const renderRow = (message) =>
   renderToStaticMarkup(React.createElement(MessageRow, { message, isRunning: false }));
 
 test("a referenced conversation renders as a chip naming its own target", () => {
   locale = "en";
-  store.sessions = [];
+  store.sessions = [{ id: "session-a", title: "Nightly review" }];
   const html = renderChip();
   assert.match(html, /data-action="open-session-reference"/);
   assert.match(html, /data-session-id="session-a"/);
   assert.match(
     read("../src/features/chat/transcript/shared.tsx"),
-    /onClick=\{\(\) => void selectSession\(sessionId\)\.catch\(\(\) => undefined\)\}/,
+    /const open = \(\) => void selectSession\(sessionId\)\.catch\(\(\) => undefined\)/,
     "activating the chip opens the referenced conversation",
+  );
+  // The chip is a span, not a <button>, because Chromium never fragments a
+  // button across lines and an atomic chip leaves the line it left blank.
+  assert.match(html, /role="button"/, "the chip is announced as a button");
+  assert.match(html, /tabindex="0"/, "the chip is reachable from the keyboard");
+  assert.match(
+    read("../src/features/chat/transcript/shared.tsx"),
+    /if \(event\.key !== "Enter" && event\.key !== " "\) return;\s*\n\s*event\.preventDefault\(\);\s*\n\s*open\(\);/,
+    "Enter and Space activate the chip, the way a button does",
   );
   assert.ok(
     html.includes(`${catalogs.en.chat.sessionReference} · Nightly review`),
@@ -169,7 +180,7 @@ test("a referenced conversation renders as a chip naming its own target", () => 
 
 test("the chip speaks the reader's language", () => {
   locale = "zh-CN";
-  store.sessions = [];
+  store.sessions = [{ id: "session-a", title: "Nightly review" }];
   const html = renderChip();
   assert.match(html, /会话引用 · Nightly review/);
   assert.match(html, /title="打开会话 Nightly review"/);
@@ -187,29 +198,62 @@ test("a renamed conversation follows through to every message that references it
   store.sessions = [{ id: "session-b", title: "另一段对话" }];
   assert.match(
     renderChip(),
-    /会话引用 · Nightly review/,
-    "an unlisted conversation keeps the name recorded on the message",
+    /会话引用 · session-/,
+    "an unlisted conversation falls back to the id it points at",
   );
   assert.doesNotMatch(renderChip(), /另一段对话/, "another conversation's title is not borrowed");
 
   store.sessions = [{ id: "session-a", title: "  " }];
   assert.match(
     renderChip(),
-    /会话引用 · Nightly review/,
-    "an empty title falls back to the recorded name",
+    /会话引用 · session-/,
+    "an empty title falls back to the id",
   );
   store.sessions = [];
 });
 
-test("a user message shows the reference next to its own words", () => {
+test("a user message shows the reference as its body chip, not a second block", () => {
   locale = "en";
+  store.sessions = [{ id: "session-a", title: "Nightly review" }];
   const html = renderRow(userMessage);
-  assert.match(html, /class="message-attachments"/);
-  assert.match(html, /data-action="open-session-reference"/);
+  assert.doesNotMatch(
+    html,
+    /class="message-attachments"/,
+    "the reference needs no attachment row of its own",
+  );
+  assert.equal(
+    html.match(/data-action="open-session-reference"/g)?.length,
+    1,
+    "the message carries the reference once",
+  );
   assert.match(html, /data-session-id="session-a"/);
+  assert.match(html, /Conversation · Nightly review/);
+  assert.doesNotMatch(html, /pi-desktop:\/\/session\/session-a/, "the raw link is replaced by the chip");
+});
+
+test("an extra attachment chip continues the body text instead of heading it", () => {
+  locale = "en";
+  const withImage = {
+    ...userMessage,
+    content: "look at this",
+    attachments: [{ kind: "image", name: "shot.png", ref: "attachments/abc" }],
+  };
+  const html = renderRow(withImage);
+  const bodyAt = html.indexOf("message-user-text");
+  assert.notEqual(bodyAt, -1, "the body text container is missing");
+  assert.doesNotMatch(
+    html.slice(0, bodyAt),
+    /message-attachments/,
+    "no attachment block above the body",
+  );
+  assert.match(
+    html.slice(bodyAt),
+    /class="message-attachments"/,
+    "the chip lives inside the body text container",
+  );
   assert.ok(
-    html.includes(formatSessionLink("session-a")),
-    "the link text stays in the message: it is what main re-resolves",
+    html.indexOf("look at this") < html.indexOf("message-attachments"),
+    "the body text comes before its attachment chip",
   );
 });
 
@@ -220,9 +264,9 @@ test("a referenced conversation is not rendered as a file chip", () => {
     attachments: [referenced, { kind: "file", name: "notes.md", ref: "/p/notes.md" }],
   };
   const html = renderRow(withFile);
-  assert.match(html, /data-action="open-session-reference"/, "the reference keeps its own chip");
+  assert.match(html, /data-action="open-session-reference"/, "the reference is its body chip");
   assert.match(html, /aria-label="notes\.md — \/p\/notes\.md"/, "an ordinary file attachment is untouched");
-  assert.equal(html.match(/chat-file-chip/g).length, 2, "two attachments, two chips");
+  assert.equal(html.match(/chat-file-chip/g).length, 2, "the body chip and the file chip");
 });
 
 test("a referenced conversation never reaches the file-attachment resolver", async () => {

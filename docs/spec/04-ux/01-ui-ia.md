@@ -169,8 +169,8 @@ destination, chat as the home surface, tools and permissions inline.
 ## 3. Destinations
 
 ### 3.1 Chat home (default)
-- Empty state: a restrained hero title ("What can I help you build?" — a
-  project-bound session turns the project name into a dotted-underline
+- Empty state: a restrained hero title ("What can I help you build?" — an open
+  project turns its name into a dotted-underline
   switcher that lists the sidebar's open projects, can search them, can
   clone a git repository from a syntactically public remote (ADR 0247 / D416), and can open another local folder), an optional first-run
   checklist, and a bottom-reserved composer. Task entry starts directly in the composer; no
@@ -399,12 +399,14 @@ shared capability contract:
 - Selecting a project-scoped thread activates its project before switching to
   `chat`. Selecting a temporary thread clears the visible active workspace
   before loading it.
-- Empty home has three explicit session states: a project-bound session shows
+- Empty home has four explicit session states: a project-bound session shows
   the project-underlined welcome; clicking the name opens a searchable
-  switcher of the sidebar's open projects instead of the folder picker. A
-  temporary session shows dedicated temporary-chat copy with no project
-  underline or switcher; and no active session keeps the generic welcome
-  title.
+  switcher of the sidebar's open projects instead of the folder picker. An
+  open project with no session yet names the hero the same way, because that
+  empty home already belongs to it and a task started there lands in the
+  project. A temporary session shows dedicated temporary-chat copy with no
+  project underline or switcher; and with no project open the generic welcome
+  title stands.
 - New task resolves the current project or temporary group by its most recent
   session: if that session has `messageCount = 0`, it is selected and reused;
   otherwise a durable empty session is created immediately and appears in the

@@ -529,6 +529,8 @@ export const fr = {
     "userMessage": "Message utilisateur",
     "assistantMessage": "Message de l'assistant",
     "model": "Modèle",
+    recentModels: "Récemment utilisés",
+    otherModels: "Autres modèles",
     "searchModels": "Rechercher des modèles",
     "noModelResults": "Aucun modèle correspondant",
     "modelBadgeReasoning": "raisonnement",
@@ -565,6 +567,15 @@ export const fr = {
     "renameCancel": "Annuler",
     "renameSave": "Enregistrer",
     "renameSaving": "Enregistrer…"
+  },
+  planHistory: {
+    pending: "En attente d’approbation",
+    approved: "Approuvé",
+    rejected: "Rejeté",
+    expired: "Expiré",
+    interrupted: "Interrompu",
+    unknown: "État indisponible",
+    superseded: "Remplacé",
   },
   "plan": {
     "planning": "Planification",

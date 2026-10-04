@@ -1,3 +1,4 @@
+import { projectPlanHistory } from "./plan-history";
 import type {
   ScheduledTaskRun,
   ActivationScope,
@@ -338,6 +339,7 @@ function normalizeSessionDetail(detail: SessionDetail | null): SessionDetail | n
   return detail
     ? {
         ...detail,
+        messages: projectPlanHistory(detail.messages, detail.planHistory ?? [], detail.id),
         mode: normalizeMode((detail as { mode?: unknown }).mode),
       }
     : null;

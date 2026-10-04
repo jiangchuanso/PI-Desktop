@@ -262,6 +262,8 @@ pub struct SessionDetail {
     #[serde(flatten)]
     pub summary: SessionSummary,
     pub messages: Vec<UiMessage>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub plan_history: Vec<crate::plans::PlanHistoryEntry>,
     /// Owning Task for a nested messageAround target, outside the page cursors.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub navigation_parent: Option<UiMessage>,
@@ -1563,6 +1565,17 @@ pub fn get_session_with_options(
             .collect(),
         None => records.into_iter().map(record_to_ui).collect(),
     };
+    let plan_calls: Vec<&str> = messages
+        .iter()
+        .filter(|message| {
+            matches!(
+                message.tool_name.as_deref(),
+                Some("SubmitPlan" | "SubmitGoal")
+            )
+        })
+        .filter_map(|message| message.tool_call_id.as_deref())
+        .collect();
+    let plan_history = crate::plans::history_for_tool_calls(db, id, &plan_calls)?;
     let parent_call_id = options.message_around.as_deref().and_then(|target| {
         messages
             .iter()
@@ -1582,6 +1595,7 @@ pub fn get_session_with_options(
     };
     Ok(Some(SessionDetail {
         summary,
+        plan_history,
         navigation_parent,
         message_start,
         message_end,
@@ -1771,6 +1785,7 @@ pub fn fork_session_through(
     let messages = records.into_iter().map(record_to_ui).collect();
     Ok(ForkSessionResult::Created(Box::new(SessionDetail {
         summary,
+        plan_history: Vec::new(),
         navigation_parent: None,
         message_start: None,
         message_end: None,

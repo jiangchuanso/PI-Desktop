@@ -7471,3 +7471,19 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   and safe MCP metadata tests. See
   ADR 0319, `04-ux/06-settings-ia.md`, `04-ux/08-component-spec.md`, and
   E2E-038 / E2E-043 / E2E-209.
+
+## 2026-10-04 — The empty home names the open project before its first session (D646)
+
+- D646 fixes the empty home after opening a project. The hero title only named
+  a project when a session on screen carried that project's path, so creating
+  a project, or opening one whose sessions are all archived or unselected,
+  left the generic "What can I help you build?" title and hid which project a
+  task started there would join.
+- The hero now falls back to the active workspace when no session is on
+  screen. A session still decides when there is one, so a temporary session
+  keeps its own copy and no project switcher, and with no project open the
+  generic title stands. Session state, IPC, persistence, and the switcher's
+  actions are unchanged.
+- Covered by `apps/desktop/test/home-project-name.test.mjs`, which renders the
+  real surface against the real store. See `04-ux/01-ui-ia.md`,
+  `04-ux/08-component-spec.md`, and E2E-256.

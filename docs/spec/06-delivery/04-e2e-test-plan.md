@@ -11773,9 +11773,9 @@ This test plan spec is accepted when:
   `scratch/<sessionId>` directory, never to the visible or recently active
   project. Relative paths work inside that scratch root, containment and
   permission rules remain active, and no project artifact is created. The
-  temporary hero is localized and has no project switcher; project and
-  no-session hero states remain unchanged. Plan/Goal retain their project-root
-  boundary.
+  temporary hero is localized and has no project switcher; the project hero and
+  the no-project generic hero are unchanged by the temporary session. Plan/Goal
+  retain their project-root boundary.
 - **Specs linked**: `03-runtime/03-tools-and-permissions.md` §4/§4b,
   `03-runtime/10-session-state-machine.md`, `04-ux/01-ui-ia.md`,
   `04-ux/02-i18n-english-first.md`, ADR 0124
@@ -12801,7 +12801,8 @@ are withdrawn with ADR 0165.
   JSONL stores an `attachments/<sha256>` image ref with a stored mimeType.
 - **Steps**:
   1. Reopen the session. Confirm the pasted image renders as a chip like any
-     other attachment, and that hovering or focusing it reveals its preview card.
+     other attachment, continuing the body text instead of heading it, and that
+     hovering or focusing it reveals its preview card.
   2. Click the chip. Confirm the host files viewer opens on that
      attachment ref and shows the image.
   3. Send a turn whose assistant markdown includes `![](docs/pixel.png)` and
@@ -14805,7 +14806,8 @@ plugin-form fixtures in an isolated temporary directory at runtime.
 #### E2E-256: Empty-home project name switches among sidebar projects
 
 - **Preconditions**: At least two local projects are open in the sidebar; the
-  visible chat is an empty project-bound session.
+  visible chat is an empty project-bound session, and one open project has no
+  session at all.
 - **Steps**:
   1. Confirm the hero title underlines the current project name.
   2. Click the underlined name and inspect the menu.
@@ -14815,18 +14817,22 @@ plugin-form fixtures in an isolated temporary directory at runtime.
   5. Reopen the menu, choose Clone git project, paste a repository URL, then
      pick a parent folder or cancel.
   6. Open a temporary empty session and confirm the underline is absent.
+  7. Click the session-less project in the sidebar and inspect the hero.
 - **Expected**: The click opens a searchable, fixed switcher of the sidebar's
   open projects instead of the folder picker. Choosing another project
   activates it and lands on that project's empty home (reusing an empty
   session when one exists). Open project still uses the folder picker. Clone
   git project asks for a URL, then a folder, runs `git clone`, and opens the
-  cloned project. Temporary and no-session heroes stay without the switcher.
-  Escape and outside click dismiss the menu.
+  cloned project. Temporary heroes and the no-project home (no workspace) stay
+  without the switcher, while a project the user opens without any session
+  still names that project and keeps the switcher, because a task sent from
+  that empty home joins the project. Escape and outside click dismiss the menu.
 - **Specs linked**: `04-ux/01-ui-ia.md`, `04-ux/08-component-spec.md`
 - **Acceptance**: Quality (navigation and accessibility)
 - **Milestone**: M5
 - **Status**: Unit-covered (`home-project-switcher.test.mjs`,
-  `git-clone.test.mjs`, `sidebar-preferences.test.mjs`); full UI scenario Draft
+  `home-project-name.test.mjs`, `git-clone.test.mjs`,
+  `sidebar-preferences.test.mjs`); full UI scenario Draft
   (run only in a capable environment when this surface changes)
 
 #### E2E-CLONE-accepts-a-lan-remote-and-rejects-metadata
@@ -16648,3 +16654,52 @@ registry-only installation and credential isolation.
 - **Status**: Automated headless runtime/provider integration via
   `node scripts/e2e-subagent-parent-error.mjs`; no real accounts or Desktop data.
   Runtime tests separately cover exhausted parent 429 and Stop racing settlement.
+
+
+#### E2E-PLAN-HISTORY: Immutable submissions retain current status in chat
+
+Run `node scripts/e2e-plan-history.mjs` against the committed candidate host.
+Use an isolated Electron profile/workspace and the production session IPC,
+preload, API normalization, store events, ToolRow, and Markdown renderer.
+
+1. Submit Plan and read a capped history page: expand the full Markdown and
+   open its exact artifact path in the owning session's work panel.
+2. Approve and deliver a stale pending tool echo: history still says approved.
+   Cover approval-before-message and inactive retained-session events.
+3. Complete execution, submit/reject a revision, and read both newest/older
+   pages: retain both exact bodies and statuses, mark only the older Plan
+   superseded, and leave unrelated sessions/Goal untouched.
+4. Submit/reject Goal and check localized Chinese status.
+5. Continue chat, append a compaction checkpoint, restart host and renderer:
+   both versions remain readable; no historical card has approval controls.
+
+No provider credentials or paid model calls are required. The fixture ends at
+work-panel file-request routing; artifact bytes are verified from the real
+host-created files. The full app's file-preview viewer is covered separately.
+
+
+## Composer recent chat models
+
+- Send accepted messages using four distinct configured chat models across providers. Open the combined
+  model menu: exactly the latest three available pairs appear in recency order,
+  with provider labels. Select an older recent row: order stays unchanged until
+  a message is accepted, at which point that model moves first.
+- Search immediately without expanding Other models; choose using keyboard
+  navigation. Expand Other models inline and verify no duplicate recent rows.
+  Move from the third recent row to Other models, and tab out of search after
+  arrow navigation: no stale keyboard highlight remains on a model row.
+  Without history, all configured models are directly visible. Verify thinking
+  defaults still follow the selected binding and manual same-model levels survive.
+- Create a new chat: it inherits the last actually used model. Reload local preferences
+  and create another chat: the same binding is restored. An existing chat keeps
+  its own binding, including when opened after a different model was used.
+  Opening an old chat or changing a model or reasoning alone does not alter history.
+  Send in an older chat: accepted submission updates new-chat inheritance;
+  rejected submission does not. Deferred configuration alone does not count
+  as usage.
+- Disable/remove a provider or model and mark a model for image generation:
+  unavailable history entries are skipped for inheritance and recent menu rows.
+- Settings contains no fixed chat-default picker or Make default service action;
+  image model selection and provider configuration remain available.
+- Coverage: recent-models.test.mjs, recent-model-flow.test.mjs,
+  default-model-picker.test.mjs, and scripts/e2e-composer-model-selection.mjs.

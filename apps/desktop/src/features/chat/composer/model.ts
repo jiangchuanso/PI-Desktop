@@ -67,7 +67,6 @@ export type ComposerFileReference = {
   plugin?: ComposerPluginPart;
 };
 
-export type ComposerMenuView = "root" | "model";
 
 export type PromptEnhancementError = {
   message: string;

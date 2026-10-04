@@ -1,3 +1,4 @@
+import type { PlanHistoryEntry } from "./plans.js";
 /** Shared public types grouped by the owning application domain. */
 import type { SessionMessageOrigin } from "../session-collaboration.js";
 import type { AppError } from "../errors.js";
@@ -133,6 +134,8 @@ export type UiMessage = {
   toolStatus?: "running" | "success" | "error" | "denied";
   toolArgs?: unknown;
   toolResult?: unknown;
+  /** Renderer projection; never written back into canonical model evidence. */
+  planHistory?: PlanHistoryEntry;
   /** Estimated tokens occupied by this tool call and its result. */
   toolUsage?: ToolTokenUsage;
   toolCompletedAt?: string;

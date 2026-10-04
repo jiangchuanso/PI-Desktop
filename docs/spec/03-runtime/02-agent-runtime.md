@@ -689,6 +689,17 @@ once with a new complete Markdown snapshot to create a new artifact. If approval
 already committed and a queued/running execution is interrupted, durable mode
 remains Agent and the execution is not replayed.
 
+
+Historical SubmitPlan/SubmitGoal rows render read-only contract cards with an
+expandable exact Markdown snapshot, authoritative approval status, an artifact
+opener, and a superseded badge when a later submission of the same kind exists.
+The live approval bar remains the only approval surface. Host history metadata
+and planning events reconcile by proposal identity/revision, so delayed pending
+tool echoes cannot undo approval. Plans remain readable after continued chat,
+compaction, session reselection, and host restart; deleting an artifact does not
+remove the stored Markdown. Hosts without approval metadata show snapshot text
+with unavailable status rather than presenting a stale pending result as truth.
+
 Manual mode and configuration selection may be staged by the renderer while a
 turn runs, but host persistence remains idle-only. Selecting Agent is an
 intentional user override and does not synthesize a plan or approval. Each

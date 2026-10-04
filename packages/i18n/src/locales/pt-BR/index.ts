@@ -527,6 +527,8 @@ export const ptBR = {
     userMessage: "Mensagem do usuário",
     assistantMessage: "Mensagem do assistente",
     model: "Modelo",
+    recentModels: "Usados recentemente",
+    otherModels: "Outros modelos",
     searchModels: "Pesquisar modelos…",
     noModelResults: "Nenhum modelo encontrado",
     modelBadgeReasoning: "Raciocínio",
@@ -563,6 +565,15 @@ export const ptBR = {
     renameCancel: "Cancelar",
     renameSave: "Salvar",
     renameSaving: "Salvando…"
+  },
+  planHistory: {
+    pending: "Aguardando aprovação",
+    approved: "Aprovado",
+    rejected: "Rejeitado",
+    expired: "Expirado",
+    interrupted: "Interrompido",
+    unknown: "Estado indisponível",
+    superseded: "Substituído",
   },
   plan: {
     planning: "Planejando",

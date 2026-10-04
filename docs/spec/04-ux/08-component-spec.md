@@ -889,7 +889,7 @@ pending action cards remain reachable outside a hidden process. See
 
 | State | Behavior |
 |---|---|
-| Empty | Restrained hero + optional onboarding checklist in a scrollable content region, with a bottom-reserved home composer and no starter-card or contextual quick-action layer (D111/D204/D206). A project-bound empty session underlines the project name; the control opens a searchable switcher of the sidebar's open projects, with clone-git-project and open-project actions. |
+| Empty | Restrained hero + optional onboarding checklist in a scrollable content region, with a bottom-reserved home composer and no starter-card or contextual quick-action layer (D111/D204/D206). An open project underlines the project name, including before its first session exists; the control opens a searchable switcher of the sidebar's open projects, with clone-git-project and open-project actions. |
 | Streaming | Auto-scroll follows while pinned; new tokens append |
 | Active progress | Immediately after send, before the first assistant or tool event, a compact localized `Working…` status with elapsed time appears inline. Its model and subagent elapsed labels use the carried-unit format in §9.1. When the runtime names a quiet interval, that same row identifies starting, waiting for the model, preparing the next request, compacting context, recovering an empty response, retrying, or waiting for delegated work (with each running subagent's latest coarse action). It remains visible through thinking, tool execution, completed-tool gaps, and partial answers until the turn ends. Runtime phases take precedence over the Planning/Goal or Working fallback. Pending permissions, questions, and plan/goal approvals suppress the row; history reading never shows live status; no large generic progress card is rendered. The row lives in the reserved tail lane, so it appears and clears mid-turn without changing the transcript's content height. A retrying row remains compact at rest; hovering or focusing it reveals an error-styled tooltip with the localized error summary, stable code/HTTP status, and bounded provider message. The tooltip mixes the error tint over `--ds-bg-elevated-opaque` so transcript text does not show through. |
 | Turn outcome | After a failed turn, a session-scoped recovery card summarizes the interruption and tool evidence. Completed turns use the existing transcript and message-scoped InlineReviewCard without an extra success card; failed turns can continue through one localized prompt without losing the transcript. |
@@ -1738,10 +1738,12 @@ Single message render — either user (plaintext) or assistant (markdown streami
   collapse. Serialized `@path` file references render as compact leaf-name
   chips matching the composer node (icon + ellipsized name; canonical path in
   the tooltip and accessible name). Image attachments that are not already
-  inlined as `@path` chips render as the same compact image chip; hovering or
-  focusing it reveals the bounded data URL (`fs/readImageDataUrl`) in a
-  read-only preview card above the chip (below it when the chip sits at the
-  top), and an unresolved load leaves the chip alone. A referenced
+  inlined as `@path` chips render as the same compact image chip inside the
+  body's own text flow, continuing the message text instead of heading it on a
+  line of its own. Hovering or focusing the chip reveals the bounded data URL
+  (`fs/readImageDataUrl`) in a read-only preview card above it (below it when
+  the chip sits at the top), and an unresolved load leaves the chip alone. A
+  referenced
   conversation (`kind: "session"`) renders as a chat-icon chip labeled with the
   shared reference label and the referenced title; the tooltip and accessible
   name come from the catalog, and activating it opens that conversation
@@ -3047,7 +3049,7 @@ reasoning-level control.
   model therefore updates the draft Composer's available levels and binding
   default thinking level immediately; the persisted session keeps the same
   exact-model capability after materialization.
-- A new session whose catalog-matched default model supports reasoning starts
+- A new session whose inherited catalog-matched model supports reasoning starts
   with Thinking enabled at that model's stored default thinking level, clamped
   onto the enabled set. When the binding has no default, it falls back to the
   highest enabled level. An unmatched model starts at `off` unless its binding
@@ -3585,8 +3587,10 @@ Guidance surfaces when key data is absent. Must always provide an **action link*
 - Chat home empty: single scrollable stack (hero → optional checklist) centered
   in MainChat, with a bottom-reserved composer sibling; task entry starts
   directly in that composer without a starter-card or quick-action layer. The
-  underlined project name in a project-bound hero is a switcher, not a folder
+  underlined project name in a project hero is a switcher, not a folder
   picker; extra actions clone a git repository or open another local folder.
+  Opening a project with no session yet shows that same project hero, so the
+  empty home never hides which project a task would join.
 - Other empty surfaces: text-xl heading + text-sm description + primary action
 - Icon (48px Lucide / brand mark) above heading where applicable
 - Background: bg-primary (transparent, not a card)
@@ -3835,31 +3839,21 @@ saves the previewed order; Escape, pointer cancellation, focus loss, unmount or
 catalog changes cancel the drag. Buttons and form controls retain their actions.
 There is no separate drag handle. A focused card accepts Up/Down to move one visible row. Saving blocks further
 moves; a failed save shows an error and restores the accepted order. Late catalog
-responses cannot restore an earlier order. The default-model picker and Composer
-model groups follow the persisted order. Sorting changes neither the selected
+responses cannot restore an earlier order. Composer All models groups follow the persisted order. Sorting changes neither the selected
 default nor provider configuration. OAuth accounts remain in their separate section.
 
-1. **Defaults card** — a compact settings row reusing the shared
-   14px/16px row geometry; the Default model label sits above the provider name
-   and exact model ID, while a quiet Change action opens the picker without
-   duplicating the current value. The floating listbox is anchored to that
-   action rather than expanding the card in place: the surface portals to
-   `document.body` as a fixed layer so the panel's overflow cannot clip it,
-   groups model-level options by provider, marks the exact current entry, bounds
-   its own height so many configured models scroll instead of stretching the
-   card, flips above the trigger when there is no room below, and closes on
-   Escape, an outside press, or the trigger scrolling out of view.
-   A provider is named here the way the Composer model menu names it: an OAuth
-   row uses its non-secret account label when present, so two accounts of one
-   vendor do not collapse into identical group headings, summary lines, or
-   option names; the search matches the account label and the vendor name.
-   Global operating mode, command shell, and Enter-to-send live in the Settings
-   AI destination
-2. **Vendor accounts** — section title + primary Add account action and one
-   single-level list panel using the same row surface as AI services; one row
-   per OAuth account, including duplicate vendors, with account label, Edit,
-   Test connection, and Remove actions; the default model is edited in the
-   account dialog and selected from Defaults
+1. **Model selection** — chat models are selected in the Composer. Its first
+   menu has persistent search, up to three recent available provider/model pairs,
+   and an inline Other models disclosure. Without history, it shows all models.
+   New chats inherit the last actually used available model. Only accepted
+   message submission updates that preference; selection and reasoning changes
+   alone do not count as usage.
+   Existing chats keep their own binding. The fixed chat-default
+   picker and service Make default action are absent. The independent image
+   model row remains when image-generation candidates are configured.
+2. **Vendor accounts** — account labels, configured models, Test connection,
+   and Remove actions remain available through the shared service list and
+   account editor. The first binding remains the provider compatibility default.
 3. **Providers head** — section title + primary Add provider action; its
    button treatment matches Add account
 4. **Dialogs** — both the vendor-account edit dialog and the provider dialog
@@ -4201,7 +4195,7 @@ Conversation overflow                    Composer draft (unsent)
 
 | State | Appearance |
 |---|---|
-| Reference attached | Chat-icon chip on the user message, named with the catalog's reference label and the referenced conversation's current title |
+| Reference attached | The body link renders as a chat-icon chip named with the catalog's reference label and the referenced conversation's current title; the message shows no second block for it |
 | Reference skipped | Nothing is attached; the body link still renders as that chip |
 | Another project | Skipped the same way: that transcript is not this turn's context |
 | Self-reference | Dropped before any read, so the conversation itself is never a reference |
@@ -4236,9 +4230,18 @@ Conversation overflow                    Composer draft (unsent)
   unknown id, or a `remote:` identifier stays plaintext rather than becoming a
   reference. A paste cannot make the app read a transcript its reader could not
   open.
-- The chip is a button with a catalog-built accessible name and a tooltip
-  naming the conversation it opens; it is keyboard-activatable and leaves the
-  surrounding selectable message text intact.
+- A chip inside a message borrows that message's own face, size and leading, and
+  its tile is sized and aligned by that leading so it covers exactly one line of
+  message text: the label sits on the line's baseline instead of poking out of
+  the composer's compact box. The 11.5px/20px metric is draft-only.
+- A conversation reference is an inline run rather than an atomic chip: it breaks
+  with the line it sits on, so a reference too wide for the line continues on the
+  next line and leaves the line it started on filled. Chromium never fragments a
+  `<button>`, so this chip carries the button role and its Enter and Space
+  behaviour on an activatable span.
+- The chip carries the button role with a catalog-built accessible name and a
+  tooltip naming the conversation it opens; it is keyboard-activatable and leaves
+  the surrounding selectable message text intact.
 - `pi-desktop://` is not yet an operating-system protocol handler; opening a
   link from outside the app is a separate change (issue #1324, option A). This
   section covers the in-app reference.

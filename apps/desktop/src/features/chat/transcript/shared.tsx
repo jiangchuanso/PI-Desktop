@@ -487,28 +487,36 @@ function SessionChip({ sessionId, fallbackName, ...position }: {
   );
   const name = (liveTitle ?? "").trim() || fallbackName;
   const label = `${t("chat.sessionReference")} · ${name}`;
+  const open = () => void selectSession(sessionId).catch(() => undefined);
+  // This chip carries a conversation title, so it can be wider than whatever
+  // space a line has left. Chromium never fragments a `<button>` across lines:
+  // as one it is pushed whole onto the next line and the rest of the line it
+  // left stays blank. The button role and its keyboard behaviour therefore sit
+  // on a span, which the message stylesheet lays out as an inline run that
+  // breaks with the text.
   return (
-    <button
-      type="button"
+    <span
+      role="button"
+      tabIndex={0}
       className="composer-chip chat-file-chip"
       {...position}
       data-action="open-session-reference"
       data-session-id={sessionId}
       title={t("chat.sessionReferenceOpen", { title: name })}
       aria-label={label}
-      onClick={() => void selectSession(sessionId).catch(() => undefined)}
+      onClick={open}
+      onKeyDown={(event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        open();
+      }}
     >
       <span className="composer-chip-icon" aria-hidden>
         <IconChat size={13} />
       </span>
       <span className="composer-chip-name">{label}</span>
-    </button>
+    </span>
   );
-}
-
-/** A structured session attachment on a user message (issue #1324). */
-export function SessionRefChip({ attachment }: { attachment: MessageAttachment }) {
-  return <SessionChip sessionId={attachment.ref} fallbackName={attachment.name} />;
 }
 
 /** A bare `pi-desktop://session/<id>` link in prose, rendered as that chip. */

@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { useTranslation } from "react-i18next";
-import type { UiMessage } from "@pi-desktop/shared";
+import type { MessageAttachment, UiMessage } from "@pi-desktop/shared";
 import { useOpenChatFileRef } from "../../../hooks/use-preview-target";
 import { splitChatText } from "../../../lib/chat-links";
 import { useAppStore } from "../../../stores/app-store";
@@ -30,7 +30,6 @@ import {
   LinkifiedText,
   MessageAttachmentImage,
   MessageTimestamp,
-  SessionRefChip,
 } from "./shared";
 import {
   useChatTextActions,
@@ -117,8 +116,42 @@ export const MessageRow = memo(function MessageRow({
         .filter((segment): segment is { kind: "target"; text: string; label: string; target: { kind: "file"; path: string } } => segment.kind === "target" && segment.target.kind === "file")
         .map((segment) => segment.target.path),
     );
-    return attachments.filter((attachment) => !inline.has(attachment.ref));
+    // A conversation reference is already its chip in the body link, so it
+    // needs no second block; only a file the body does not show inline does.
+    return attachments.filter(
+      (attachment): attachment is MessageAttachment & { kind: "file" | "image" } =>
+        attachment.kind !== "session" && !inline.has(attachment.ref),
+    );
   }, [message.attachments, message.content, workspaceRoot]);
+  // An attachment the body does not already name inline continues the body
+  // text instead of taking a line of its own above it.
+  const attachmentChips = extraAttachments.length ? (
+    <span
+      className="message-attachments"
+      role="list"
+      aria-label={t("chat.messageAttachments")}
+    >
+      {extraAttachments.map((attachment) =>
+        attachment.kind === "image" ? (
+          <MessageAttachmentImage
+            key={`${attachment.ref}:${attachment.name}`}
+            attachment={attachment}
+            onOpenFile={openFileRef}
+          />
+        ) : (
+          <span key={`${attachment.ref}:${attachment.name}`} role="listitem">
+            <FileRefChip
+              name={attachment.name}
+              path={attachment.ref}
+              kind={attachment.kind}
+              mimeType={attachment.mimeType}
+              onOpen={openFileRef}
+            />
+          </span>
+        ),
+      )}
+    </span>
+  ) : null;
   const beginEdit = async () => {
     if (!editableUserMessage || isRunning || loadingEdit) return;
     const request = new AbortController();
@@ -252,40 +285,6 @@ export const MessageRow = memo(function MessageRow({
               </form>
             ) : isUser ? (
               <>
-                {extraAttachments.length ? (
-                  <div
-                    className="message-attachments"
-                    role="list"
-                    aria-label={t("chat.messageAttachments")}
-                  >
-                    {extraAttachments.map((attachment) =>
-                      attachment.kind === "image" ? (
-                        <MessageAttachmentImage
-                          key={`${attachment.ref}:${attachment.name}`}
-                          attachment={attachment}
-                          onOpenFile={openFileRef}
-                        />
-                      ) : attachment.kind === "session" ? (
-                        <span key={`${attachment.ref}:${attachment.name}`} role="listitem">
-                          <SessionRefChip attachment={attachment} />
-                        </span>
-                      ) : (
-                        <span
-                          key={`${attachment.ref}:${attachment.name}`}
-                          role="listitem"
-                        >
-                          <FileRefChip
-                            name={attachment.name}
-                            path={attachment.ref}
-                            kind={attachment.kind}
-                            mimeType={attachment.mimeType}
-                            onOpen={openFileRef}
-                          />
-                        </span>
-                      ),
-                    )}
-                  </div>
-                ) : null}
                 {message.content ? (
                   <div className="message-user-text selectable">
                     {editableUserMessage && message.command ? (
@@ -305,8 +304,9 @@ export const MessageRow = memo(function MessageRow({
                     ) : (
                       <LinkifiedText text={String(message.content || "")} attachments={message.attachments} />
                     )}
+                    {attachmentChips}
                   </div>
-                ) : null}
+                ) : attachmentChips}
               </>
             ) : (
               <div className="prose-chat">

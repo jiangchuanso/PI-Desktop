@@ -186,6 +186,7 @@ export const fr = {
     batchDelete: "Supprimer {{count}} sessions",
     batchDeleteConfirm: "Supprimer {{count}} sessions ?",
     "copyConversationId": "Copier l'ID de conversation",
+    "copySessionLink": "Copier le lien de la conversation",
     "openSessionPath": "Ouvrir le chemin de la session",
     "timeGroupYesterday": "Hier",
     "timeGroupThisWeek": "7 jours précédents",
@@ -321,6 +322,8 @@ export const fr = {
     "conversationMenu": "Actions de la conversation",
     "selectMessageText": "Sélectionner le texte du message",
     "copyConversation": "Copier la conversation",
+    "sessionReference": "Conversation",
+    "sessionReferenceOpen": "Ouvrir la conversation {{title}}",
     "selectConversationText": "Sélectionner le texte de la conversation",
     "scrollToTop": "Aller en haut",
     "speakerYou": "Vous",
@@ -774,7 +777,6 @@ sklm: {
       "skills": "Compétences",
       "mcp": "MCP",
       "subagents": "Sous-agents",
-      "import": "Importation",
       "projects": "Projets",
       "sync": "Synchronisation cloud",
       "remoteHosts": "Hôtes distants",
@@ -783,7 +785,6 @@ sklm: {
     },
     "configSync": {
       title: "Cloud sync",
-      experimental: "Expérimental",
       connectionTitle: "WebDAV cloud sync",
       connectionDescription:
         "Synchronize portable configuration through an encrypted WebDAV vault. Conversation history, source files, and runtime state are never included.",
@@ -1166,7 +1167,6 @@ sklm: {
     "skillSaved": "Enregistré {{name}}",
     "subagentCreated": "Créé {{name}}",
     "subagentSaved": "Enregistré {{name}}",
-    "import": "Importation",
     "projectArchive": "Archive du projet",
     "remoteHosts": {
       "title": "Hôtes distants",
@@ -1217,7 +1217,6 @@ sklm: {
     "importFound": "Sessions trouvées : {{count}}",
     "importFound_one": "1 session trouvée",
     "importFound_other": "{{count}} sessions trouvées",
-    "importCodexCapped": "Codex est limité aux {{limit}} fichiers de session les plus récents (par date de dossier).",
     "importNone": "Aucune session importable trouvée sur cette machine.",
 
     "importSelectAll": "Sélectionner tous les",
@@ -1228,9 +1227,6 @@ sklm: {
     "importMessages_other": "{{count}} messages",
     "importMessagesUnknown": "—",
     "importNoProject": "Aucun projet",
-    "importSessionCount": "{{count}} sessions",
-    "importSessionCount_one": "1 session",
-    "importSessionCount_other": "{{count}} sessions",
     "importSelectedCount": "{{count}} sélectionnées",
     "importGroupBy": "Regrouper par",
     "importGroupByPath": "Chemin du projet",
@@ -1674,7 +1670,7 @@ sklm: {
     "openActions": "Ouvrir les actions pour {{name}}",
     "reorder": "Réorganiser {{name}}",
     "editTitle": "Modifier le projet",
-    "editDescription": "Mettez à jour le nom et les dossiers du projet.",
+    "editDescription": "Un dossier retiré qui contient des discussions devient un projet distinct ; ses discussions sont conservées.",
     "editAction": "Enregistrer les modifications",
     "editSaving": "Enregistrement…",
     "editCancel": "Annuler",
@@ -2337,7 +2333,11 @@ sklm: {
       "errorCommandDots": "La commande ne peut pas contenir '..'.",
       "errorUrl": "Une URL est requise.",
       "errorUrlShape": "Ce n'est pas une URL valide.",
-      "errorUrlScheme": "Utilisez une URL http ou https."
+      "errorUrlScheme": "Utilisez une URL http ou https.",
+      "timeout": "Délai de connexion",
+      "timeoutHint": "Délai en secondes pour la connexion et la détection des outils (défaut : 10s, max : 600s).",
+      "timeoutPlaceholder": "10",
+      "errorTimeoutRange": "Le délai doit être compris entre 1 et 600 secondes."
     },
     "skills": {
       "add": "Nouvelle compétence",

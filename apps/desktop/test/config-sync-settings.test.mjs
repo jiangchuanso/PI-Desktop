@@ -30,7 +30,7 @@ const progressModel = await read(
 test("cloud sync rendering follows the settings visibility gate", () => {
   assert.match(settingsPage, /tab === "sync" && !tabHidden && <ConfigSyncPage \/>/);
   assert.match(settingsIndex, /id: "sync"/);
-  assert.match(settingsIndex, /experimentalBadgeKey: "settings\.configSync\.experimental"/);
+  assert.doesNotMatch(settingsIndex, /experimentalBadgeKey: "settings\.configSync\.experimental"/);
   assert.match(settingsIndex, /settings\.configSync\.connectionTitle/);
 });
 

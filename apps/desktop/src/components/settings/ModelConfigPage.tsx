@@ -41,6 +41,8 @@ import { ServiceList } from "./ServiceList";
 import { serviceRowKind } from "./service-row-status";
 import { useVendorAccounts } from "./useVendorAccounts";
 import { VendorAccountDialog, type VendorAccountForm } from "./VendorAccountDialog";
+import { ModelConfigImportPanel } from "../../features/settings/imports/ModelConfigImportPanel";
+import { ImportToggleButton } from "../../features/settings/import-workbench";
 
 type CatalogStatus = {
   loaded: boolean;
@@ -114,6 +116,7 @@ export function ModelConfigPage() {
   const [changingImageModel, setChangingImageModel] = useState(false);
   const [refreshingCatalog, setRefreshingCatalog] = useState(false);
   const [catalogStatus, setCatalogStatus] = useState<CatalogStatus | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const {
     vendors,
     accountFor,
@@ -567,6 +570,12 @@ export function ModelConfigPage() {
             ) : null}
           </div>
           <div className="provider-section-head-actions">
+            <ImportToggleButton
+              open={importOpen}
+              controls="model-config-import-panel"
+              label={t("settings.importTitle")}
+              onClick={() => setImportOpen((current) => !current)}
+            />
             <Button
               variant="primary"
               className="model-provider-add"
@@ -578,6 +587,14 @@ export function ModelConfigPage() {
               </span>
             </Button>
           </div>
+        </div>
+
+        <div
+          id="model-config-import-panel"
+          className="import-inline-workbench"
+          hidden={!importOpen}
+        >
+          <ModelConfigImportPanel />
         </div>
 
         <div className="settings-panel model-provider-panel">

@@ -9,6 +9,7 @@ import {
   isHttpUrl,
   linkifyMdastTree,
   parseFileRef,
+  parseFileRefPosition,
   remarkChatFileLinks,
   resolvePreviewTarget,
   splitChatText,
@@ -107,6 +108,7 @@ test("resolvePreviewTarget classifies urls and workspace files", () => {
   assert.deepEqual(resolvePreviewTarget("src/a.ts:10", ROOT), {
     kind: "file",
     path: "src/a.ts",
+    line: 10,
   });
   assert.deepEqual(resolvePreviewTarget("./README.md", ROOT, "docs"), {
     kind: "file",
@@ -728,4 +730,56 @@ test("adjacent parenthesis-wrapped URLs all remain independently linkable", () =
   const segments = splitChatText(source, ROOT);
   assert.equal(segments.filter(s => s.kind === "target").length, 1000);
   assert.equal(segments.map(s => s.text).join(""), source);
+});
+
+test("parseFileRefPosition keeps :line[:col] that parseFileRef strips", () => {
+  assert.deepEqual(parseFileRefPosition("src/main.rs:42"), { line: 42 });
+  assert.deepEqual(parseFileRefPosition("src/main.rs:42:7"), { line: 42, column: 7 });
+  assert.deepEqual(parseFileRefPosition("src/main.rs:42."), { line: 42 });
+  assert.deepEqual(parseFileRefPosition("src/main.rs:42:7,"), { line: 42, column: 7 });
+  assert.equal(parseFileRefPosition("src/main.rs"), null);
+  assert.equal(parseFileRefPosition("src/main.rs:0"), null);
+});
+
+test("resolvePreviewTarget carries line/col on file chips (#681)", () => {
+  assert.deepEqual(resolvePreviewTarget("src/a.ts:42", ROOT), {
+    kind: "file",
+    path: "src/a.ts",
+    line: 42,
+  });
+  assert.deepEqual(resolvePreviewTarget("src/a.ts:42:7", ROOT), {
+    kind: "file",
+    path: "src/a.ts",
+    line: 42,
+    column: 7,
+  });
+  assert.deepEqual(resolvePreviewTarget("src/a.ts:42:7.", ROOT), {
+    kind: "file",
+    path: "src/a.ts",
+    line: 42,
+    column: 7,
+  });
+  assert.deepEqual(resolvePreviewTarget(`${ROOT}/src/a.ts:42:7`, ROOT), {
+    kind: "file",
+    path: `${ROOT}/src/a.ts`,
+    line: 42,
+    column: 7,
+  });
+});
+
+test("session links segment as their own target", () => {
+  const link = "pi-desktop://session/6f1d2c3b-4a59-4e7f-8a90-b1c2d3e4f506";
+  const segments = splitChatText(`analyze ${link} please`, ROOT);
+  assert.deepEqual(
+    segments.map((segment) => segment.text),
+    ["analyze ", link, " please"],
+  );
+  const target = segments.find((segment) => segment.kind === "target");
+  assert.deepEqual(target.target, {
+    kind: "session",
+    sessionId: "6f1d2c3b-4a59-4e7f-8a90-b1c2d3e4f506",
+  });
+  // A remote id and a bare scheme are not local conversations.
+  assert.equal(resolvePreviewTarget("pi-desktop://session/remote:abc", ROOT), null);
+  assert.equal(resolvePreviewTarget("pi-desktop://session/", ROOT), null);
 });

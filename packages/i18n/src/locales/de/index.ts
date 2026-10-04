@@ -186,6 +186,7 @@ export const de = {
     batchDelete: "{{count}} Sitzungen löschen",
     batchDeleteConfirm: "{{count}} Sitzungen löschen?",
     "copyConversationId": "Gesprächs-ID kopieren",
+    "copySessionLink": "Link zur Unterhaltung kopieren",
     "openSessionPath": "Sitzungspfad öffnen",
     "timeGroupYesterday": "Gestern",
     "timeGroupThisWeek": "Vorherige 7 Tage",
@@ -321,6 +322,8 @@ export const de = {
     "conversationMenu": "Gesprächsaktionen",
     "selectMessageText": "Nachrichtentext auswählen",
     "copyConversation": "Gespräch kopieren",
+    "sessionReference": "Unterhaltung",
+    "sessionReferenceOpen": "Unterhaltung {{title}} öffnen",
     "selectConversationText": "Gesprächstext auswählen",
     "scrollToTop": "Nach oben scrollen",
     "speakerYou": "Du",
@@ -774,7 +777,6 @@ sklm: {
       "skills": "Fähigkeiten",
       "mcp": "MCP",
       "subagents": "Subagenten",
-      "import": "Importieren Sie",
       "projects": "Projekte",
       "sync": "Cloud-Synchronisierung",
       "remoteHosts": "Remote-Hosts",
@@ -783,7 +785,6 @@ sklm: {
     },
     "configSync": {
       title: "Cloud sync",
-      experimental: "Experimentell",
       connectionTitle: "WebDAV cloud sync",
       connectionDescription:
         "Synchronize portable configuration through an encrypted WebDAV vault. Conversation history, source files, and runtime state are never included.",
@@ -1166,7 +1167,6 @@ sklm: {
     "skillSaved": "Gespeichert {{name}}",
     "subagentCreated": "Erstellt {{name}}",
     "subagentSaved": "Gespeichert {{name}}",
-    "import": "Importieren",
     "projectArchive": "Projektarchiv",
     "remoteHosts": {
       "title": "Remote-Hosts",
@@ -1217,7 +1217,6 @@ sklm: {
     "importFound": "Sitzungen gefunden: {{count}}",
     "importFound_one": "1 Sitzung gefunden",
     "importFound_other": "{{count}} Sitzungen gefunden",
-    "importCodexCapped": "Codex ist auf die {{limit}} neuesten Sitzungsdateien (nach Ordnerdatum) begrenzt.",
     "importNone": "Auf diesem Computer wurden keine importierbaren Sitzungen gefunden.",
 
     "importSelectAll": "Alle auswählen",
@@ -1228,9 +1227,6 @@ sklm: {
     "importMessages_other": "{{count}} Nachrichten",
     "importMessagesUnknown": "—",
     "importNoProject": "Kein Projekt",
-    "importSessionCount": "{{count}} Sitzungen",
-    "importSessionCount_one": "1 Sitzung",
-    "importSessionCount_other": "{{count}} Sitzungen",
     "importSelectedCount": "{{count}} ausgewählt",
     "importGroupBy": "Gruppieren nach",
     "importGroupByPath": "Projektpfad",
@@ -1674,7 +1670,7 @@ sklm: {
     "openActions": "Aktionen für {{name}} öffnen",
     "reorder": "Reihenfolge von {{name}} ändern",
     "editTitle": "Projekt bearbeiten",
-    "editDescription": "Projektname und Ordner aktualisieren.",
+    "editDescription": "Ein entfernter Ordner mit Chats wird zu einem eigenen Projekt; die Chats bleiben erhalten.",
     "editAction": "Änderungen speichern",
     "editSaving": "Speichern…",
     "editCancel": "Abbrechen",
@@ -2337,7 +2333,11 @@ sklm: {
       "errorCommandDots": "Der Befehl darf „..\" nicht enthalten.",
       "errorUrl": "Eine URL ist erforderlich.",
       "errorUrlShape": "Das ist keine gültige URL.",
-      "errorUrlScheme": "Verwenden Sie eine http- oder https-URL."
+      "errorUrlScheme": "Verwenden Sie eine http- oder https-URL.",
+      "timeout": "Verbindungs-Timeout",
+      "timeoutHint": "Timeout in Sekunden für Verbindung und Tool-Erkennung (Standard: 10s, max: 600s).",
+      "timeoutPlaceholder": "10",
+      "errorTimeoutRange": "Das Timeout muss zwischen 1 und 600 Sekunden liegen."
     },
     "skills": {
       "add": "Neue Fertigkeit",

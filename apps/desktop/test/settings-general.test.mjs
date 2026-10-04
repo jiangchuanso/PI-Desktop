@@ -410,7 +410,7 @@ test("settings nav icons map each destination to a semantic lucide glyph", () =>
   assert.match(settingsPageSource, /shortcuts: <IconKeyboard/);
   assert.match(settingsPageSource, /instructions: <IconFileText/);
   assert.match(settingsPageSource, /agent: <IconBot/);
-  assert.match(settingsPageSource, /import: <IconDownload/);
+  assert.doesNotMatch(settingsPageSource, /import: <IconDownload/);
   assert.match(settingsPageSource, /projects: <IconArchive/);
   assert.match(settingsPageSource, /about: <IconInfo/);
   assert.doesNotMatch(settingsPageSource, /general: <IconSettings/);
@@ -446,7 +446,9 @@ test("settings nav keeps a flat searchable index with titled visual groups", () 
     "shortcuts",
     "instructions",
     "agent",
-    "import",
+    "skills",
+    "mcp",
+    "subagents",
     "projects",
     "about",
   ].map((id) => settingsSearchSource.indexOf(`id: "${id}"`));
@@ -485,7 +487,6 @@ test("settings rail uses short parallel labels and descriptive page titles", () 
     "settings.nav.skills",
     "settings.nav.mcp",
     "settings.nav.subagents",
-    "settings.nav.import",
     "settings.nav.projects",
     "settings.nav.info",
   ];

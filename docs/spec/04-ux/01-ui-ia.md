@@ -337,12 +337,11 @@ changes the page destination rather than a tab inside a shared capability panel.
 Appearance lives inside General; global AI behavior (permissions and context
 management) lives inside 全局 AI; keyboard shortcuts and global/project
 instructions have their own destinations; provider management lives inside
-Model configuration. Import scans supported local agent stores for sessions
-and, independently, for model configuration, and presents candidates in
-collapsible groups. Project path is an alternate grouping for sessions
-alongside the default source grouping, and every scan or grouping change starts
-with all groups collapsed. Model-configuration import copies stored API keys
-and skips subscription logins. Project archive owns the durable D086 Projects index
+Model configuration. Models, Skills, and MCP each open their external-store
+import workbench inline within the owning Settings destination; scans start
+only when the user asks. Skills and MCP imports follow the current Global /
+Project filter and selected project. Session import is provided through the
+plugin API rather than a Settings destination. Project archive owns the durable D086 Projects index
 (search, add, expand, pin, archive/restore, close, and reopen) and always includes
 archived records. Opening or switching a project retains a sidebar tab, selects
 that project as the active workspace, and returns to chat. Other retained tabs
@@ -354,16 +353,17 @@ shared capability contract:
   scope note, then uses the same neutral elevated Settings surface as the other
   destinations; no capability page has a decorative hero, colored top bar, or
   separate visual theme.
-- Skills and MCP use stacked global/project card blocks in one column. Each
-  block has a quiet heading row with a scope title, scope description,
-  resolved `.agents` path, localized count, and its actions; the project
-  block shows a recent-project picker. Project records take precedence over
-  global records.
-- Skills have one native **Import** action per surface. It accepts exactly one
-  file and physically copies it into the selected `.agents/skills` directory.
+- Skills and MCP use one list filtered by Global / Project in a shared toolbar.
+  The toolbar has a project picker and the current filter determines which
+  capability rows and creation/import destination are active.
+- Skills keep native file and folder import actions in each level group and
+  provide **Scan other tools** in the page toolbar. External skill imports use
+  the active filter and preserve the selected project's scope.
 - MCP has one **Add** action per surface. Add and Edit open the existing
   `McpEditorSheet` as a modal overlay with stdio/HTTP branches, validation,
   duplicate checks, locked edit ids, scope text, and Test connection feedback.
+  **Scan other tools** opens the external MCP workbench inline and uses the
+  active Global / Project filter and selected project for its import target.
 - Subagents use one full-width global surface under `~/.agents/subagents`; they
   have no project picker, project surface, or project-level toggle. Creating or
   editing a subagent picks the pinned model from configured provider models, or

@@ -17,6 +17,8 @@
  * still cannot escape the workspace (D322).
  */
 
+import { formatSessionLink, parseSessionLinkToken } from "@pi-desktop/shared";
+
 const KNOWN_EXTS = new Set([
   "ts", "tsx", "js", "jsx", "mjs", "cjs", "json", "css", "scss", "less",
   "html", "htm", "md", "mdx", "txt", "rs", "py", "go", "rb", "sh", "zsh",
@@ -50,6 +52,21 @@ export function isHtmlFilePath(path: string): boolean {
 
 function stripLineRef(path: string): string {
   return path.replace(/:\d+(?::\d+)?$/, "");
+}
+
+/** Trailing `:line[:col]` on a file token, if any. */
+export function parseFileRefPosition(
+  text: string,
+): { line: number; column?: number } | null {
+  const token = text.trim().replace(/[.,!?;:，。！？；：]+$/u, "");
+  const match = token.match(/:(\d+)(?::(\d+))?$/);
+  if (!match) return null;
+  const line = Number(match[1]);
+  if (!Number.isFinite(line) || line < 1) return null;
+  const column = match[2] !== undefined ? Number(match[2]) : undefined;
+  return column !== undefined && Number.isFinite(column) && column >= 1
+    ? { line, column }
+    : { line };
 }
 
 function leafName(path: string): string {
@@ -188,8 +205,9 @@ export function toWorkspaceRel(
 }
 
 export type ChatPreviewTarget =
-  | { kind: "file"; path: string }
-  | { kind: "url"; url: string };
+  | { kind: "file"; path: string; line?: number; column?: number }
+  | { kind: "url"; url: string }
+  | { kind: "session"; sessionId: string };
 
 /** Resolve one raw chat token into a previewable target, or null. */
 export function resolvePreviewTarget(
@@ -198,18 +216,27 @@ export function resolvePreviewTarget(
   baseDir?: string | null,
 ): ChatPreviewTarget | null {
   const trimmed = text.trim();
+  const sessionId = parseSessionLinkToken(trimmed);
+  if (sessionId) return { kind: "session", sessionId };
   if (isHttpUrl(trimmed)) return { kind: "url", url: trimmed };
-  const at = unwrapAtFileRef(trimmed);
+  const position = parseFileRefPosition(trimmed);
+  const pathText = position
+    ? trimmed.replace(/[.,!?;:，。！？；：]+$/u, "")
+    : trimmed;
+  const at = unwrapAtFileRef(pathText);
   if (at) {
-    if (isAbsoluteFilePath(at)) return { kind: "file", path: at };
-    const rel = toWorkspaceRel(at, root, baseDir);
-    return rel ? { kind: "file", path: rel } : null;
+    const cleaned = stripLineRef(at);
+    if (isAbsoluteFilePath(cleaned)) {
+      return { kind: "file", path: cleaned, ...(position ?? {}) };
+    }
+    const rel = toWorkspaceRel(cleaned, root, baseDir);
+    return rel ? { kind: "file", path: rel, ...(position ?? {}) } : null;
   }
-  const file = parseFileRef(trimmed);
+  const file = parseFileRef(pathText);
   if (!file) return null;
-  if (isAbsoluteFilePath(file)) return { kind: "file", path: file };
+  if (isAbsoluteFilePath(file)) return { kind: "file", path: file, ...(position ?? {}) };
   const rel = toWorkspaceRel(file, root, baseDir);
-  return rel ? { kind: "file", path: rel } : null;
+  return rel ? { kind: "file", path: rel, ...(position ?? {}) } : null;
 }
 
 /** Tool-call args → preview target (Read/Write/Edit paths, fetch URLs). */
@@ -272,6 +299,7 @@ const SCAN_RE = new RegExp([
   String.raw`@"[^"\n]+"`,
   String.raw`@[^\s]+`,
   String.raw`https?:\/\/(?=[^\s<>"'()[\]{}])`,
+  String.raw`pi-desktop:\/\/session\/[A-Za-z0-9_-]{1,64}`,
   String.raw`(?:[A-Za-z]:[\\/]|${UNC_PREFIX}|\/)(?:${PATH_SEGMENT}[\\/])*?${FILE_NAME}`,
   String.raw`${SPACED_START}[\\/](?:${PATH_SEGMENT}[\\/])*?${FILE_NAME}`,
   String.raw`${SPACED_START}(?:\.[A-Za-z0-9_-]+)*${FILE_END}`,
@@ -399,9 +427,11 @@ export function linkifyMdastTree(
           const url =
             target.kind === "url"
               ? target.url
-              : /^[A-Za-z]:[\\/]/.test(target.path) || target.path.startsWith("\\\\")
-                ? encodeURIComponent(target.path)
-                : target.path;
+              : target.kind === "session"
+                ? formatSessionLink(target.sessionId)
+                : /^[A-Za-z]:[\\/]/.test(target.path) || target.path.startsWith("\\\\")
+                  ? encodeURIComponent(target.path)
+                  : target.path;
           next.push({
             type: "link",
             url,
@@ -424,9 +454,11 @@ export function linkifyMdastTree(
           const url =
             segment.target.kind === "url"
               ? segment.target.url
-              : (/^[A-Za-z]:[\\/]/.test(segment.target.path) || segment.target.path.startsWith("\\\\"))
-                ? encodeURIComponent(segment.target.path)
-                : segment.target.path;
+              : segment.target.kind === "session"
+                ? formatSessionLink(segment.target.sessionId)
+                : (/^[A-Za-z]:[\\/]/.test(segment.target.path) || segment.target.path.startsWith("\\\\"))
+                  ? encodeURIComponent(segment.target.path)
+                  : segment.target.path;
           next.push({
             type: "link",
             url,

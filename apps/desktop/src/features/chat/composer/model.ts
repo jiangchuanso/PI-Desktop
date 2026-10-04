@@ -61,7 +61,7 @@ export type ComposerFileReference = {
   sessionId: string;
   path: string;
   name: string;
-  kind: "image" | "file";
+  kind: "image" | "file" | "session";
   mimeType?: string;
   token?: string;
   plugin?: ComposerPluginPart;

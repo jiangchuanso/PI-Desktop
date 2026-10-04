@@ -20,7 +20,6 @@ import {
   IconBookOpen,
   IconBot,
   IconChevronLeft,
-  IconDownload,
   IconFileText,
   IconGlobe,
   IconInfo,
@@ -58,7 +57,6 @@ import {
   SettingsRow,
 } from "./primitives";
 import { AgentInstructionsSection, UpdatesRow } from "./agent-sections";
-import { ImportSection } from "./import-page";
 import { PromptEnhancementCard } from "./prompt-enhancement-card";
 import { CloseBehaviorSection, DeveloperSection } from "./developer-sections";
 import { PluginScenicThemesDestination } from "../../components/settings/PluginScenicThemesDestination";
@@ -241,7 +239,6 @@ export function SettingsPage() {
       skills: <IconBookOpen size={14} />,
       mcp: <IconServer size={14} />,
       subagents: <IconBot size={14} />,
-      import: <IconDownload size={14} />,
       projects: <IconArchive size={14} />,
       sync: <IconCloudDown size={14} />,
       remoteHosts: <IconGlobe size={14} />,
@@ -572,7 +569,6 @@ export function SettingsPage() {
 
           {tab === "instructions" && <AgentInstructionsSection />}
 
-          {tab === "import" && <ImportSection />}
 
           {tab === "projects" && <ProjectsPage />}
 

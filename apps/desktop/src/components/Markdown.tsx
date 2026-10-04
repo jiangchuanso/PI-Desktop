@@ -532,11 +532,17 @@ function InlineCode({
       type="button"
       className="chat-code-link"
       title={target.kind === "file" ? fileTitle : urlTitle}
-      onClick={() =>
-        target.kind === "file"
-          ? openFileRef(text ?? target.path, baseDir)
-          : openHttpUrl(target.url)
-      }
+      onClick={() => {
+        if (target.kind === "file") {
+          openFileRef(text ?? target.path, baseDir);
+          return;
+        }
+        if (target.kind === "session") {
+          void useAppStore.getState().selectSession(target.sessionId).catch(() => undefined);
+          return;
+        }
+        openHttpUrl(target.url);
+      }}
       onContextMenu={
         target.kind === "file" && openFileMenu
           ? (event) =>

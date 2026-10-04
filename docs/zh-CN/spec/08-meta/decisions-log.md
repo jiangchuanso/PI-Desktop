@@ -39,6 +39,9 @@
 | D639 | models.dev 拥有已发布的聊天模型元数据 | **就聊天元数据而言，取代 D136 / D266 和 ADR `pi-ai-core-0991-authority`：随应用打包并可显式刷新的 models.dev 目录提供已发布的聊天模型上下文 / 输出上限、模态、推理元数据、名称和价格。优先采用所选官方发布方；其没有记录时，只有安全且无歧义的匹配才采用其他发布方，否则保留通用元数据。仓库中的预设身份是优先集合；不要声称存在未经证实的 39 家固定名单。实时端点 / OAuth 发现仍决定可选模型 ID。Pi 仍负责 OAuth、wire 身份、传输和有类型的非聊天操作，但不再为聊天模型提供同档模型的上限、推理能力或价格。明确的用户绑定覆盖仍具权威性。不向 models.dev 发送凭据；不改主机模式 / 协议或持久化。见 ADR `models-dev-catalog-authority` 与 E2E-162 / E2E-MODEL-catalog-window-correction-reaches-saved-bindings。** | Pi 同档模型默认值曾把 GPT 模型的上下文窗口设为 272,000；所选 models.dev 记录实际发布的是 1,050,000，导致设置页显示和运行时上下文预算错误。 |
 | D640 | 用户 MCP 工具保持常规审批路径 | **host-core 将 `mcp_<serverId>_<tool>` 调用视为 `medium` 风险：在 `ask` 与 `accept-edits` 下每次调用都显示审批卡片（"MCP server tool requires approval"），允许一次与本会话允许保持原有范围（单次调用 / 该会话内同一工具名），`auto` 不显示卡片直接执行，Plan/Goal 仍然拒绝。MCP 服务器对自身工具声明的标注或风险值被忽略，绝不降低审批路径。分发、只读模式处理与 `mcp_` 命名空间不变；不改主机协议或持久化。见 ADR `mcp-tool-approval-risk` 与 E2E-MCP-tool-requires-approval。** | MCP 工具此前按 `low` 风险自动放行，已配置的服务器在 `ask` 下可以不经提示写文件、访问网络或执行命令。配置服务器意味着同意启动它，而不是同意其不透明工具的每一个操作。 |
 | D641 | 自定义端点 API 格式优先级 | **自定义端点始终优先使用 provider 行上保存的 `apiStyle`，再考虑模型目录适配器 API。对于具名与 OAuth provider，如果已发布配置要求不同传输，仍可沿用模型级 wire API 固定项。这可确保用户为自定义 endpoint 选择的格式不会被静默覆盖，同时保留 OpenCode Go Responses 模型等特定路由。不改变持久化格式或协议。见 E2E-005E 与 issue #1313。** | 发布方的适配器默认值不应把请求从用户已选择的自定义网关格式静默重定向。 |
+| D642 | 云同步是对所有用户开放的实验性目的地 *(由 D643 修订)* | **移除设置中 `sync` 目的地的开发者模式与打包构建门控：其导轨行、页面和设置搜索命中在任何构建中对所有用户存在，已保存的 `sync` 标签页也不再回落到常规。远程主机保留这两道门控和它自己的徽章。该目的地继续在导轨行与页面标题上保留实验性徽章；同步行为、协议、Host schema 与持久化数据均不变。见 `04-ux/06-settings-ia.md` 与 E2E-CONFIG-SYNC-webdav-portable-configuration。** | 加密 WebDAV 备份是应用唯一的多设备配置路径，而开发者模式门控让需要它的用户无法发现该功能。 |
+| D643 | 云同步不再带实验性徽章 | **修订 D642：设置中的 `sync` 目的地不再有 `experimentalBadgeKey`，各内置语言包中的 `settings.configSync.experimental` 键也已删除。云同步在任何构建中对所有用户保持可用。远程主机保留自己的徽章和两道门控。同步行为、协议、Host schema 与持久化数据均不变。见 `04-ux/06-settings-ia.md` 与 E2E-CONFIG-SYNC-webdav-portable-configuration。** | 云同步是应用已发布的多设备路径，实验性标签已不再描述它，只会让该目的地看起来尚未完成。 |
+| D644 | 便携指令文件没有体积上限 | **移除 Host 对便携指令文件施加的 32 KiB 单文件上限。全局与项目指令内容只受其他域同样拥有的便携实体负载上限约束，并在上传修订与校验远端修订时检查。UTF-8 校验、symlink 拒绝、作用域选择、映射与审批规则均不变。见 `03-runtime/22-config-sync.md` §2。** | 一个 33 KiB 的项目 `AGENTS.md` 会让整次采集以 `CONFIG_SYNC_LIMIT_EXCEEDED: instruction file is too large` 失败，而设置页只能把它显示为泛化的备份体积错误。 |
 | D450 | 签名的 macOS GitHub Release | **修订 D078 / ADR 0022：GitHub tag 发布使用身份 `Developer ID Application: XingYu Liu (DUV63RKYTW)` / 团队 `DUV63RKYTW`，通过 Actions 密钥（`CSC_LINK`、`CSC_KEY_PASSWORD`、`APPLE_ID`、`APPLE_APP_SPECIFIC_PASSWORD`、`APPLE_TEAM_ID`）对 macOS DMG/ZIP 做 Developer ID 签名、`notarytool` 公证、装订和 Gatekeeper 校验；缺少密钥则失败。无证书的本地未签名打包仍可用。`workflow_dispatch` 仅可把 `sign_macos: false` 用于未签名调试产物。打包的 macOS 走应用内 `electron-updater`（ZIP + 合并后的 `latest-mac.yml`）；Linux deb/rpm 与 Windows 便携版 ZIP 仍为通知并打开发布页。禁止 afterPack/afterSign adhoc 签名（ADR 0278）。** | 正式 DMG 应无需 Gatekeeper 警告即可打开，已签名 macOS 安装可下载并重启到新 tag。见 ADR 0289、E2E-196c、E2E-067A。 |
 
 ## B. 辅助实现默认值
@@ -369,7 +372,7 @@
 | D334 | 受约束的聊天内图片显示 | **修订桌面 `fs/read` 仅工作区条款：`fs/read`、`fs/reveal` 和 `fs/open` 共用 `resolveOpenablePath`（工作区、`<data_dir>/scratch/`、`<data_dir>/attachments/`，以及 `attachments/<sha256>` blob）。读取会 `realpath` 目标。** | 聊天需要内联图片，但不能把任意绝对路径交给渲染器。 |
 | D336 | 由宿主代发的插件补全与会话上下文 | **修订 D019：插件在授予 `session.read` 时可经 `pi.session.getLlmContext()` 读取进行中工具会话的面向模型转录，并在授予相应权限时经 `pi.agent.complete()` 跑一次性补全。见 ADR 0174。** | 插件需要第二意见补全，但不能自己拿提供商凭据。 |
 | D340 | 用户可配置的出站代理 | **设置 → 通用 → 网络把代理暴露为系统 / 直连 / 自定义。自定义接受 http/https/socks5 URL 和绕过列表，持久化为可选 `AppSettings.networkProxy`。Chromium `session.setProxy` 覆盖内置浏览器和 `net.fetch`；sidecar 经 undici dispatcher 应用。见 ADR 0177 与 E2E-190。** | Node fetch 忽略操作系统代理，Clash/V2Ray/SOCKS5 用户能浏览却不能调模型。 |
-| D342 | 从本地智能体存储导入模型配置 | **修订 D007：设置 → 导入仍不自动导入 `~/.pi`。显式模型配置卡片扫描 Claude Code、Codex、OpenCode、Pi 和 CC Switch 提供商行，列出不含密钥的草稿，并由 `modelConfig/importRun` 经 `providers.create` 复制 API 密钥。等价提供商（规范化 base URL + API 风格 + 同一凭据）被跳过。见 ADR 0179、ADR 0188 与 E2E-209。** | 用户已经从这些存储导入会话，否则要在模型页重打同样的端点和密钥。 |
+| D342 | 从本地智能体存储导入模型配置 | **修订 D007：设置 → 导入仍不自动导入 `~/.pi`。显式模型配置卡片扫描 Claude Code、Codex、OpenCode、Pi 和 CC Switch 提供商行，列出不含密钥的草稿，并由 `modelConfig/importRun` 经 `providers.create` 复制 API 密钥。等价提供商（规范化 base URL + API 风格 + 同一凭据）被跳过。见 ADR 0179、ADR 0188 与 E2E-209。设置入口和会话导入 UI 后由 D645 / ADR 0319 修订：模型导入现位于模型页，设置页不再提供会话导入。** | 用户已经从这些存储导入会话，否则要在模型页重打同样的端点和密钥。 |
 | D351 | 模型配置导入保留不同凭据 | **修订 D342 / ADR 0179：导入提供商仅在规范化端点、API 风格和凭据都匹配时视为等价。同一端点不同 API 密钥创建独立提供商行，并仍可在 Composer 中选择。Electron main 经宿主密钥边界解析已有 API 密钥。见 ADR 0188 与 E2E-209。** | CC Switch 在同一网关端点存多个账户；仅按端点幂等会静默丢掉除第一个以外的配置。 |
 | D344 | 由主进程拥有的文件选择能力 | **修订 D197 / D334：Composer 原生文件和图片选择器把选中的绝对路径留在 Electron main，用短时、绑定发送者、一次性令牌保护。`composer/importFiles` 只接受该令牌和持久会话 id；渲染器从不提供源路径。MVP 文件选择器只提供常规文件。见 ADR 0181 与 E2E-102h。** | 渲染器 IPC 不是用户点击门禁：导入载荷接受任意绝对路径会变成本地文件外泄原语。 |
 | D314 | 已发布语言注册表与语言选择器 | **修订 D073：界面语言列在 `@pi-desktop/i18n`（`en`、`zh-CN`、`zh-TW`、`tr`）。本地名称永不翻译。设置 → 常规的语言是可搜索选择器（跟随系统 + 注册表），不再是三张预览卡。插件标签保持 `en` + `zh-CN` 契约；没有插件翻译的外壳语言使用英语回退；产品更新日志跟随每个已发布产品语言。见 ADR 0160、ADR 0182 与 E2E-091。** | 预览卡无法扩展到两种以上语言；注册表让添加语言无需重写外观卡即可发货。 |
@@ -3422,6 +3425,7 @@ D193 和 D194。
 - 设置 → 导入已经能扫描会话。同一批工具还把提供商地址、模型 id 和 API 密钥写在本机配置里，用户否则要在模型页重填。
 - 增加独立的模型配置卡片：显式扫描 Claude Code / Codex / OpenCode / Pi / CC Switch，密钥留在主进程扫描缓存，通过 `providers.create` 写入。OAuth/订阅令牌不复制。仅跳过相同归一化端点、API 风格和凭据的等价提供商；同一端点的不同凭据保持独立。D007 的禁止自动导入仍然有效（ADR 0188）。
 - 决策 D342 记录为 ADR 0179。见 `04-ux/06-settings-ia.md`、`04-ux/08-component-spec.md` §18.5 与 E2E-192。
+- 设置导入入口与会话导入 UI 后由 D645 / ADR 0319 修订；模型扫描和凭据导入语义仍适用，入口现位于“模型”设置页。
 
 ## 2026-09-08 —— 模型配置导入保留不同凭据（D351）
 
@@ -5214,3 +5218,48 @@ Markdown 源码，不是 `text/html` 负载；对禁用行内 HTML 的外部编�
   服务器对自身工具声明的风险标注不被信任，绝不降低审批路径。
 - 通过 `plugins.execute` 的分发、只读模式处理与 `mcp_` 命名空间不变。见 ADR
   `mcp-tool-approval-risk` 与 E2E-MCP-tool-requires-approval。
+
+## 2026-10-04 —— 云同步是对所有用户开放的实验性目的地（D642）
+
+- D642 移除设置中 `sync` 目的地的开发者模式与打包构建门控：其导轨行、页面和设置搜索
+  命中在任何构建中对所有用户可用，已保存的 `sync` 标签页也不再回落到常规。远程主机
+  保留这两道门控。
+- 该目的地当时在导轨行和页面标题上保留实验性徽章
+  （已由 D643 修订）。
+- 由 `apps/desktop/test/settings-developer-only-destinations.test.mjs` 与
+  `pnpm test:e2e:settings-scroll` 的云同步探针覆盖。见 `04-ux/06-settings-ia.md` 与
+  E2E-CONFIG-SYNC-webdav-portable-configuration。
+
+## 2026-10-04 —— 云同步不再带实验性徽章（D643）
+
+- D643 修订 D642：设置中的 `sync` 目的地不再有 `experimentalBadgeKey`，
+  各内置语言包中的 `settings.configSync.experimental` 键也已删除。云同步在任何构建、
+  对所有用户都保持可用。
+- 远程主机保留自己的徽章和两道门控。同步行为、协议、Host schema 与持久化数据均不变。
+- 由 `apps/desktop/test/settings-developer-only-destinations.test.mjs`、
+  `apps/desktop/test/config-sync-settings.test.mjs` 中的徽章断言，以及
+  `pnpm test:e2e:settings-scroll` 的云同步探针覆盖。
+
+## 2026-10-04 —— 指令文件同步不再有单独的字节上限（D644）
+
+- D644 移除 Host 对便携指令文件施加的 32 KiB 单文件上限。超过该上限的项目
+  `AGENTS.md` 会让整次采集以 `CONFIG_SYNC_LIMIT_EXCEEDED: instruction file is too
+  large` 失败，而设置页只能把它显示为泛化的备份体积错误。
+- 指令内容现在只受其他域同样拥有的便携实体负载上限约束，Host 在上传修订与校验远端
+  修订时检查该上限。UTF-8 校验、symlink 拒绝、作用域选择、映射与审批规则均不变；
+  agent-runtime 的 prompt 指令链保留自己的读取侧预算。
+- 由 `crates/host-core/src/config_sync/domains.rs` 中的
+  `config_sync::domains::tests::captures_project_instruction_files_beyond_the_former_size_cap`
+  与 `config_sync::domains::tests::writes_imported_instruction_files_beyond_the_former_size_cap`
+  覆盖。
+## 2026-10-04 —— 外部导入内嵌到所属设置页（D645）
+
+- D645 移除独立的设置 `import` 目的地。模型配置、外部技能和外部 MCP 扫描分别从
+  “模型”“技能”和“MCP”页内打开。能力导入遵循当前全局/项目层级；项目扫描绑定到
+  所选项目。
+- 设置不再提供核心会话扫描/导入。插件继续使用现有宿主拥有的会话导入 API 与项目绑定
+  行为；不改变 IPC、插件权限、宿主协议或持久化契约。
+- 由隔离的设置 MCP 导入用户路径测试、`agent-import-ipc.test.mjs` 和
+  `import-format.test.mjs` 覆盖。见 ADR 0319、`04-ux/06-settings-ia.md`、
+  `04-ux/08-component-spec.md`、E2E-038 / E2E-043 / E2E-209 与
+  E2E-SETTINGS-inline-capability-imports。

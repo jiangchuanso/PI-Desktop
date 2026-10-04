@@ -57,14 +57,14 @@ test("window controls draw through the icon wrappers", () => {
 });
 
 
-test("attachment thumbnails are tone tiles, not stroked boxes (D297)", () => {
-  const block = messages.slice(
-    messages.indexOf(".message-attachment-image {"),
-    messages.indexOf(".message-attachment-image img {"),
-  );
-  assert.doesNotMatch(block, /border(?:-color)?:/);
-  assert.match(block, /background: var\(--ds-tile\);/);
-  assert.match(block, /:hover \{[\s\S]*?background: var\(--ds-raised\);/);
+test("message image chips carry no tile or stroke of their own (D297)", () => {
+  const start = messages.indexOf(".message-attachment-image-chip {");
+  assert.notEqual(start, -1, "message image chip rule is missing");
+  const block = messages.slice(start, messages.indexOf("}", start));
+  // The shared composer chip and the preview card own the surface; the wrapper
+  // stays a bare inline layout box.
+  assert.doesNotMatch(block, /background:|border|box-shadow/);
+  assert.match(block, /display: inline-flex;/);
 });
 
 test("dead components are gone", () => {

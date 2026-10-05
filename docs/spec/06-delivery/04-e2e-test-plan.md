@@ -4170,7 +4170,9 @@ identify the platform validation still needed.
   the before/after drop indicator, resulting order, and unchanged active tab;
   hold a drag at each strip edge until hidden tabs scroll into view, then verify
   the indicator follows the newly visible targets. Repeat with
-  `Alt+ArrowLeft`/`Alt+ArrowRight`. 4) Click `+` twice and verify each click
+  `Alt+ArrowLeft`/`Alt+ArrowRight`. With only one or two tabs, drag unused
+  header space to move the native window; tab and action clicks must still
+  work without moving it. 4) Click `+` twice and verify each click
   creates and activates a separate New launcher tab. Confirm the launcher body
   contains Review plus each in-scope plugin view exactly once as clickable rows;
   there is no work-panel dropdown or popup. Click Browser from one New tab and
@@ -4363,6 +4365,24 @@ identify the platform validation still needed.
 - **Acceptance**: Quality, Security
 - **Milestone**: M5
 - **Status**: Draft (manual)
+
+#### E2E-BROWSER-capture-resize: Capture completion preserves the latest viewport
+
+- **Preconditions**: Isolated Electron profile and a local responsive page
+  taller than the visible browser viewport. No provider account is needed.
+- **Steps**: Start a full-page screenshot, then resize the browser hole twice
+  before Chromium completes it. Repeat while alternating larger and smaller
+  sizes and through raw `Page.captureScreenshot`. Queue overlapping captures,
+  change resource tabs, fail a capture, and close a tab with a queued capture.
+- **Expected**: The completed capture does not restore a stale viewport. The
+  page's `innerWidth`/`innerHeight` match the latest requested bounds. Captures
+  on one page serialize without blocking a sibling page. Failed capture
+  releases resize handling. Closing a page cannot redirect its queued capture
+  to another page. No screenshot is repeated to repair layout.
+- **Status**: Native Electron capture/resize path automated by
+  `node scripts/e2e-browser-capture-resize.mjs` (artifacts retained). The
+  production Host/Pane/CDP service paths for failure, queueing and tab closure
+  are covered by `apps/desktop/test/browser-capture-resize.test.mjs`.
 
 #### E2E-BROWSER-session-preview-race: Session switching does not expose a stale preview
 
@@ -13613,23 +13633,31 @@ are withdrawn with ADR 0165.
 - **Preconditions**: Start PI-Desktop with `PI_DESKTOP_MCP_CONTROL=1`. A durable
   session exists whose `session.compaction` record (`summary` / `retainedTail` /
   `details.modifiedFiles`) alone serializes to more than the 512 KiB MCP result
-  limit.
+  limit. A second durable session exists whose `session.compactions` history
+  alone does — the newest `compaction` is already compact, but several history
+  entries each carry their own `summary` / `retainedTail` /
+  `details.modifiedFiles` (mocode #506).
 - **Steps**: 1) Read `mcp-control.json`, use its URL and bearer token, and
   complete the MCP handshake. 2) Call `pi_session_get` for that session with any
   `messageLimit` / `contentLimit` / `messageBefore`. 3) Inspect
-  `structuredContent`. 4) Repeat for a small session.
+  `structuredContent`. 4) Repeat for the history-heavy session with the smallest
+  page (`messageLimit: 1`, `contentLimit: 1`). 5) Repeat for a small session.
 - **Expected**: The answer is not the `{truncated: true, reason:
   "MCP_RESULT_LIMIT", preview}` envelope; `session.messages` carries the
   requested transcript page; `session.compaction` keeps `createdAt` and
   `details.generation` while `summary`, `retainedTail`, and
-  `details.modifiedFiles` are absent. The small session's answer is unchanged.
+  `details.modifiedFiles` are absent. Every `session.compactions` entry keeps its
+  scalar identity and drops those same unbounded fields, so the history-heavy
+  session returns a real page even at `messageLimit: 1` / `contentLimit: 1`. The
+  small session's answer is unchanged.
 - **Specs linked**: `03-runtime/01-ipc-protocol.md` §13d
 - **Acceptance**: C (sessions), Quality
 - **Milestone**: M6+
 - **Status**: The local MCP server contract test in
   `apps/desktop/test/mcp-control.test.mjs` exercises authenticated JSON-RPC
-  `tools/call` for both oversized and under-limit `pi_session_get` results. The
-  separate full Electron-to-Host journey remains release qualification.
+  `tools/call` for oversized (current record, compaction history, and
+  history-only) and under-limit `pi_session_get` results. The separate full
+  Electron-to-Host journey remains release qualification.
 
 #### E2E-234: Workspace security denylist and ignore layers
 

@@ -100,8 +100,10 @@ destination, chat as the home surface, tools and permissions inline.
 - **Work panel**: docked right column (not an overlay) opened by an artifact,
   the viewport-fixed toggle, or `Cmd/Ctrl + J`. File, URL, browser-preview, and
   successful workspace-edit artifacts create their resources atomically. The
-  46px content header exposes a tablist and a fixed `+` trigger. Its tokenized
-  44px right-side safe lane (the 28px control, its 12px viewport inset, and the
+  46px content header exposes a tablist and a fixed `+` trigger. Unused
+  tab-strip space remains a native window drag region; individual tabs and
+  header actions are no-drag so selection, closing, and reordering still work.
+  Its tokenized 44px right-side safe lane (the 28px control, its 12px viewport inset, and the
   header's 4px control gap) keeps the `+`, maximize, and viewport-fixed
   work-panel toggle one button group, spaced by that same gap, while the trigger
   keeps a distinct hit target. Clicking `+` creates and activates

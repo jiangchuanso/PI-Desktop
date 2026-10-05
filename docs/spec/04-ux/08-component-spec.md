@@ -1206,6 +1206,13 @@ entirely inside the plugin's isolated page:
   the divider restores the default 360px width, clamped by the same live
   minimum and three-column budget, so a reset never breaches the MainChat
   floor.
+- Browser capture and resize: screenshots and raw `Page.captureScreenshot`
+  calls serialize per retained browser page. While a capture is in flight,
+  the page retains the latest requested bounds without changing its native
+  viewport. Capture completion or failure applies those bounds if the page
+  is visible; a hidden page receives them when shown again. Queued captures
+  stay on their original page and fail if that guest was closed. Other pages
+  remain independent, and resizing never triggers an extra screenshot.
 - Persistence: all session contexts are renderer runtime state only. On app
   startup, open state, tabs, active-tab selection, file requests, and Browser
   resources reset; only the committed preferred `{width}` remains in

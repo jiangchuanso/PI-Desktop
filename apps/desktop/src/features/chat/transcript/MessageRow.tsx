@@ -8,9 +8,8 @@ import {
   type ReactNode,
 } from "react";
 import { useTranslation } from "react-i18next";
-import type { MessageAttachment, UiMessage } from "@pi-desktop/shared";
+import type { UiMessage } from "@pi-desktop/shared";
 import { useOpenChatFileRef } from "../../../hooks/use-preview-target";
-import { splitChatText } from "../../../lib/chat-links";
 import { useAppStore } from "../../../stores/app-store";
 import { Markdown } from "../../../components/Markdown";
 import {
@@ -35,6 +34,7 @@ import {
   useChatTextActions,
   useTranscriptMenu,
 } from "./TranscriptMenu";
+import { getExtraMessageAttachments } from "./extra-attachments";
 
 function SkillInvocationText({ message }: { message: UiMessage }) {
   const command = message.command ?? "";
@@ -109,18 +109,10 @@ export const MessageRow = memo(function MessageRow({
   const activeRevision = message.activeRevision ?? revisionCount;
   const showRevisionPager = editableUserMessage && revisionCount > 1;
   const extraAttachments = useMemo(() => {
-    const attachments = message.attachments;
-    if (!attachments?.length) return [];
-    const inline = new Set(
-      splitChatText(String(message.content || ""), workspaceRoot)
-        .filter((segment): segment is { kind: "target"; text: string; label: string; target: { kind: "file"; path: string } } => segment.kind === "target" && segment.target.kind === "file")
-        .map((segment) => segment.target.path),
-    );
-    // A conversation reference is already its chip in the body link, so it
-    // needs no second block; only a file the body does not show inline does.
-    return attachments.filter(
-      (attachment): attachment is MessageAttachment & { kind: "file" | "image" } =>
-        attachment.kind !== "session" && !inline.has(attachment.ref),
+    return getExtraMessageAttachments(
+      String(message.content || ""),
+      message.attachments,
+      workspaceRoot,
     );
   }, [message.attachments, message.content, workspaceRoot]);
   // An attachment the body does not already name inline continues the body

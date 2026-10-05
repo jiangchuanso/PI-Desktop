@@ -232,6 +232,7 @@ export const zhCN = {
   },
   chat: {
     tableActions: "表格操作",
+    markdownPlainTextFallback: "内容较长，为保持界面响应速度，现以纯文本显示。",
     copyTableMarkdown: "复制表格为 Markdown",
     exportTableCsv: "下载表格为 CSV",
     tablePreview: "放大表格",
@@ -285,7 +286,6 @@ export const zhCN = {
       progress: "已完成 {{completed}}/{{total}}",
       current: "{{completed}}/{{total}} · 当前：{{content}}",
       completed: "已完成 {{completed}}/{{total}}",
-      more: "还有 {{count}} 项",
       updated: "清单已更新",
       updating: "正在更新清单",
       status: { pending: "待办", in_progress: "进行中", completed: "已完成", cancelled: "已取消" },

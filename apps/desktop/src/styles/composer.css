@@ -833,6 +833,22 @@
   padding: 0 10px 10px;
 }
 
+/* The expanded dock lists every row and scrolls inside its own box (#1319):
+   the Composer keeps its footprint, and reaching the list's end never scrolls
+   the transcript behind it. */
+.todo-dock.is-expanded .todo-dock-list {
+  max-height: min(280px, 30dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* The scrollport is keyboard reachable while it is on screen; the inset ring
+   stays inside the clip layer that carries the disclosure animation. */
+.todo-dock-list:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--ds-accent) 72%, transparent);
+  outline-offset: -2px;
+}
+
 .todo-dock-row {
   display: flex;
   min-width: 0;
@@ -874,11 +890,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.todo-dock-more {
-  color: var(--ds-text-muted);
-  font-size: var(--text-2xs);
 }
 
 @media (prefers-reduced-motion: reduce) {

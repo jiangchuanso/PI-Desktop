@@ -230,6 +230,7 @@ export const de = {
   },
   "chat": {
     "tableActions": "Tabellenaktionen",
+    "markdownPlainTextFallback": "Große Antworten werden zur besseren Reaktionsfähigkeit als Klartext angezeigt.",
     "copyTableMarkdown": "Tabelle als Markdown kopieren",
     "exportTableCsv": "Tabelle als CSV herunterladen",
     "tablePreview": "Tabelle vergrößern",
@@ -283,7 +284,6 @@ export const de = {
       "progress": "{{completed}}/{{total}} erledigt",
       "current": "{{completed}}/{{total}} · Aktuell: {{content}}",
       "completed": "{{completed}}/{{total}} erledigt",
-      "more": "{{count}} weitere Elemente",
       "updated": "Checkliste aktualisiert",
       "updating": "Checkliste wird aktualisiert",
       "status": { "pending": "Offen", "in_progress": "In Bearbeitung", "completed": "Erledigt", "cancelled": "Abgebrochen" }

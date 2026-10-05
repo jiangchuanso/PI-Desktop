@@ -239,6 +239,7 @@ export const ko = {
   },
   chat: {
     tableActions: "표 작업",
+    markdownPlainTextFallback: "긴 응답은 화면의 반응성을 유지하기 위해 일반 텍스트로 표시됩니다.",
     copyTableMarkdown: "표를 Markdown으로 복사",
     exportTableCsv: "표를 CSV로 다운로드",
     tablePreview: "표 확대",
@@ -292,7 +293,6 @@ export const ko = {
       progress: "{{completed}}/{{total}} 완료",
       current: "{{completed}}/{{total}} · 현재: {{content}}",
       completed: "{{completed}}/{{total}} 완료",
-      more: "{{count}}개 더 있음",
       updated: "체크리스트 업데이트됨",
       updating: "체크리스트 업데이트 중",
       status: { pending: "대기", in_progress: "진행 중", completed: "완료", cancelled: "취소됨" },

@@ -6288,6 +6288,30 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   fails by 40.125px of content height and 40px of row movement when the reserved
   lane is removed (issue #323).
 
+#### E2E-263: Native interaction stays live during large transcript streaming
+
+- **Preconditions**: Isolated visible Electron window with the production
+  `Markdown` renderer and built app stylesheet. A separate local Node fixture
+  emits ordered synthetic deltas; no provider, real Host, production session,
+  or user data is used.
+- **Steps**: Stream a 90 Ki-code-unit unbroken message plus a final marker from
+  the child process. Once the rendered message exceeds the streaming-tail
+  threshold, use Electron `webContents.sendInputEvent` to click, type into the
+  draft, switch to another session and back, collapse and expand the transcript,
+  and scroll while deltas continue. Finish the stream and compare every received
+  source code unit, sequence number, final marker, and rendered source length.
+- **Expected**: Every native action is acknowledged while streaming remains
+  active, each completes within 250 ms, and the action P95 is at most 100 ms on
+  the recorded environment. The independent producer advances all 180 sequence
+  numbers in order; switching sessions does not move or lose the background
+  stream, and the finished content retains the exact received source.
+- **Specs linked**: `04-ux/08-component-spec.md` §8.7.
+- **Status**: Automated by `pnpm test:e2e:renderer-responsiveness`. The parent
+  Electron process drives native input under an external 25-second deadline;
+  the renderer cannot self-report its own timeout. The fixture is deterministic
+  and offline, not an incident replay or a claim about production-session root
+  cause.
+
 #### E2E-STREAM-long-turn-keeps-realtime
 
 - **Preconditions**: Provider configured; an Agent session can run a long
@@ -9364,8 +9388,10 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
 - **Steps**: Start a multi-step Agent turn that calls `TodoWrite` with ordered
   pending and `in_progress` items. Observe the TodoDock above the Composer,
   expand it, switch sessions, and confirm the checklist stays session-scoped.
-  Complete and cancel items, confirm the bounded eight-row display and the
-  all-cancelled label, then clear the checklist and reload/restart the host.
+  Expand a checklist longer than the dock's height cap: every row must render
+  and the list must scroll inside the dock without growing the Composer stack.
+  Complete and cancel items, confirm the all-cancelled label, then clear the
+  checklist and reload/restart the host.
   Deliver an out-of-order older `todos.changed` event and confirm it cannot
   replace the newer snapshot. Exercise invalid payload, Plan/Goal, delegated,
   and remote-session paths.
@@ -9373,6 +9399,7 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   advances revision, including clear, and emits one committed `todos.changed`
   snapshot. Invalid or unauthorized writes do not mutate or emit. TodoDock
   renders plain text, does not take focus, resets expansion on session changes,
+  lists every ordered row with the dock's own list as the scrollport,
   keeps a collapsed dock to its header height,
   rejects stale events, and skips local recovery for `remote:` sessions because
   RACP v1 has no Todo snapshot operation.
@@ -9386,8 +9413,9 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   the production renderer, and a real host/SQLite profile. Only the external
   model stream and preload transport are fixtures; no live provider or user
   profile is used. The scenario includes Unicode truncation with warning replay,
-  single-active-item normalization, a
-  failed initial read followed by host recovery without changing sessions,
+  single-active-item normalization, full-list rendering with the dock's
+  internal scroll, a failed initial read followed by host recovery without
+  changing sessions,
   cached-snapshot reconciliation, and stale-event rejection. Runtime
   `runtime-todos.test.ts` exercises Agent tool validation, overlong content
   normalization, and continuation through a deterministic provider.

@@ -725,11 +725,15 @@ test("sentence punctuation after URLs stays outside the link", () => {
   );
 });
 
-test("adjacent parenthesis-wrapped URLs all remain independently linkable", () => {
+test("URL link creation is capped per conversion without changing source text", () => {
   const source = "(https://example.com)".repeat(1000);
   const segments = splitChatText(source, ROOT);
-  assert.equal(segments.filter(s => s.kind === "target").length, 1000);
+  assert.equal(segments.filter(s => s.kind === "target").length, 256);
   assert.equal(segments.map(s => s.text).join(""), source);
+  assert.equal(
+    splitChatText("(https://example.com)", ROOT).filter((s) => s.kind === "target").length,
+    1,
+  );
 });
 
 test("parseFileRefPosition keeps :line[:col] that parseFileRef strips", () => {

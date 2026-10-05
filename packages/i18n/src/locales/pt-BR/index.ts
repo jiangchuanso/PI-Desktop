@@ -229,6 +229,7 @@ export const ptBR = {
   },
   chat: {
     tableActions: "Ações da tabela",
+    markdownPlainTextFallback: "Respostas extensas são exibidas como texto simples para manter a interface responsiva.",
     copyTableMarkdown: "Copiar tabela como Markdown",
     exportTableCsv: "Baixar tabela como CSV",
     tablePreview: "Expandir tabela",
@@ -282,7 +283,6 @@ export const ptBR = {
       progress: "{{completed}}/{{total}} concluídos",
       current: "{{completed}}/{{total}} · Atual: {{content}}",
       completed: "{{completed}}/{{total}} concluídos",
-      more: "Mais {{count}} itens",
       updated: "Checklist atualizado",
       updating: "Atualizando checklist",
       status: { pending: "Pendente", in_progress: "Em andamento", completed: "Concluído", cancelled: "Cancelado" },

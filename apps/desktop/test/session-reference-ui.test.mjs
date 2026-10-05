@@ -16,6 +16,7 @@ import ts from "typescript";
 import { catalogs } from "@pi-desktop/i18n";
 import { formatSessionLink, isRenderableAttachment } from "@pi-desktop/shared";
 import { splitChatText } from "../src/lib/chat-links.ts";
+import { getExtraMessageAttachments } from "../src/features/chat/transcript/extra-attachments.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 register(pathToFileURL(join(here, "helpers/ts-import-hooks.mjs")));
@@ -119,6 +120,7 @@ const { MessageRow } = load(new URL("../src/features/chat/transcript/MessageRow.
   "./menu-items": { userMessageMenuItems: () => [] },
   "./ActionBarSlots": { ActionSlotSide: () => null },
   "./SessionMessageOrigin": { SessionMessageOrigin: () => null },
+  "./extra-attachments": { getExtraMessageAttachments },
   "./TranscriptMenu": {
     useTranscriptMenu: () => () => {},
     useChatTextActions: () => ({ copyText: () => {}, selectText: () => {} }),

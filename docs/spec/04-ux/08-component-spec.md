@@ -3298,9 +3298,32 @@ Anatomy:
   whitespace yet): the placeholder teaches `Type / for commands · @ for files`
   (localized in zh-CN), and groups appear in order — prompt templates (name +
   `argument-hint` ghost text + description, project source before
-  user-global), app commands (builtin slash aliases), plugin commands.
+  user-global), app commands (builtin slash aliases), plugin commands,
+  extension commands, connected MCP servers, then Skills.
   The core aliases remain `/new`, `/compact`, `/agent-mode`, `/plan-mode`, and
   `/goal-mode`; matched characters highlight in accent.
+- Catalog discovery refreshes MCP records and initializes enabled in-scope
+  servers through the existing runtime connection path, including on cold start.
+  Failed handshakes retain the runtime's explicit retry policy.
+- The MCP group exposes enabled user-configured servers that are ready, have
+  tools, and are active in the current project. Rows contain a stable
+  `/mcp:<URI-encoded-server-id>` and the display label. Individual tools also
+  appear as `/mcp:<URI-encoded-server-id>:<URI-encoded-tool-name>`, searchable
+  and selectable with the same keyboard and pointer interactions. Tool selections
+  activate only that exact tool; server selections retain whole-server behavior.
+  No connection addresses, credentials, or tool schemas enter the command
+  catalog. Selecting a row only
+  inserts text. At send (including steering), main revalidates availability
+  against the session project and passes exact server IDs to the runtime.
+  The runtime activates that server's currently available tools before the
+  provider request, reusing deferred activation without ToolSearch's result
+  limit. A short instruction identifies the selected server. Other active
+  tools and all permission checks remain in place. The original draft remains
+  the transcript's `command`. Activation does not force tool execution or
+  guarantee model compliance. An unavailable selection fails with localized
+  feedback before opening a turn or replacing history. Native Pi sessions do
+  not support Desktop-managed MCP selections. Existing command aliases win
+  collisions. See `docs/adr/composer-mcp-invocations.md`.
 - A whitespace-delimited `/` later in the draft offers active Skills only.
   Completion replaces only the token under the cursor, so several Skills and
   ordinary text can coexist in one prompt.

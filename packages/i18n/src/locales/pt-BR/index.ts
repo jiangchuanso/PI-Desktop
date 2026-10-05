@@ -263,6 +263,7 @@ export const ptBR = {
     slashGroupApp: "Aplicativo",
     slashGroupPlugins: "Plugins",
     slashGroupExtensions: "Extensões",
+    slashGroupMcp: "MCP",
     slashGroupSkills: "Habilidades",
     slashEmpty: "Nenhum comando correspondente",
     slashCommandSourceUnavailable: "A lista de comandos está indisponível; nada foi enviado. Tente novamente.",
@@ -2537,6 +2538,8 @@ export const ptBR = {
     phase: { idle: "Desativada", preparing: "Preparando", "acquiring-mic": "Aguardando microfone", negotiating: "Negociando", connecting: "Conectando…", connected: "Conectado", reconnecting: "Reconectando", closing: "Encerrando…", ended: "Encerrada", failed: "Interrompida" },
   },
   errors: {
+    COMPOSER_MCP_UNAVAILABLE: "O servidor MCP selecionado está desconectado ou indisponível neste projeto. Reconecte-o e selecione-o novamente.",
+    COMPOSER_MCP_REQUEST_REQUIRED: "Depois de escolher um servidor ou ferramenta MCP, informe uma tarefa ou adicione um anexo.",
     HOST_UNAVAILABLE: "O serviço local está indisponível",
     MODEL_NOT_CONFIGURED: "Este modelo não está configurado ou o provedor de IA não o oferece.",
     TOOL_DENIED: "A permissão foi negada para esta ação",

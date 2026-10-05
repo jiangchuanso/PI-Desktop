@@ -266,6 +266,7 @@ export const zhCN = {
     slashGroupApp: "应用命令",
     slashGroupPlugins: "插件命令",
     slashGroupExtensions: "扩展命令",
+    slashGroupMcp: "MCP",
     slashGroupSkills: "技能",
     slashEmpty: "没有匹配的指令",
     slashCommandSourceUnavailable: "指令列表不可用，消息未发送。请重试。",
@@ -2646,6 +2647,8 @@ sklm: {
     phase: { idle: "关闭", preparing: "正在准备", "acquiring-mic": "等待麦克风", negotiating: "正在协商", connecting: "连接中…", connected: "已连接", reconnecting: "正在重连", closing: "正在结束…", ended: "已结束", failed: "已停止" },
   },
   errors: {
+    COMPOSER_MCP_UNAVAILABLE: "所选 MCP 服务器已断开或在当前项目中不可用。请重新连接并选择。",
+    COMPOSER_MCP_REQUEST_REQUIRED: "选择 MCP 服务器或工具后，请输入任务内容或添加附件。",
     HOST_UNAVAILABLE: "本地服务不可用",
     MODEL_NOT_CONFIGURED: "该模型尚未配置，或当前 AI 服务不提供此模型。",
     TOOL_DENIED: "此操作的权限已被拒绝",

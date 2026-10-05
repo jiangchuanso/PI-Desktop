@@ -1,3 +1,4 @@
+import { resolveMcpToolSelection } from "./mcp-tool-selection.js";
 import { TOOL_ACTIVATION_SECTION, toolDeclarationPolicy, toolActivationSection, restoredToolActivation, syncToolActivation, type ToolDeclarationPolicy } from "./fixed-tool-declarations.js";
 import { orderSystemRows, SystemTranscriptJournal } from "./system-transcript-journal.js";
 import { planWorkspaceRequiredResult } from "./plan-workspace-error.js";
@@ -32,6 +33,8 @@ import {
 import {
   isContextOverflow,
   getCurrentTools,
+  getToolStateChanges,
+  toToolDeclaration,
   Type,
   type Api,
   type AssistantMessage,
@@ -291,6 +294,9 @@ export type RuntimePromptAttachment = Omit<AgentPromptAttachment, "kind"> & {
 
 export type RuntimePrompt = {
   text: string;
+  /** Explicit user selection, resolved against the host-provided tool catalog. */
+  mcpServerIds?: string[];
+  mcpToolNames?: string[];
   sessionMessage?: SessionMessageOrigin;
   attachments?: RuntimePromptAttachment[];
 };
@@ -954,6 +960,8 @@ function contextFallbackReminder(): string {
 
 
 export type PluginToolDef = {
+  /** Present only on tools resolved from a user MCP server by Electron main. */
+  mcpServerId?: string;
   /** Full exposed name (`plugin_<pluginIdSafe>_<toolName>`, D015). */
   name: string;
   description?: string;
@@ -1882,7 +1890,7 @@ export class DesktopAgentRuntime {
   private acceptingSteering = false;
   private steeringContinuation = false;
   private steeringWaitAbort?: AbortController;
-  private pendingSteering = new Map<AgentMessage, string>();
+  private pendingSteering = new Map<AgentMessage, { id: string; toolNames: string[] }>();
   private pendingOverflow = false;
   private overflowRecoveryAttempted = false;
   private overflowRecoveryInProgress = false;
@@ -2149,6 +2157,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
           convertToLlm(this.dropDuplicateToolCalls(messages)), this.reasoningReplayIdentity(),
         );
       },
+      prepareRequest: ({ context }) => this.prepareToolDeclarations(context),
       prepareNextTurnWithContext: (context, signal) =>
         this.prepareNextTurn(context, signal),
       afterToolCall: async (context) => this.afterToolCall(context),
@@ -2275,6 +2284,27 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
     this.agent.state.messages = rebuildSystemTranscript(
       this.agent.state.messages.filter((message) => message.role !== "system" || !this.systemJournal.isPersisted(message)), messages,
     );
+  }
+
+  /** Steering is consumed after next-turn preparation; sync before dispatch. */
+  private prepareToolDeclarations(context: AgentContext): AgentLoopTurnUpdate {
+    const tools = this.declaredTools();
+    let messages = context.messages;
+    const changes = getToolStateChanges(getCurrentTools(messages), tools.map(toToolDeclaration));
+    if (changes.toolsAdded.length || changes.toolsRemoved.length) {
+      messages = [...messages, {
+        role: "system", content: "", ...changes, timestamp: Date.now(),
+      }];
+    }
+    if (this.trackToolActivation && this.declarationPolicy) {
+      messages = syncToolActivation(messages, toolActivationSection(
+        this.declarationPolicy.key, this.activeDeferredToolNames,
+      ));
+    }
+    for (const message of messages.slice(context.messages.length)) {
+      this.agent.state.messages.push(message);
+    }
+    return { context: { ...context, messages, tools } };
   }
 
   private setAgentTools(tools: AgentTool[]): void {
@@ -3940,12 +3970,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
             ? params.query.trim()
             : "";
         const matches = this.findDeferredTools(query);
-        const activated = matches.filter(
-          (name) => !this.activeDeferredToolNames.has(name),
-        );
-        for (const name of activated) {
-          this.activeDeferredToolNames.add(name);
-        }
+        const activated = this.activateDeferredTools(matches);
         const available = [...this.deferredToolNames];
         const availablePreview = available.slice(0, MAX_TOOL_SEARCH_RESULT_NAMES);
         const remaining = available.length - availablePreview.length;
@@ -5450,6 +5475,22 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
         };
       },
     };
+  }
+
+  private selectedMcpTools(input: string | RuntimePrompt): string[] {
+    return resolveMcpToolSelection(
+      typeof input === "string" ? undefined : input.mcpServerIds,
+      this.pluginTools,
+      name => this.toolCatalog.has(name) && this.isToolAllowedInMode(name),
+      typeof input === "string" ? undefined : input.mcpToolNames,
+    );
+  }
+
+  private activateDeferredTools(names: readonly string[]): string[] {
+    const activated = names.filter(name => this.deferredToolNames.has(name)
+      && !this.activeDeferredToolNames.has(name));
+    for (const name of activated) this.activeDeferredToolNames.add(name);
+    return activated;
   }
 
   private findDeferredTools(query: string): string[] {
@@ -7733,9 +7774,13 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       }
       case "message_end": {
         if (event.message.role === "user") {
-          const steeringId = this.pendingSteering.get(event.message);
-          const id = steeringId ?? this.pendingUserMessageId ?? randomUUID();
-          if (steeringId) {
+          const steering = this.pendingSteering.get(event.message);
+          const id = steering?.id ?? this.pendingUserMessageId ?? randomUUID();
+          if (steering) {
+            if (steering.toolNames.length) {
+              this.activateDeferredTools(steering.toolNames);
+              this.setAgentTools(this.activeTools());
+            }
             this.pendingSteering.delete(event.message);
             // User input is now part of the model context: whatever the model
             // says next answers the user, not a completion notice, so the
@@ -8419,6 +8464,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
   ): Promise<{ turnId: string }> {
     if (this.disposed) throw new Error("runtime disposed");
     this.assertNotRunning();
+    const selectedTools = this.selectedMcpTools(input);
     const modelInput = typeof input !== "string" && input.sessionMessage
       ? { ...input, text: formatSessionMessage(input.text, input.sessionMessage), sessionMessage: undefined }
       : input;
@@ -8432,6 +8478,10 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
     // Capabilities and path-scoped instruction claims belong to one prompt.
     this.subagentOverrideProviders = {};
     this.resetDeferredToolsForPrompt();
+    if (selectedTools.length) {
+      this.activateDeferredTools(selectedTools);
+      this.setAgentTools(this.activeTools());
+    }
     this.refreshResumablePrompt();
     this.pathInstructionClaims.clear();
     this.pendingUserMessageId = userMessageId;
@@ -8629,7 +8679,8 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
   steer(input: RuntimePrompt, expectedTurnId: string, message: UiMessage): { accepted: boolean; turnId: string } {
     this.steeringContext(expectedTurnId);
     const queued: AgentMessage = { role: "user", content: promptContent(input), timestamp: Date.now() };
-    this.pendingSteering.set(queued, message.id);
+    const toolNames = this.selectedMcpTools(input);
+    this.pendingSteering.set(queued, { id: message.id, toolNames });
     this.agent.steer(queued);
     this.steeringWaitAbort?.abort();
     // Main persists this echo through the same outbox as assistant messages.
@@ -8644,9 +8695,9 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
 
   private retainPendingSteering(): void {
     this.agent.clearSteeringQueue();
-    for (const [message, id] of this.pendingSteering) {
+    for (const [message, pending] of this.pendingSteering) {
       if (!this.agent.state.messages.includes(message)) this.setAgentMessages([...this.agent.state.messages, message]);
-      this.appendLiveEntry(id, message);
+      this.appendLiveEntry(pending.id, message);
     }
     this.pendingSteering.clear();
 

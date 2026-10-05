@@ -266,6 +266,7 @@ export const zhTW = {
     slashGroupApp: "應用命令",
     slashGroupPlugins: "外掛命令",
     slashGroupExtensions: "擴充命令",
+    slashGroupMcp: "MCP",
     slashGroupSkills: "技能",
     slashEmpty: "沒有匹配的指令",
     slashCommandSourceUnavailable: "指令清單無法載入，訊息未傳送。請重試。",
@@ -2596,6 +2597,8 @@ sklm: {
     phase: { idle: "關閉", preparing: "準備中", "acquiring-mic": "等待麥克風", negotiating: "協商中", connecting: "連線中…", connected: "已連線", reconnecting: "重新連線中", closing: "正在結束…", ended: "已結束", failed: "已停止" },
   },
   errors: {
+    COMPOSER_MCP_UNAVAILABLE: "所選 MCP 伺服器已中斷連線或在目前專案中無法使用。請重新連線並選取。",
+    COMPOSER_MCP_REQUEST_REQUIRED: "選取 MCP 伺服器或工具後，請輸入任務內容或新增附件。",
     HOST_UNAVAILABLE: "本地服務不可用",
     MODEL_NOT_CONFIGURED: "該模型尚未配置，或當前 AI 服務不提供此模型。",
     TOOL_DENIED: "此操作的許可權已被拒絕",

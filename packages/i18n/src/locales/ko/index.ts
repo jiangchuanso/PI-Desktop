@@ -273,6 +273,7 @@ export const ko = {
     slashGroupApp: "앱 명령",
     slashGroupPlugins: "플러그인 명령",
     slashGroupExtensions: "확장 명령",
+    slashGroupMcp: "MCP",
     slashGroupSkills: "스킬",
     slashEmpty: "일치하는 명령 없음",
     slashCommandSourceUnavailable: "명령 목록을 불러오지 못해 전송하지 않았습니다. 다시 시도하세요.",
@@ -2617,6 +2618,8 @@ importConfirm: "가져온 확장은 에이전트 프로세스 안에서 에이�
     phase: { idle: "꺼짐", preparing: "준비 중", "acquiring-mic": "마이크 대기 중", negotiating: "협상 중", connecting: "연결 중…", connected: "연결됨", reconnecting: "재연결 중", closing: "종료 중…", ended: "종료됨", failed: "중지됨" },
   },
   errors: {
+    COMPOSER_MCP_UNAVAILABLE: "선택한 MCP 서버의 연결이 끊겼거나 현재 프로젝트에서 사용할 수 없습니다. 다시 연결하고 선택하세요.",
+    COMPOSER_MCP_REQUEST_REQUIRED: "MCP 서버 또는 도구를 선택한 뒤 작업 내용을 입력하거나 첨부 파일을 추가하세요.",
     HOST_UNAVAILABLE: "로컬 서비스를 사용할 수 없습니다",
     MODEL_NOT_CONFIGURED: "이 모델이 설정되지 않았거나 AI 프로바이더에서 제공하지 않습니다.",
     TOOL_DENIED: "이 작업에 대한 권한이 거부되었습니다",

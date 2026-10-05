@@ -264,6 +264,7 @@ export const es = {
     "slashGroupApp": "Comandos de aplicaciones",
     "slashGroupPlugins": "Comandos de complemento",
     "slashGroupExtensions": "Comandos de extensión",
+    slashGroupMcp: "MCP",
     "slashGroupSkills": "Habilidades",
     "slashEmpty": "No hay comandos coincidentes",
 "slashCommandSourceUnavailable": "La lista de comandos no está disponible, así que no se envió nada. Inténtalo de nuevo.",
@@ -2581,6 +2582,8 @@ sklm: {
     phase: { idle: "Desactivado", preparing: "Preparando", "acquiring-mic": "Esperando el micrófono", negotiating: "Negociando", connecting: "Conectando…", connected: "Conectado", reconnecting: "Reconectando", closing: "Finalizando…", ended: "Finalizado", failed: "Detenido" },
   },
   "errors": {
+    COMPOSER_MCP_UNAVAILABLE: "El servidor MCP seleccionado está desconectado o no está disponible en este proyecto. Vuelve a conectarlo y seleccionarlo.",
+    COMPOSER_MCP_REQUEST_REQUIRED: "Después de elegir un servidor o una herramienta MCP, escribe una tarea o añade un archivo adjunto.",
     "HOST_UNAVAILABLE": "El servicio local no está disponible",
     "MODEL_NOT_CONFIGURED": "Este modelo no está configurado o el proveedor de IA no lo ofrece.",
     "TOOL_DENIED": "Se denegó el permiso para esta acción",

@@ -2322,6 +2322,44 @@ identify the platform validation still needed.
   fixtures; no provider required). Full provider/session scenario Draft;
   branch runs do not replace post-integration E2E
 
+##### Connected MCP slash selection (#1377)
+
+- Restart Desktop with an enabled saved MCP server. Without visiting MCP
+  settings or sending an ordinary message first, open the slash menu and
+  submit a server/tool command. Discovery initializes the connection and the
+  first prompt reaches the selected tool; opening the menu executes no tool.
+
+- With a ready user MCP server, type `/` or search its display label. The MCP
+  group appears before Skills. Enter and mouse selection insert the encoded
+  server command without sending or invoking a tool.
+- Send a task after the command. The runtime receives the server-specific
+  instruction, exact server IDs, and task; persisted command metadata retains
+  the typed text. All six fixture tools are activated without ToolSearch; a
+  similarly named server remains unselected. Steering activates only for the
+  request consuming the queued message. Plan and Host permissions still apply.
+- Submit a server/tool command with no task text or attachment. Main rejects it
+  before opening or persisting a turn; adding task text or an attachment allows
+  the selected tools to be offered to the model.
+- Disconnect, disable, or remove project access between menu selection and
+  send. Sending fails before a new turn or history replacement. Steering uses
+  the same validation; native Pi cannot silently accept Desktop MCP commands.
+- Coverage: `apps/desktop/test/composer-mcp.test.mjs` exercises the real command
+  service and prompt/steering IPC with external runtime boundaries stubbed.
+  `node scripts/e2e-composer-ime-stack.mjs` exercises the real React editor,
+  completion controller and keyboard/mouse acceptance in isolated Electron.
+  `node scripts/e2e-composer-mcp.mjs` uses production sidecar transport, an
+  isolated Rust Host, a real stdio MCP child and a local SSE model fixture.
+  It verifies the sixth tool executes without ToolSearch and its server-only
+  nonce reaches the next model request. These fixtures do not prove a real
+  provider's tool choice or remote MCP health.
+- Select `/mcp:<server>:<tool>` by keyboard and pointer, then submit or steer.
+  Main preserves the original command and forwards exact server/tool IDs.
+  Only the requested tool activates; similarly named tools, another server's
+  tools and removed tools cannot broaden the selection. Whole-server rows
+  remain selectable and existing active tools retain their availability.
+- Run `MCP_SELECTION_TOOL=1 node scripts/e2e-composer-mcp.mjs` for the
+  individual-tool variant of the deterministic sidecar/Host/MCP scenario.
+
 #### E2E-089: Composer model menu opens upward and switches model
 
 - **Preconditions**: Chat route active; provider configured with two reasoning

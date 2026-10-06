@@ -50,7 +50,7 @@ The first Agent request includes `Read`, `Bash`, `Edit`, `Write`, `Glob`, and
 `Grep`. Keeping workspace listing and content search in the initial schema
 avoids a discovery round trip for routine project exploration (the amendment
 to ADR 0048 records this change). Plan and Goal keep their read/inspection core.
-`Skill` is deliberately not deferred: a `/skill-id` invocation instructs the
+`Skill` is deliberately not deferred: a `/skill:<skill-id>` invocation instructs the
 model to call it, and a tool absent from the schema cannot be called at all, so
 it ships with the first request whenever the skill catalog is non-empty (D404,
 ADR 0230). The runtime still registers optional capabilities without sending

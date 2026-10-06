@@ -3348,6 +3348,10 @@ Anatomy:
   feedback before opening a turn or replacing history. Native Pi sessions do
   not support Desktop-managed MCP selections. Existing command aliases win
   collisions. See `docs/adr/composer-mcp-invocations.md`.
+- Active Skill commands use `/skill:<id>` for builtin, plugin, and user Skills.
+  Completion inserts this explicit prefix; sending resolves it to the unchanged
+  Skill ID. Unprefixed names are not Skill aliases; existing app commands and
+  prompt templates keep their names. Saved Skill mentions remain unchanged.
 - A whitespace-delimited `/` later in the draft offers active Skills only.
   Completion replaces only the token under the cursor, so several Skills and
   ordinary text can coexist in one prompt.

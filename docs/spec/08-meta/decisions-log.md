@@ -1,7 +1,7 @@
 # Decisions Log
 
 > Baseline delta: `0.3.0` → `0.4.20`
-> Date: `2026-10-02`
+> Date: `2026-10-06`
 > Status: Accepted for implementation
 
 This log freezes previously open questions into concrete decisions.
@@ -31,15 +31,18 @@ This log freezes previously open questions into concrete decisions.
 | D634 | Remove bundled macOS first-launch guidance | **Amend D457 / ADR 0296 and the macOS distribution provisions of ADR 0232 / ADR 0204: neither macOS DMG nor ZIP ships `PI-Desktop-macOS-open.command`, `PI-Desktop-macOS-opening-help.txt`, or another bundled quarantine-clearing helper or opening note. The ZIP contains `PI-Desktop.app` at its root; the DMG remains a two-icon install. This applies to signed releases and local or opt-in unsigned debug builds. See ADR 0309 and E2E-196b.** | The signed release lane has eliminated the user need for an unsigned first-launch workaround; shipping it beside debug builds risks suggesting a Gatekeeper bypass. |
 | D635 | Work-area-capped 800×560 window minimum | **Supersede the 1040×700 window minimum in D156 / D447 (and the matching clauses of ADR 0029 / ADR 0238) and the `1040..10000` `window/setWorkPanelChatWidth` range (ADR 0146): Electron enforces an 800×560 minimum, capped per dimension to the current display work area by `clampMinimumSizeToWorkArea`. The chat-width IPC and renderer accept `800..10000`. On narrow windows the existing `workPanelLayout` budget caps the docked panel so MainChat keeps its 450px floor, collapsing the sidebar first. See US-UI-19 and E2E-167.** | At 150% Windows scaling the work area is about 1280×672 DIP, so a fixed minimum could exceed the screen and leave the window unfittable. |
 | D636 | Local permission approvals have no automatic deadline | **Amend D005 / ADR 0011 and supersede the local tool-permission timeout clauses in the runtime and UX specs: a permission-gated `tools.execute` request remains pending in host-core, the renderer, and the transport until the user chooses Allow once, Allow for session, or Deny, or the request is cancelled / the process shuts down. Remove the 120-second countdown and timeout fields from the local permission contract. Tool-specific execution budgets and the separate RACP/Plan approval lifetimes remain unchanged. See ADR 0310, issue #1214, and E2E-017.** | A visible permission request could be missed while the user worked elsewhere; automatic denial after 120 seconds silently prevented the requested action. Keeping cancellation and execution budgets preserves control and resource safety without turning inattention into a decision. |
-| D637 | Remove the Windows frameless resize rim | **Disable the Windows main window's thick frame while retaining Electron 43.6 native frameless edge and corner resizing. Apply a 4 DIP native rounded shape by default; authorized plugin themes may choose an integer radius from 0 to 24 DIP. Keep the D635 minimum-size contract and existing work-panel resize ownership. See ADR 0317 and E2E-167.** | The thick frame paints an unwanted left, bottom, and right rim that themes cannot remove. Native hit testing and shape keep resizing and transparent outer corners without renderer resize IPC. |
+| D637 | Remove the Windows frameless resize rim | **Disable the Windows main window's thick frame while retaining Electron 43.6 native frameless edge and corner resizing. Use the global `--radius-md` token (12 DIP) for the default native rounded shape; authorized plugin themes may choose an integer radius from 0 to 24 DIP. Keep the D635 minimum-size contract and existing work-panel resize ownership. See ADR 0317 and E2E-167.** | The thick frame paints an unwanted left, bottom, and right rim that themes cannot remove. Native hit testing and shape keep resizing and transparent outer corners without renderer resize IPC. The former 4 DIP cutout was nearly square and did not match the global radius scale. |
 | D638 | Publish native Linux arm64 artifacts | **Amend D126 / D285 / D603 / ADR 0022: tag releases publish native Linux arm64 AppImage, deb, and rpm packages, built on GitHub's native `ubuntu-22.04-arm` runner and carrying an arm64 `pi-desktop-host-core`. The static Linux targets drop their pinned `arch` and take the workflow's `--x64` / `--arm64` flag; `linux.artifactName` becomes `PI-Desktop-<version>-linux-<arch>.AppImage`; each Linux lane verifies its architecture-named updater feed (`latest-linux.yml` on x64, `latest-linux-arm64.yml` on arm64); the ASAR export reads `linux-unpacked` or `linux-arm64-unpacked` and publishes `PI-Desktop-<version>-linux-<arch>.asar`. `pi-host-bundle` builds both Linux architectures and `PUBLISHED_TARGETS` gains `linux-arm64`. Updater ownership, signing, and delivery modes are unchanged. See ADR 0318, issue #1281, and E2E-192a.** | arm64 Linux devices could not install or run the published x64 artifact, and a cross-built or emulated lane would ship a mismatched Rust sidecar. |
 | D639 | models.dev owns published chat-model metadata | **Supersede D136 / D266 and ADR `pi-ai-core-0991-authority` for chat metadata: the bundled and explicitly refreshed models.dev catalog supplies published chat-model limits, modalities, reasoning metadata, names, and prices. Prefer the selected official publisher; when it has no record, accept another publisher only for a safe, unambiguous match, otherwise keep generic metadata. The checked-in preset identities are the priority set; do not assert an unsupported fixed count of 39. Live endpoint/OAuth discovery still owns selectable IDs. Pi remains responsible for OAuth, wire identity, transport and typed non-chat operations, but never supplies sibling chat limits, reasoning or prices. Explicit user binding overrides remain authoritative. No credentials are sent to models.dev; no host schema/protocol or persistence change. See ADR `models-dev-catalog-authority` and E2E-162 / E2E-MODEL-catalog-window-correction-reaches-saved-bindings.** | A Pi sibling default assigned a 272,000-token window to GPT models whose selected models.dev records publish 1,050,000 tokens, changing the Settings display and runtime context budget. |
 | D640 | User MCP tools keep the normal approval path | **`mcp_<serverId>_<tool>` calls are `medium` risk in host-core: under `ask` and `accept-edits` each call shows the approval card ("MCP server tool requires approval"), allow-once and allow-session keep their usual scope (one call / that exact tool name in that session), `auto` runs without a card, and Plan/Goal still deny. Annotations or risk values the MCP server declares about its own tools are ignored and never lower the path. Dispatch, read-only-mode handling and the `mcp_` namespace are unchanged; no host protocol or persistence change. See ADR `mcp-tool-approval-risk` and E2E-MCP-tool-requires-approval.** | MCP tools were auto-allowed as `low` risk, so a configured server could write files, call networks or run commands without any prompt under `ask`. Configuring a server is consent to launch it, not to every action its opaque tools take. |
 | D641 | Custom endpoint API style precedence | **A custom endpoint uses the saved provider-row `apiStyle` ahead of a model catalog's adapter API. Named and OAuth providers can continue to use a model-level wire API pin where their published configuration requires a different transport. This keeps a user's explicit endpoint choice stable without removing model-specific routing such as OpenCode Go Responses models. No persisted format or protocol change. See E2E-005E and issue #1313.** | A publisher's adapter default must not silently redirect a custom gateway whose user-selected API format is different. |
 | D642 | Cloud sync is a public Experimental destination *(amended by D643)* | **Remove the developer-mode and packaged-build gates from the Settings `sync` destination: its rail row, page, and settings-search hits exist for every user in every build, and a saved `sync` tab no longer falls back to General. Remote Hosts keeps both gates and its own badge. The destination keeps its Experimental badge on the rail row and page title; sync behavior, protocol, host schema, and persisted data are unchanged. See `04-ux/06-settings-ia.md` and E2E-CONFIG-SYNC-webdav-portable-configuration.** | Encrypted WebDAV backup is the app's only multi-device configuration path, and a developer-mode gate left it undiscoverable for the users who need it. |
-| D643 | Cloud sync ships without an Experimental badge | **Amend D642: the Settings `sync` destination drops `experimentalBadgeKey`, and `settings.configSync.experimental` is removed from every bundled locale. Cloud sync stays available to every user in every build. Remote Hosts keeps its own badge and both gates. Sync behavior, protocol, host schema, and persisted data are unchanged. See `04-ux/06-settings-ia.md` and E2E-CONFIG-SYNC-webdav-portable-configuration.** | Cloud sync is the app's shipped multi-device path, so an Experimental label no longer described it and only made the destination look unfinished. |
+| D643 | Cloud sync ships without an Experimental badge *(amended by D649)* | **Amend D642: the Settings `sync` destination drops `experimentalBadgeKey`, and `settings.configSync.experimental` is removed from every bundled locale. Cloud sync stays available to every user in every build. Remote Hosts keeps its own badge and both gates. Sync behavior, protocol, host schema, and persisted data are unchanged. See `04-ux/06-settings-ia.md` and E2E-CONFIG-SYNC-webdav-portable-configuration.** | Cloud sync is the app's shipped multi-device path, so an Experimental label no longer described it and only made the destination look unfinished. |
 | D644 | Portable instruction files have no size cap | **Remove the 32 KiB per-file cap Host enforced on portable instruction files. Global and project instruction content is bounded only by the same portable-entity payload bound every other domain already has, checked when a revision is uploaded and when a remote one is validated. UTF-8 validation, symlink rejection, scope selection, mapping, and approval rules are unchanged. See `03-runtime/22-config-sync.md` §2.** | A 33 KiB project `AGENTS.md` failed the entire capture with `CONFIG_SYNC_LIMIT_EXCEEDED: instruction file is too large`, which the Settings page could only show as a generic backup-size error. |
 | D450 | Signed macOS GitHub Releases | **Amend D078 / ADR 0022: GitHub tag releases Developer ID-sign, notarize (`notarytool` via electron-builder 26), staple, and Gatekeeper-verify macOS DMG/ZIP before upload, using identity `Developer ID Application: XingYu Liu (DUV63RKYTW)` / team `DUV63RKYTW` from Actions secrets (`CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`). Missing secrets fail the job. Local unsigned packaging without a certificate remains. `workflow_dispatch` may set `sign_macos: false` only for unsigned debug artifacts. Packaged macOS uses in-app `electron-updater` (ZIP + merged `latest-mac.yml`); Linux deb/rpm and Windows portable ZIP stay notify-and-link. No afterPack/afterSign adhoc codesign (ADR 0278).** | Production DMGs must open without a Gatekeeper warning, and signed macOS installs can download and restart into a new tag. See ADR 0289, E2E-196c, E2E-067A. |
+
+| D648 | Skill Market pins an acceptable address for mixed direct DNS answers | **Amend ADR 0272: on a direct route, when DNS includes both rejected and acceptable answers, Skill Market selects and pins one acceptable address instead of letting Chromium choose among them. Third-party content prefers a public answer; the benchmark fake-IP is eligible only under the existing opt-in. ULA-only and other non-public-only answers remain blocked. Proxied and unreadable routes keep the existing policy. See ADR 0321 and E2E-SKILL-MARKET-NET-BOUNDARY.** | Dual-stack and transparent-proxy DNS can include an unused synthetic ULA answer beside an address the request can safely use; pinning prevents the rejected address from being dialed while avoiding the false refusal. |
+| D649 | Cloud backup stays closed to users | **Amend D642 / D643: the Settings `sync` destination carries `developmentOnly: true` again, so a packaged build omits its rail row, page, and settings-search hits and falls back to General, while development builds keep it. Developer mode stays irrelevant to the destination and it still carries no Experimental badge. Sync behavior, protocol, host schema, and persisted data are unchanged; dropping the flag reopens it for packaged builds. See `04-ux/06-settings-ia.md` and E2E-CONFIG-SYNC-webdav-portable-configuration.** | The encrypted WebDAV backup is not ready to be offered to packaged-build users yet, so it stays implemented but out of the way until it opens. |
 
 ## B. Secondary implementation defaults
 
@@ -5469,11 +5472,7 @@ not an unreviewed upstream registry passthrough.
 
 ## 2026-09-15 — Plugin-declared providers are Host-owned rows (D427)
 
-**A plugin may declare `contributes.providers`, and the Host materializes each entry as a provider row in the native Settings → Provider list, owned by that plugin (`providers.owner_plugin_id`, schema v17; row id `plugin:<pluginId>:<declaredId>`). The declaration is re-read on every load and is authoritative for its own fields, so a dropped entry is deleted together with both credential references; `providers.update` / `providers.delete` refuse a plugin-owned row with `PROVIDER_OWNED_BY_PLUGIN`. A non-empty declaration needs the new high-risk `provider.register` permission, and an `oauth` block or `authKind: "oauth"` is refused until a Host-owned login flow exists. See ADR 0259, `07-plugins/02-plugin-manifest-schema.md` §5.4, `07-plugins/13-plugin-permissions-matrix.md`, `03-runtime/04-data-storage.md` §4.3/§7, and E2E-PLUGIN-declared-provider-appears-in-the-native-provider-list.**
-
-It deliberately does not include plugin OAuth: the `provider.oauth` permission
-and a Host-owned plugin login flow are future work, so a declared provider has no
-OAuth login, token refresh, or account label today.
+**A plugin may declare `contributes.providers`, and the Host materializes each entry as a provider row in the native Settings → Provider list, owned by that plugin (`providers.owner_plugin_id`, schema v17; row id `plugin:<pluginId>:<declaredId>`). The declaration is re-read on every load and is authoritative for its own fields, so a dropped entry is deleted together with both credential references; `providers.update` / `providers.delete` refuse a plugin-owned row with `PROVIDER_OWNED_BY_PLUGIN`. A non-empty declaration needs the new high-risk `provider.register` permission. D427 initially excluded OAuth; D647 amends it with a Host-owned login flow and separate high-risk `provider.oauth` grant. See ADR 0259, ADR 0320, `07-plugins/02-plugin-manifest-schema.md` §5.4, `07-plugins/13-plugin-permissions-matrix.md`, `03-runtime/04-data-storage.md` §4.3/§7, and E2E-PLUGIN-declared-provider-appears-in-the-native-provider-list.**
 
 ## 2026-09-15 — Side chats materialize on first Send (#421)
 
@@ -7360,9 +7359,11 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   left, bottom, and right rim. Electron 43.6 retains its frameless native edge
   and corner hit test, so no renderer resize path or geometry IPC is added.
   macOS/Linux window behavior and work-panel resize ownership remain unchanged.
-  The Windows main window defaults to a native 4 DIP shape whose corner pixels
-  and hit targets are absent; an authorized plugin theme may choose an integer
-  radius from 0 to 24 DIP, reverting to 4 when the theme is withdrawn. The
+  The Windows main window defaults to the global 12 DIP `--radius-md` native
+  shape whose corner pixels and hit targets are absent; an authorized plugin
+  theme may choose an integer radius from 0 to 24 DIP, reverting to 12 when the
+  theme is withdrawn. This replaces the barely visible 4 DIP cutout so the
+  native corners match the app's global radius scale. The
   D635 work-area-capped minimum remains in force. The removed thick frame
   leaves no native shadow control for themes; external shadow needs a separate
   window-geometry decision. See ADR 0317 and E2E-167.
@@ -7424,7 +7425,7 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   available to every user in every build, and a saved `sync` tab no longer
   falls back to General. Remote Hosts keeps both gates.
 - The destination kept its Experimental badge on the rail row and page title
-  at that time (amended by D643).
+  at that time (amended by D643 and D649).
 - Covered by `apps/desktop/test/settings-developer-only-destinations.test.mjs`
   and the Cloud sync probe in `pnpm test:e2e:settings-scroll`. See
   `04-ux/06-settings-ia.md` and E2E-CONFIG-SYNC-webdav-portable-configuration.
@@ -7434,7 +7435,7 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
 - D643 amends D642: the Settings `sync` destination drops its
   `experimentalBadgeKey`, and `settings.configSync.experimental` is removed
   from every bundled locale. Cloud sync stays available to every user in
-  every build.
+  every build (amended by D649).
 - Remote Hosts keeps its own badge and both gates. Sync behavior, protocol,
   host schema, and persisted data are unchanged.
 - Covered by the badge assertions in
@@ -7488,3 +7489,51 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
 - Covered by `apps/desktop/test/home-project-name.test.mjs`, which renders the
   real surface against the real store. See `04-ux/01-ui-ia.md`,
   `04-ux/08-component-spec.md`, and E2E-256.
+
+## 2026-10-06 — Plugin providers can own OAuth sign-in through a scoped callback (D647)
+
+- D647 amends ADR 0259: a plugin provider may declare `authKind: "oauth"` when
+  it has `provider.register`, the separate high-risk `provider.oauth` grant, and
+  an `onProviderOAuth` callback. The Host owns the login UI, encrypted
+  `secret:provider:<rowId>:oauth` storage, refresh serialization, and the
+  per-request auth resolver. The callback can read only its own provider's
+  OAuth credential; the Agent Runtime receives only an access token and the
+  renderer receives no tokens. `pi.providers.oauth.prompt` and `.notify` provide
+  bounded host-rendered login interaction. Host-mediated network calls still
+  need `net.fetch` and declared domains; plugin entry code remains outside an
+  OS sandbox. One credential is stored per declared provider row, and sign-out
+  clears it without deleting the manifest-owned row. Plugin-owned provider rows
+  and credentials remain out of portable configuration capture.
+- Covered by the updated plugin manifest/provider validation contracts and the
+  provider OAuth scenario in E2E-PLUGIN-declared-provider-appears-in-the-native-provider-list.
+  See ADR 0320, the plugin OAuth API and permission specs, and
+  `03-runtime/14-secrets-storage.md`.
+
+## 2026-10-06 — Skill Market pins an acceptable address for mixed direct DNS answers (D648)
+
+- On a direct route, the Skill Market selects and pins an acceptable address
+  when a DNS response mixes acceptable and rejected addresses. A public
+  third-party address is preferred; the existing `benchmark` fake-IP opt-in is
+  the only non-public choice. ULA-only results remain blocked, and proxied or
+  unreadable routes keep the ADR 0272 policy.
+- The pinned direct request preserves the requested hostname for TLS SNI and
+  `Host`, and every redirect receives its own DNS check and connection pin.
+- Covered by the direct transport integration test and the mixed public/ULA and
+  benchmark/ULA cases in `apps/desktop/test/public-https-fetch-route.test.mjs`.
+  See ADR 0321, `05-security/01-security.md` §4.1, and
+  E2E-SKILL-MARKET-NET-BOUNDARY.
+
+## 2026-10-07 — Cloud backup stays closed to users (D649)
+
+- D649 amends D642 / D643: the Settings `sync` destination is
+  development-build-only again. A packaged build omits its rail row, page, and
+  settings-search hits, and a saved `sync` tab returns to General; development
+  builds keep the destination, and developer mode still plays no part.
+- The destination still carries no Experimental badge, and sync behavior,
+  protocol, host schema, and persisted data are unchanged. Removing
+  `developmentOnly: true` from the destination entry reopens it for packaged
+  builds.
+- Covered by `apps/desktop/test/settings-developer-only-destinations.test.mjs`
+  and `apps/desktop/test/config-sync-settings.test.mjs`; the Cloud sync probe in
+  `pnpm test:e2e:settings-scroll` runs a development build. See
+  `04-ux/06-settings-ia.md` and E2E-CONFIG-SYNC-webdav-portable-configuration.

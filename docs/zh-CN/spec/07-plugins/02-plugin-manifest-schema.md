@@ -38,6 +38,9 @@ type PluginManifestV1 = {
  repository?: string;
  icon?: string; // relative path
  main?: string; // plugin runtime entry
+ renderer?: string; // 宿主求值以挂载 UI 插槽的模块（§3.2）
+ rendererActions?: string[]; // 渲染组件可派发的动作，最多 16 个
+ rendererCallMethods?: string[]; // plugin.call 可触达的 onRendererCall 方法，最多 32 个
  ui?: PluginUiConfig;
  contributes?: PluginContributes;
  permissions?: PluginPermission[];
@@ -107,6 +110,41 @@ locale 声明。扩展页、插件启动器和市场（从 catalog 条目读取�
 5. 该块只服务身份文案（`name`、`description`、`safetyNotes`）。插件自有文案——面板、
    视图、widget、生成式设置、toast、运行时命令标题——不在这里翻译。宿主只发布当前
    语言（`pi.app.getLocale`、`appearance:changed`），由插件自行本地化（ADR 0280）。
+
+### 3.2 渲染模块（`renderer`）
+
+`renderer` 指向包内的一个 ES 模块，宿主会在自己的窗口中求值它，用来挂载 UI 插槽组件：
+
+- `composerControl` —— 输入区工具栏上的附加控件
+- `composerTrigger` —— 输入区某个触发符背后的条目列表（是数据不是组件：列表由宿主绘制）
+- `userAction` / `assistantAction` —— 消息操作栏左右两侧的附加项
+- `entryExtra` —— 助手回复下方的附加区块
+- `toolCard` —— 插件自有 Agent 工具调用的卡片
+- `blockRenderer` —— 形如 `<pluginId>:<lang>` 的代码块的渲染器
+
+`pi.slots.register` 返回一个注销函数，插件卸载时所有注册都会被撤销。自绘弹窗不是插槽：
+插件用 `pi.ui.openLayer` 打开一个层并在其中绘制（`docs/plugin-plan/ui/`）。
+
+模块与宿主同文档运行，因此这是契约而不是沙箱边界；真正把组件限制在自己插件内的，是两份白名单。
+`rendererActions` 列出组件可以派发的动作，最多 16 个，取自固定词表 `plugin.call`、
+`composer.insertText`、`composer.readDraft`、`composer.replaceDraft`、`attachments.add`、
+`attachments.list`、`attachments.remove`——词表之外返回 `PLUGIN_ACTION_UNKNOWN`，
+词表之内但未声明的返回 `PLUGIN_ACTION_UNDECLARED`。`rendererCallMethods` 列出插件的
+`onRendererCall` 为 `plugin.call` 应答的方法名，最多 32 个；宿主会注入调用方插件 id，
+因此组件只能触达自己的插件。
+
+```json
+{
+  "permissions": ["renderer.extension"],
+  "renderer": "renderer/index.mjs",
+  "rendererActions": ["plugin.call", "composer.insertText"],
+  "rendererCallMethods": ["openWorkspace"]
+}
+```
+
+插槽名、属性与上限见 `packages/plugin-sdk/src/renderer.ts`
+（`PLUGIN_RENDERER_SLOTS`、`PLUGIN_RENDERER_ACTIONS`、`PLUGIN_SLOT_POSITIONS`），
+完整示例见 `examples/plugins/ui-slots-lab`。
 
 ## 4. 贡献
 
@@ -276,6 +314,7 @@ type PluginPermission =
  | "fs.delete"
  | "agent.tool.register"
  | "agent.prompt.inject"
+ | "renderer.extension"
  | "provider.register"
  | "net.fetch"
  | "net.anyHost"
@@ -397,7 +436,10 @@ type PluginNetDomains = string[]; // "api.example.com" 或 "*.example.com"
 - `baseUrl` 可选，但必须是绝对 `http(s)` URL
 - `apiStyle` 可选，默认 `chat_completions`；可取值是 provider 配置中除 `auto`
   以外的风格
-- `authKind` 可选，为 `api_key`（默认）或 `none`
+- `authKind` 可选，为 `api_key`（默认）、`none` 或 `oauth`
+- OAuth provider 需要 `provider.register` 和独立高风险权限 `provider.oauth`，还需要
+  绝对 HTTP(S) `baseUrl` 及插件主模块导出的 `onProviderOAuth`；`oauth` 元数据可设置
+  `loginLabel` 和 `isSubscription`
 - `models` 要求 1..64 条，id 唯一且长度为 1..256
 
 非空的 `contributes.providers` 需要高风险权限 `provider.register`
@@ -405,9 +447,11 @@ type PluginNetDomains = string[]; // "api.example.com" 或 "*.example.com"
 声明会在每次插件加载时重新读取，并对其自身字段具有权威；禁用插件会保留这些行并
 将其关闭，而删除声明或卸载插件会连同已存凭据一起删除该行。
 
-`oauth` **暂不支持**：宿主还没有插件 OAuth 登录流程，因此 `oauth` 块或
-`authKind: \"oauth\"` 会在清单元数据校验阶段被拒绝。计划中的 `provider.oauth`
-权限与宿主自有的登录流程属于未来工作，当前不可用。
+OAuth 登录使用宿主自有的账号界面和加密凭据存储。宿主通过
+`pi.providers.oauth.prompt` / `notify` 显示登录提示和进度；OAuth 回调只收到该插件
+自身 provider 的凭据。刷新令牌保留在 Electron 主进程与宿主密钥库内，Agent Runtime
+只接收请求所需的访问令牌。每个 provider 声明目前只支持一个账号；宿主插件进程不是
+操作系统沙箱，因此授予 `provider.oauth` 表示信任该插件处理此 provider 的凭据。
 ## 6. activationEvents（可选）
 
 示例：
@@ -468,6 +512,10 @@ MVP 只能实现：
    `[a-zA-Z][a-zA-Z0-9._-]{0,63}` 且唯一；`command` 必须声明在
    `contributes.commands` 里；`default` 若存在，使用与 `shortcut` 设置相同的
    修饰键加按键 / F 键语法
+
+19. `renderer` 必须是包内的 `.js` 或 `.mjs` 文件；`rendererActions`（最多 16 条）与
+    `rendererCallMethods`（最多 32 条）是非空名字列表，且必须先有 `renderer` 才能声明。
+    三者中声明任何一个都需要 `renderer.extension` 权限（§3.2）
 
 ## 8. 示例：最小插件
 

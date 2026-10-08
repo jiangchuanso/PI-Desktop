@@ -4,7 +4,7 @@
 
 
 > 基线增量：`0.3.0` → `0.4.16`
-> 日期：`2026-08-05`
+> 日期：`2026-10-06`
 > 状态：已接受实施
 
 该日志将以前未解决的问题冻结为具体的决策。
@@ -34,14 +34,16 @@
 | D634 | 移除 macOS 首次启动辅助文件 | **修订 D457 / ADR 0296 及 ADR 0232 / ADR 0204 中的 macOS 分发约定：macOS DMG 与 ZIP 均不再附带 `PI-Desktop-macOS-open.command`、`PI-Desktop-macOS-opening-help.txt`，或其他捆绑的 quarantine 清理助手/打开说明。ZIP 根目录只包含 `PI-Desktop.app`；DMG 仍为双图标安装。该规定适用于签名发布和本地或可选的未签名调试构建。见 ADR 0309 与 E2E-196b。** | 已签名发布通道不再需要未签名首次启动兜底；随调试包附带此类文件可能误导用户绕过 Gatekeeper。 |
 | D635 | 按工作区上限裁剪的 800×560 窗口最小尺寸 | **取代 D156 / D447 中的 1040×700 窗口最小尺寸（及 ADR 0029 / ADR 0238 的对应条款）和 `window/setWorkPanelChatWidth` 的 `1040..10000` 范围（ADR 0146）：Electron 强制 800×560 最小尺寸，并由 `clampMinimumSizeToWorkArea` 按维度裁剪到当前显示器工作区。聊天宽度 IPC 与渲染层接受 `800..10000`。窄窗口下沿用现有 `workPanelLayout` 预算：限制停靠面板宽度以保证 MainChat 的 450px 下限，并优先收起侧边栏。见 US-UI-19 与 E2E-167。** | Windows 150% 缩放下工作区约为 1280×672 DIP，固定最小尺寸可能超过屏幕，导致窗口无法适配。 |
 | D636 | 本地权限确认没有自动截止时间 | **修订 D005 / ADR 0011：需要权限的 `tools.execute` 请求会在 host-core、渲染层和传输中保持待处理，直到用户选择允许一次、允许会话或拒绝，或请求被取消/进程关闭。移除 120 秒倒计时以及本地权限契约中的超时字段。工具自身执行预算以及独立的 RACP/Plan 审批时限保持不变。见 ADR 0310、issue #1214 与 E2E-017。** | 用户可能在其他工作期间错过可见的权限请求；保持取消和执行预算即可保留控制与资源安全，又不会把“未注意”变成一个决定。 |
-| D637 | 移除 Windows 无边框窗口的缩放边缘 | **关闭 Windows 主窗口的厚边框，同时保留 Electron 43.6 原生无边框窗口的边缘和角落缩放。默认应用 4 DIP 原生圆角；获得授权的插件主题可选择 0 至 24 DIP 的整数半径。保留 D635 的最小尺寸约定和现有工作面板缩放归属。见 ADR 0317 与 E2E-167。** | 厚边框绘制了主题无法移除的左、下、右边缘。原生命中检测和窗口形状在不新增渲染层缩放 IPC 的情况下保留缩放能力及透明外角。 |
+| D637 | 移除 Windows 无边框窗口的缩放边缘 | **关闭 Windows 主窗口的厚边框，同时保留 Electron 43.6 原生无边框窗口的边缘和角落缩放。默认原生圆角使用全局 `--radius-md`（12 DIP）；获得授权的插件主题可选择 0 至 24 DIP 的整数半径。保留 D635 的最小尺寸约定和现有工作面板缩放归属。见 ADR 0317 与 E2E-167。** | 厚边框绘制了主题无法移除的左、下、右边缘。原生命中检测和窗口形状在不新增渲染层缩放 IPC 的情况下保留缩放能力及透明外角。原 4 DIP 裁切近似直角，无法体现全局圆角尺度。 |
 | D638 | 发布原生 Linux arm64 工件 | **修订 D126 / D285 / D603 / ADR 0022：标签发布构建并发布原生 Linux arm64 的 AppImage、deb 和 rpm 包，它们在 GitHub 原生 `ubuntu-22.04-arm` 运行器上构建并携带 arm64 `pi-desktop-host-core`。静态 Linux 目标去掉固定的 `arch`，改用工作流的 `--x64` / `--arm64` 参数；`linux.artifactName` 变为 `PI-Desktop-<version>-linux-<arch>.AppImage`；每条 Linux 通道校验按架构命名的更新源（x64 为 `latest-linux.yml`，arm64 为 `latest-linux-arm64.yml`）；ASAR 导出读取 `linux-unpacked` 或 `linux-arm64-unpacked` 并发布 `PI-Desktop-<version>-linux-<arch>.asar`。`pi-host-bundle` 构建两个 Linux 架构，`PUBLISHED_TARGETS` 增加 `linux-arm64`。更新器归属、签名和交付模式不变。见 ADR 0318、issue #1281 与 E2E-192a。** | arm64 Linux 设备无法安装或运行已发布的 x64 工件，而交叉构建或模拟的通道会随包发布架构不匹配的 Rust sidecar。 |
 | D639 | models.dev 拥有已发布的聊天模型元数据 | **就聊天元数据而言，取代 D136 / D266 和 ADR `pi-ai-core-0991-authority`：随应用打包并可显式刷新的 models.dev 目录提供已发布的聊天模型上下文 / 输出上限、模态、推理元数据、名称和价格。优先采用所选官方发布方；其没有记录时，只有安全且无歧义的匹配才采用其他发布方，否则保留通用元数据。仓库中的预设身份是优先集合；不要声称存在未经证实的 39 家固定名单。实时端点 / OAuth 发现仍决定可选模型 ID。Pi 仍负责 OAuth、wire 身份、传输和有类型的非聊天操作，但不再为聊天模型提供同档模型的上限、推理能力或价格。明确的用户绑定覆盖仍具权威性。不向 models.dev 发送凭据；不改主机模式 / 协议或持久化。见 ADR `models-dev-catalog-authority` 与 E2E-162 / E2E-MODEL-catalog-window-correction-reaches-saved-bindings。** | Pi 同档模型默认值曾把 GPT 模型的上下文窗口设为 272,000；所选 models.dev 记录实际发布的是 1,050,000，导致设置页显示和运行时上下文预算错误。 |
 | D640 | 用户 MCP 工具保持常规审批路径 | **host-core 将 `mcp_<serverId>_<tool>` 调用视为 `medium` 风险：在 `ask` 与 `accept-edits` 下每次调用都显示审批卡片（"MCP server tool requires approval"），允许一次与本会话允许保持原有范围（单次调用 / 该会话内同一工具名），`auto` 不显示卡片直接执行，Plan/Goal 仍然拒绝。MCP 服务器对自身工具声明的标注或风险值被忽略，绝不降低审批路径。分发、只读模式处理与 `mcp_` 命名空间不变；不改主机协议或持久化。见 ADR `mcp-tool-approval-risk` 与 E2E-MCP-tool-requires-approval。** | MCP 工具此前按 `low` 风险自动放行，已配置的服务器在 `ask` 下可以不经提示写文件、访问网络或执行命令。配置服务器意味着同意启动它，而不是同意其不透明工具的每一个操作。 |
 | D641 | 自定义端点 API 格式优先级 | **自定义端点始终优先使用 provider 行上保存的 `apiStyle`，再考虑模型目录适配器 API。对于具名与 OAuth provider，如果已发布配置要求不同传输，仍可沿用模型级 wire API 固定项。这可确保用户为自定义 endpoint 选择的格式不会被静默覆盖，同时保留 OpenCode Go Responses 模型等特定路由。不改变持久化格式或协议。见 E2E-005E 与 issue #1313。** | 发布方的适配器默认值不应把请求从用户已选择的自定义网关格式静默重定向。 |
 | D642 | 云同步是对所有用户开放的实验性目的地 *(由 D643 修订)* | **移除设置中 `sync` 目的地的开发者模式与打包构建门控：其导轨行、页面和设置搜索命中在任何构建中对所有用户存在，已保存的 `sync` 标签页也不再回落到常规。远程主机保留这两道门控和它自己的徽章。该目的地继续在导轨行与页面标题上保留实验性徽章；同步行为、协议、Host schema 与持久化数据均不变。见 `04-ux/06-settings-ia.md` 与 E2E-CONFIG-SYNC-webdav-portable-configuration。** | 加密 WebDAV 备份是应用唯一的多设备配置路径，而开发者模式门控让需要它的用户无法发现该功能。 |
-| D643 | 云同步不再带实验性徽章 | **修订 D642：设置中的 `sync` 目的地不再有 `experimentalBadgeKey`，各内置语言包中的 `settings.configSync.experimental` 键也已删除。云同步在任何构建中对所有用户保持可用。远程主机保留自己的徽章和两道门控。同步行为、协议、Host schema 与持久化数据均不变。见 `04-ux/06-settings-ia.md` 与 E2E-CONFIG-SYNC-webdav-portable-configuration。** | 云同步是应用已发布的多设备路径，实验性标签已不再描述它，只会让该目的地看起来尚未完成。 |
+| D643 | 云同步不再带实验性徽章 *(由 D649 修订)* | **修订 D642：设置中的 `sync` 目的地不再有 `experimentalBadgeKey`，各内置语言包中的 `settings.configSync.experimental` 键也已删除。云同步在任何构建中对所有用户保持可用。远程主机保留自己的徽章和两道门控。同步行为、协议、Host schema 与持久化数据均不变。见 `04-ux/06-settings-ia.md` 与 E2E-CONFIG-SYNC-webdav-portable-configuration。** | 云同步是应用已发布的多设备路径，实验性标签已不再描述它，只会让该目的地看起来尚未完成。 |
 | D644 | 便携指令文件没有体积上限 | **移除 Host 对便携指令文件施加的 32 KiB 单文件上限。全局与项目指令内容只受其他域同样拥有的便携实体负载上限约束，并在上传修订与校验远端修订时检查。UTF-8 校验、symlink 拒绝、作用域选择、映射与审批规则均不变。见 `03-runtime/22-config-sync.md` §2。** | 一个 33 KiB 的项目 `AGENTS.md` 会让整次采集以 `CONFIG_SYNC_LIMIT_EXCEEDED: instruction file is too large` 失败，而设置页只能把它显示为泛化的备份体积错误。 |
+| D648 | 混合直接 DNS 结果时固定使用可接受地址 | **修订 ADR 0272：在直连路由上，当 DNS 同时包含被拒绝与可接受的结果时，技能市场会选择并固定到一个可接受地址，而不会让 Chromium 在这些地址中自行选择。第三方内容优先使用公网地址；仅在现有策略允许时使用 `benchmark` 假 IP。仅返回 ULA 或其他非公网地址时仍会拦截。代理与无法读取的路由保持现有策略。见 ADR 0321 与 E2E-SKILL-MARKET-NET-BOUNDARY。** | 双栈与透明代理 DNS 可能在可安全使用的地址旁返回未使用的合成 ULA 地址；固定已通过校验的地址可避免连接到被拒绝结果并消除误拦截。 |
+| D649 | 云备份暂不对外开放 | **修订 D642 / D643：设置中的 `sync` 目的地重新带上 `developmentOnly: true`，因此打包构建会省略其导轨行、页面和设置搜索命中并回落到常规，开发构建则保留该目的地。开发者模式与它无关，它仍不带实验性徽章。同步行为、协议、Host schema 与持久化数据均不变；移除该标记即可对打包构建重新开放。见 `04-ux/06-settings-ia.md` 与 E2E-CONFIG-SYNC-webdav-portable-configuration。** | 加密 WebDAV 备份尚未准备好提供给打包构建用户，因此先保持已实现但不出现在界面上，直到正式开放。 |
 | D450 | 签名的 macOS GitHub Release | **修订 D078 / ADR 0022：GitHub tag 发布使用身份 `Developer ID Application: XingYu Liu (DUV63RKYTW)` / 团队 `DUV63RKYTW`，通过 Actions 密钥（`CSC_LINK`、`CSC_KEY_PASSWORD`、`APPLE_ID`、`APPLE_APP_SPECIFIC_PASSWORD`、`APPLE_TEAM_ID`）对 macOS DMG/ZIP 做 Developer ID 签名、`notarytool` 公证、装订和 Gatekeeper 校验；缺少密钥则失败。无证书的本地未签名打包仍可用。`workflow_dispatch` 仅可把 `sign_macos: false` 用于未签名调试产物。打包的 macOS 走应用内 `electron-updater`（ZIP + 合并后的 `latest-mac.yml`）；Linux deb/rpm 与 Windows 便携版 ZIP 仍为通知并打开发布页。禁止 afterPack/afterSign adhoc 签名（ADR 0278）。** | 正式 DMG 应无需 Gatekeeper 警告即可打开，已签名 macOS 安装可下载并重启到新 tag。见 ADR 0289、E2E-196c、E2E-067A。 |
 
 ## B. 辅助实现默认值
@@ -5178,8 +5180,9 @@ Markdown 源码，不是 `text/html` 负载；对禁用行内 HTML 的外部编�
 - Windows 主窗口关闭 Electron 厚边框，移除左、下、右侧的原生可见边缘。
   Electron 43.6 仍保留无边框窗口的原生边缘与角落命中检测，因此不新增渲染层
   缩放路径或几何 IPC。macOS/Linux 的窗口行为和工作面板的缩放归属不变。
-- Windows 主窗口默认使用 4 DIP 原生圆角，圆角外的像素和命中区域均不存在。
-  获得授权的插件主题可将半径设为 0 至 24 DIP 的整数；撤销主题后恢复 4 DIP。
+- Windows 主窗口默认使用全局 `--radius-md`（12 DIP）原生圆角，圆角外的像素和命中区域均不存在。
+  获得授权的插件主题可将半径设为 0 至 24 DIP 的整数；撤销主题后恢复 12 DIP。此值替代了
+  不易察觉的 4 DIP 裁切，使原生窗口圆角与应用的全局半径尺度一致。
   D635 按工作区裁剪的最小尺寸仍然生效。移除厚边框后，主题无法控制原生阴影；
   外部阴影需要单独决定窗口几何结构。见 ADR 0317 与 E2E-167。
 
@@ -5225,7 +5228,7 @@ Markdown 源码，不是 `text/html` 负载；对禁用行内 HTML 的外部编�
   命中在任何构建中对所有用户可用，已保存的 `sync` 标签页也不再回落到常规。远程主机
   保留这两道门控。
 - 该目的地当时在导轨行和页面标题上保留实验性徽章
-  （已由 D643 修订）。
+  （已由 D643 与 D649 修订）。
 - 由 `apps/desktop/test/settings-developer-only-destinations.test.mjs` 与
   `pnpm test:e2e:settings-scroll` 的云同步探针覆盖。见 `04-ux/06-settings-ia.md` 与
   E2E-CONFIG-SYNC-webdav-portable-configuration。
@@ -5234,7 +5237,7 @@ Markdown 源码，不是 `text/html` 负载；对禁用行内 HTML 的外部编�
 
 - D643 修订 D642：设置中的 `sync` 目的地不再有 `experimentalBadgeKey`，
   各内置语言包中的 `settings.configSync.experimental` 键也已删除。云同步在任何构建、
-  对所有用户都保持可用。
+  对所有用户都保持可用（已由 D649 修订）。
 - 远程主机保留自己的徽章和两道门控。同步行为、协议、Host schema 与持久化数据均不变。
 - 由 `apps/desktop/test/settings-developer-only-destinations.test.mjs`、
   `apps/desktop/test/config-sync-settings.test.mjs` 中的徽章断言，以及
@@ -5274,3 +5277,26 @@ Markdown 源码，不是 `text/html` 负载；对禁用行内 HTML 的外部编�
   的动作均不变。
 - 由 `apps/desktop/test/home-project-name.test.mjs` 覆盖：它用真实 store 渲染真实界面。
   见 `04-ux/01-ui-ia.md`、`04-ux/08-component-spec.md` 与 E2E-256。
+
+## 2026-10-06 —— 混合直接 DNS 结果时固定使用可接受地址（D648）
+
+- 在直连路由上，若 DNS 同时返回可接受和被拒绝的地址，技能市场会选择并固定连接到
+  可接受地址。第三方内容优先使用公网地址；现有 `benchmark` 假 IP 选项是唯一允许的
+  非公网选择。仅返回 ULA 的结果仍会拦截，代理或无法读取的路由继续遵循 ADR 0272。
+- 固定地址请求会保留原主机名用于 TLS SNI 和 `Host`，并为每个重定向重新解析、校验和
+  固定连接地址。
+- 由 `apps/desktop/test/public-https-fetch-route.test.mjs` 中的固定地址传输集成测试、
+  公网/ULA 混合结果与 `benchmark`/ULA 测试覆盖。见 ADR 0321、`05-security/01-security.md`
+  §4.1 与 E2E-SKILL-MARKET-NET-BOUNDARY。
+
+## 2026-10-07 —— 云备份暂不对外开放（D649）
+
+- D649 修订 D642 / D643：设置中的 `sync` 目的地再次仅开发构建可见。打包构建会省略其
+  导轨行、页面和设置搜索命中，已保存的 `sync` 标签页会回落到常规；开发构建保留该目的地，
+  开发者模式在其中不起作用。
+- 该目的地仍不带实验性徽章，同步行为、协议、Host schema 与持久化数据均不变。从目的地
+  条目上移除 `developmentOnly: true` 即可对打包构建重新开放。
+- 由 `apps/desktop/test/settings-developer-only-destinations.test.mjs` 与
+  `apps/desktop/test/config-sync-settings.test.mjs` 覆盖，`pnpm test:e2e:settings-scroll`
+  的云同步探针跑的是开发构建。见 `04-ux/06-settings-ia.md` 与
+  E2E-CONFIG-SYNC-webdav-portable-configuration。

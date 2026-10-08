@@ -29,6 +29,7 @@ import type {
   PendingInteractiveRequests,
   AgentInstructionFile,
   AppSettings,
+  JevKeyCheckResult,
   CommandShellCatalog,
   AppVersionInfo,
   BrowserAction,
@@ -138,6 +139,7 @@ import {
   validateNetworkPolicy,
   validateNetworkProxy,
   validateSpeechSettings,
+  JEV_API_KEY_SECRET_REF,
 } from "@pi-desktop/shared";
 
 export type ImportSource = "claude-code" | "opencode" | "codex" | "pi";
@@ -362,6 +364,7 @@ export function normalizeSettings(settings: AppSettings): AppSettings {
     defaultMode: normalizeMode((settings as { defaultMode?: unknown }).defaultMode),
     infiniteProviderRetry:
       (settings as { infiniteProviderRetry?: unknown }).infiniteProviderRetry === true,
+    jevEnabled: (settings as { jevEnabled?: unknown }).jevEnabled === true,
     defaultCommandShell: isCommandShellId(
       (settings as { defaultCommandShell?: unknown }).defaultCommandShell,
     )
@@ -397,6 +400,7 @@ export function validateSettingsWrite(settings: AppSettings): AppSettings {
     fontScale?: unknown;
     chatContentMaxWidth?: unknown;
     infiniteProviderRetry?: unknown;
+    jevEnabled?: unknown;
     smoothStreaming?: unknown;
     updatePreference?: unknown;
     lastNotifiedUpdateVersion?: unknown;
@@ -441,6 +445,14 @@ export function validateSettingsWrite(settings: AppSettings): AppSettings {
     typeof value.infiniteProviderRetry !== "boolean"
   ) {
     throw Object.assign(new Error("infiniteProviderRetry is invalid"), {
+      errorCode: "INVALID_PARAMS",
+    });
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(value, "jevEnabled") &&
+    typeof value.jevEnabled !== "boolean"
+  ) {
+    throw Object.assign(new Error("jevEnabled is invalid"), {
       errorCode: "INVALID_PARAMS",
     });
   }
@@ -654,6 +666,18 @@ export const api = {
     invoke<void>(IPC.invoke.storageRemoveBackup, input),
   setSettings: (settings: AppSettings) =>
     invoke(IPC.invoke.settingsSet, validateSettingsWrite(settings)),
+  /** Store the Jev key in Host secure storage; it is never returned to renderer state. */
+  setJevApiKey: (value: string) =>
+    invoke<void>(IPC.invoke.secretsSet, { secretRef: JEV_API_KEY_SECRET_REF, value }),
+  deleteJevApiKey: () => invoke<void>(IPC.invoke.secretsDelete, JEV_API_KEY_SECRET_REF),
+  hasJevApiKey: () =>
+    invoke<{ has: boolean }>(IPC.invoke.secretsHas, JEV_API_KEY_SECRET_REF).then((result) => result.has),
+  /**
+   * Ask TypeSafe whether this key works, without storing anything. Jev keeps
+   * a key only after this answered it; the check text is TypeSafe's own.
+   */
+  testJevApiKey: (value: string) =>
+    invoke<JevKeyCheckResult>(IPC.invoke.jevTest, value),
   configSyncGetState: () => invoke<ConfigSyncState>(IPC.invoke.configSyncGetState),
   configSyncConfigure: (input: ConfigSyncConfigureInput) =>
     invoke<ConfigSyncState>(IPC.invoke.configSyncConfigure, input),

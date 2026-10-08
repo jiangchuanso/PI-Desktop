@@ -8,6 +8,7 @@ export * from "./transcript-truncation.js";
 export * from "./keyboard-shortcuts.js";
 export * from "./changelog.js";
 export * from "./composer-trigger.js";
+export * from "./inline-attachments.js";
 export * from "./session-link.js";
 export * from "./fuzzy.js";
 export * from "./mcp-import.js";
@@ -70,6 +71,7 @@ export * from "./prompt-enhancement.js";
 export * from "./native-web-search.js";
 export * from "./native-web-search-transport.js";
 export * from "./header-value.js";
+export * from "./secret-refs.js";
 
 export * from "./session-todos.js";
 export * from "./tool-call-lineage.js";

@@ -15,6 +15,19 @@ import type { LiveVoiceSettings } from "./live-voice.js";
 export type ThemePreference = "system" | "light" | "dark" | `plugin:${string}`;
 
 /**
+ * What a TypeSafe key check answered.
+ *
+ * `ok` means the classifier answered this key at its own address. A refusal
+ * carries the HTTP `status` and `message` when TypeSafe sent one; `message` is
+ * provider text with the key already redacted.
+ */
+export type JevKeyCheckResult = {
+  ok: boolean;
+  status?: number;
+  message?: string;
+};
+
+/**
  * What closing the main window does on Windows/Linux. macOS keeps the native
  * Dock lifecycle and never consults this preference.
  * - `ask`: transient unset state — the first close prompts once; after a
@@ -44,6 +57,8 @@ export type AppSettings = {
    * Absent and false use the bounded ten-retry policy.
    */
   infiniteProviderRetry?: boolean;
+  /** Allow Agent mode to call TypeSafe Jev for explicit structured classifications. */
+  jevEnabled?: boolean;
   /** Prevent idle system sleep while this desktop app runs; off when absent. */
   keepAwakeWhileRunning?: boolean;
   /** Configured command shell for the agent Bash protocol tool. */

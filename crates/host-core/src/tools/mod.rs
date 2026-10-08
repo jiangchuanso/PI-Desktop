@@ -1034,6 +1034,51 @@ pub async fn execute_tool_with_options(
     .await
 }
 
+/// Run a synchronous file-tool body on Tokio's blocking pool so a long
+/// traversal, read, or rg child wait cannot occupy an async worker (#1071).
+async fn run_file_tool(
+    workspace: Option<&Path>,
+    scratch: Option<&Path>,
+    tool_name: &str,
+    args: &Value,
+    allow_external_paths: bool,
+    hashline: Option<&HashlineContext<'_>>,
+) -> Result<Value, hashline::ToolError> {
+    let workspace = workspace.map(Path::to_path_buf);
+    let scratch = scratch.map(Path::to_path_buf);
+    let tool_name = tool_name.to_string();
+    let args = args.clone();
+    let hashline = hashline.map(|ctx| (ctx.session_id.to_string(), ctx.store.clone()));
+    #[cfg(test)]
+    let test_rg = grep_rg::current_test_rg();
+    tokio::task::spawn_blocking(move || {
+        // The test rg override is thread-local; carry it onto the blocking
+        // thread for the duration of the body.
+        #[cfg(test)]
+        let _test_rg = test_rg.map(grep_rg::install_test_rg);
+        let hashline = hashline.as_ref().map(|(id, store)| HashlineContext {
+            session_id: id,
+            store,
+        });
+        let (workspace, scratch, hashline) =
+            (workspace.as_deref(), scratch.as_deref(), hashline.as_ref());
+        let args = &args;
+        match tool_name.as_str() {
+            "Read" => tool_read(workspace, scratch, args, allow_external_paths, hashline)
+                .map_err(Into::into),
+            "Glob" => tool_glob(workspace, scratch, args, allow_external_paths).map_err(Into::into),
+            "Grep" => tool_grep(workspace, scratch, args, allow_external_paths, hashline)
+                .map_err(Into::into),
+            "Write" => tool_write(workspace, scratch, args, allow_external_paths, hashline)
+                .map_err(Into::into),
+            // "Edit": the caller routes only these five file tools here.
+            _ => tool_edit(workspace, scratch, args, allow_external_paths, hashline),
+        }
+    })
+    .await
+    .map_err(|error| hashline::ToolError::new("INTERNAL", format!("tool task failed: {error}")))?
+}
+
 /// Execute a builtin tool after the host permission gate has decided whether
 /// an explicit outside-workspace path is allowed for this call.
 pub async fn execute_tool_with_path_access(
@@ -1070,38 +1115,17 @@ pub async fn execute_tool_with_path_access(
         // Authorize the desktop-owned image request through the normal host gate.
         // Only the trusted desktop runner performs the external call.
         "GenerateImages" => Ok(serde_json::json!({ "authorized": true })),
-        "Read" => tool_read(
-            workspace,
-            scratch,
-            args,
-            allow_external_paths,
-            hashline.as_ref(),
-        )
-        .map_err(Into::into),
-        "Glob" => tool_glob(workspace, scratch, args, allow_external_paths).map_err(Into::into),
-        "Grep" => tool_grep(
-            workspace,
-            scratch,
-            args,
-            allow_external_paths,
-            hashline.as_ref(),
-        )
-        .map_err(Into::into),
-        "Write" => tool_write(
-            workspace,
-            scratch,
-            args,
-            allow_external_paths,
-            hashline.as_ref(),
-        )
-        .map_err(Into::into),
-        "Edit" => tool_edit(
-            workspace,
-            scratch,
-            args,
-            allow_external_paths,
-            hashline.as_ref(),
-        ),
+        "Read" | "Glob" | "Grep" | "Write" | "Edit" => {
+            run_file_tool(
+                workspace,
+                scratch,
+                tool_name,
+                args,
+                allow_external_paths,
+                hashline.as_ref(),
+            )
+            .await
+        }
         "Bash" => {
             let options = bash_options.unwrap_or_else(|| {
                 let id = shell::catalog(None)
@@ -3088,6 +3112,45 @@ mod tests {
         assert_eq!(desktop_dispatch_timeout_ms(Some(5_000)), 5_000);
     }
 
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn glob_traversal_does_not_occupy_the_async_worker() {
+        let dir = tempfile::tempdir().unwrap();
+        for directory in 0..60 {
+            let path = dir.path().join(format!("dir-{directory}"));
+            std::fs::create_dir(&path).unwrap();
+            for file in 0..100 {
+                std::fs::File::create(path.join(format!("file-{file}.txt"))).unwrap();
+            }
+        }
+
+        let root = dir.path().to_path_buf();
+        let glob = tokio::spawn(async move {
+            execute_tool(
+                Some(&root),
+                None,
+                "Glob",
+                &serde_json::json!({ "pattern": "**/*.zzz" }),
+                30_000,
+            )
+            .await
+        });
+        // With one worker, the probe can only be polled during the Glob while
+        // the Glob task is parked at an await. An inline synchronous traversal
+        // never yields, so the probe cannot complete until the traversal ends.
+        let probe = tokio::spawn(async {
+            tokio::task::yield_now().await;
+        });
+        probe.await.unwrap();
+        assert!(
+            !glob.is_finished(),
+            "probe could only run after Glob finished: the Glob body blocked the only async worker (#1071)"
+        );
+
+        let result = glob.await.unwrap();
+        assert!(result.ok, "glob failed: {:?}", result.content);
+        assert_eq!(result.content["count"].as_u64(), Some(0));
+    }
+
     #[cfg(unix)]
     #[tokio::test]
     async fn grep_preserves_posix_literal_backslashes_in_workspace_paths() {
@@ -3466,6 +3529,109 @@ mod tests {
                 "{name}"
             );
         }
+    }
+
+    #[tokio::test]
+    async fn read_powershell_utf16le_log() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("build.log");
+        let mut log = vec![0xff, 0xfe];
+        log.extend(
+            "build passed\r\nnext line\r\n"
+                .encode_utf16()
+                .flat_map(u16::to_le_bytes),
+        );
+        std::fs::write(&path, log).unwrap();
+
+        let result = execute_tool(
+            Some(dir.path()),
+            None,
+            "Read",
+            &serde_json::json!({ "path": "build.log" }),
+            5_000,
+        )
+        .await;
+        assert!(
+            result.ok,
+            "UTF-16LE log should be readable: {:?}",
+            result.content
+        );
+        assert!(result.content["content"]
+            .as_str()
+            .unwrap()
+            .contains("build passed"));
+        assert!(result.content["content"]
+            .as_str()
+            .unwrap()
+            .contains("2:next line"));
+
+        let tag = result.content["tag"].as_str().unwrap();
+        let edit = execute_tool(
+            Some(dir.path()),
+            None,
+            "Edit",
+            &serde_json::json!({
+                "path": "build.log",
+                "tag": tag,
+                "ops": "PUT 2.=2:\n+final line\n"
+            }),
+            5_000,
+        )
+        .await;
+        assert!(edit.ok, "UTF-16LE edit failed: {:?}", edit.content);
+        let written = std::fs::read(path).unwrap();
+        let mut expected = vec![0xff, 0xfe];
+        expected.extend(
+            "build passed\r\nfinal line\r\n"
+                .encode_utf16()
+                .flat_map(u16::to_le_bytes),
+        );
+        assert_eq!(written, expected);
+        assert_eq!(
+            hashline::normalize_file(&written).text,
+            "build passed\nfinal line\n"
+        );
+    }
+
+    #[tokio::test]
+    async fn read_and_edit_utf16be_chinese_text() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("status.log");
+        let mut log = vec![0xfe, 0xff];
+        log.extend("开始\n完成\n".encode_utf16().flat_map(u16::to_be_bytes));
+        std::fs::write(&path, log).unwrap();
+
+        let read = execute_tool(
+            Some(dir.path()),
+            None,
+            "Read",
+            &serde_json::json!({ "path": "status.log" }),
+            5_000,
+        )
+        .await;
+        assert!(read.ok, "UTF-16BE Read failed: {:?}", read.content);
+        let content = read.content["content"].as_str().unwrap();
+        assert!(content.contains("1:开始"));
+        assert!(content.contains("2:完成"));
+
+        let edit = execute_tool(
+            Some(dir.path()),
+            None,
+            "Edit",
+            &serde_json::json!({
+                "path": "status.log",
+                "tag": read.content["tag"],
+                "ops": "PUT 2.=2:\n+已完成\n"
+            }),
+            5_000,
+        )
+        .await;
+        assert!(edit.ok, "UTF-16BE Edit failed: {:?}", edit.content);
+        let written = std::fs::read(path).unwrap();
+        let mut expected = vec![0xfe, 0xff];
+        expected.extend("开始\n已完成\n".encode_utf16().flat_map(u16::to_be_bytes));
+        assert_eq!(written, expected);
+        assert_eq!(hashline::normalize_file(&written).text, "开始\n已完成\n");
     }
 
     #[tokio::test]

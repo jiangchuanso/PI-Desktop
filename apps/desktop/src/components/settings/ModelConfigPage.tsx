@@ -10,6 +10,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  vendorAccountImageCandidates,
   type ImageGenerationBinding,
   type ModelBinding,
   type ProviderPublic,
@@ -23,7 +24,11 @@ import {
   IconServer,
 } from "../icons";
 import { providerServesChatModels } from "./default-model";
-import { planImageGenerationDefaults } from "./image-generation-default";
+import {
+  imageGenerationPickerCandidates,
+  isImageGenerationPickerCandidate,
+  planImageGenerationDefaults,
+} from "./image-generation-default";
 import { copyProviderConfiguration, type ProviderCopyDraft } from "./provider-copy";
 import { ImageGenerationModelRow } from "./ImageGenerationModelRow";
 import { OAuthLoginDialog } from "./OAuthLoginDialog";
@@ -34,6 +39,8 @@ import { useVendorAccounts } from "./useVendorAccounts";
 import { VendorAccountDialog, type VendorAccountForm } from "./VendorAccountDialog";
 import { ModelConfigImportPanel } from "../../features/settings/imports/ModelConfigImportPanel";
 import { ImportToggleButton } from "../../features/settings/import-workbench";
+import { JevSettingsCard } from "./JevSettingsCard";
+import { JEV_SERVICE } from "./service-catalog";
 
 type CatalogStatus = {
   loaded: boolean;
@@ -65,16 +72,12 @@ function imageCandidates(
   return result;
 }
 
-function isImageCandidate(candidates: readonly ImageGenerationBinding[], providerId: string, modelId: string) {
-  return candidates.some((entry) => entry.providerId === providerId && sameWireId(entry.modelId, modelId));
-}
-
 function chatModelOptions(providers: readonly ProviderPublic[], imageModels: readonly ImageGenerationBinding[]) {
   return providers.flatMap((provider) => {
     const ids = provider.models?.length
       ? provider.models.map((model) => model.id)
       : [provider.defaultModelId ?? ""];
-    return ids.filter((id) => !!id.trim() && !isImageCandidate(imageModels, provider.id, id))
+    return ids.filter((id) => !!id.trim() && !isImageGenerationPickerCandidate(imageModels, provider.id, id))
       .map((modelId) => ({ provider, modelId }));
   });
 }
@@ -90,6 +93,11 @@ export function ModelConfigPage() {
   // null = closed, "" = add flow, provider id = edit flow.
   const [copyDraft, setCopyDraft] = useState<ProviderCopyDraft | null>(null);
   const [setupFor, setSetupFor] = useState<string | null>(null);
+
+  // The Jev card opens the same dialog, straight on the Jev service.
+  const [jevSetup, setJevSetup] = useState(false);
+  // Bumped when that dialog stored a key, so the card re-reads what exists.
+  const [jevStatusRevision, setJevStatusRevision] = useState(0);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [testingId, setTestingId] = useState<string | null>(null);
   const [changingImageModel, setChangingImageModel] = useState(false);
@@ -123,8 +131,13 @@ export function ModelConfigPage() {
   }, []);
 
   const imageGenerationCandidates = useMemo(
-    () => imageCandidates(settings?.imageGenerationModels, settings?.imageGeneration),
-    [settings?.imageGenerationModels, settings?.imageGeneration],
+    () => imageCandidates([
+      ...imageCandidates(settings?.imageGenerationModels, settings?.imageGeneration),
+      // A signed-in vendor account serves its image model without listing it as
+      // a chat model, so it must reach this list or the picker row never renders.
+      ...vendorAccountImageCandidates(providers),
+    ], null),
+    [settings?.imageGenerationModels, settings?.imageGeneration, providers],
   );
   const providerReady = (provider: ProviderPublic) =>
     providerServesChatModels(provider, imageGenerationCandidates);
@@ -219,11 +232,17 @@ export function ModelConfigPage() {
     setChangingImageModel(true);
     try {
       const current = await api.getSettings();
-      const candidates = imageCandidates(
+      // Exactly the list the picker row offered, so a choice the user could
+      // make is always one this page accepts — including the image model of a
+      // signed-in vendor account, which is never stored as a chat model.
+      const candidates = imageGenerationPickerCandidates(
         current.imageGenerationModels,
         current.imageGeneration,
+        providers,
       );
-      if (!isImageCandidate(candidates, binding.providerId, binding.modelId)) return;
+      if (!isImageGenerationPickerCandidate(candidates, binding.providerId, binding.modelId)) {
+        return;
+      }
       const nextSettings = { ...current, imageGeneration: binding };
       await api.setSettings(nextSettings);
       useAppStore.setState({ settings: nextSettings });
@@ -370,6 +389,15 @@ export function ModelConfigPage() {
         </section>
       ) : null}
 
+      <JevSettingsCard
+        settings={settings}
+        onConfigure={() => {
+          setJevSetup(true);
+          setSetupFor("");
+        }}
+        statusRevision={jevStatusRevision}
+      />
+
       <section className="settings-card-block">
         <div className="model-config-section-head">
           <div className="settings-card-heading-line">
@@ -498,13 +526,25 @@ export function ModelConfigPage() {
         <ProviderSetupDialog
           provider={editingProvider}
           initialDraft={copyDraft}
-          onClose={() => { setSetupFor(null); setCopyDraft(null); }}
+          initialService={jevSetup ? JEV_SERVICE : undefined}
+          onClose={() => {
+            setSetupFor(null);
+            setCopyDraft(null);
+            setJevSetup(false);
+          }}
           imageModelIds={editingProvider
             ? imageGenerationCandidates
                 .filter((binding) => binding.providerId === editingProvider.id)
                 .map((binding) => binding.modelId)
             : undefined}
           onSaved={afterSaved}
+          onJevConfigured={() => {
+            setSetupFor(null);
+            setCopyDraft(null);
+            setJevSetup(false);
+            // The card is already mounted: tell it the key it read has changed.
+            setJevStatusRevision((revision) => revision + 1);
+          }}
           vendors={vendors}
           onPickSubscription={(vendor) => {
             setSetupFor(null);

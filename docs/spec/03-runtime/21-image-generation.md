@@ -96,6 +96,11 @@ path. A missing or unreadable preview has no download action; revealing a
 missing file reports an error. These actions do not move or overwrite the
 original scratch file.
 
+The renderer owns successful-result previews in the conversation. The bundled
+imagegen skill confirms generation in text and reports failures, but does not
+embed those same result paths as Markdown images; doing so duplicates the
+renderer preview.
+
 Each result records index, status (`succeeded`, `failed`, `cancelled`), successful
 path/MIME type or a safe error code. New files get unique names in session scratch;
 editing never overwrites its source. The tool result and transcript retain file
@@ -123,7 +128,7 @@ previews, editing a generated file, collapsed results, and setup navigation.
 Live verification is opt-in via `scripts/test-image-generation-live.mjs`, limited
 to one generation plus one edit and never a default test command.
 
-## Pi 1.0.1 operation boundary
+## Pi 1.1.0 operation boundary
 
 Image generation and edits execute through account-scoped Pi `Models.generateImages`.
 Use native OpenRouter images or a registered compatible OpenAI-images adapter,

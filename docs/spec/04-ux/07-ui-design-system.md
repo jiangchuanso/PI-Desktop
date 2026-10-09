@@ -938,9 +938,10 @@ The composer renders only controls connected to the active pi session:
 - The model trigger shows only the active model ID. Its menu selects a
   configured provider/default-model pair for the active session and links to
   Agent.
-- The right toolbar exposes one combined model × reasoning trigger immediately
-  before the standalone prompt-enhancement Sparkles action and Send/Abort. The
-  trigger shows a Bot icon, the current model, and reasoning level; `off` omits
+- The right toolbar exposes one combined model × reasoning trigger. Explicitly
+  installed plugins may contribute user-invoked text actions after it; prompt
+  enhancement is not built in. The trigger shows a Bot icon, the current model,
+  and reasoning level; `off` omits
   the level text. Its single `role="menu"`
   popover opens above the trigger at `bottom: calc(100% + 8px)` and starts with
   exactly two current-value entries. When the menu lists more than one
@@ -1318,6 +1319,10 @@ Implementation: `components/settings/SettingsMenuSelect.tsx`.
 Every dropdown / option-list in Settings **must** use `SettingsMenuSelect`
 instead of the native `Select` (`<select>`) component. Native `Select`
 is reserved for non-Settings contexts where OS-level rendering is acceptable.
+
+Appearance pickers use the scaled `--ds-settings-picker-height` metric.
+`SettingsMenuSelect` triggers keep `--ds-field-height` so they align with
+adjacent form inputs; dense surfaces may override that metric locally.
 
 
 ## 12. State patterns

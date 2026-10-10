@@ -378,10 +378,13 @@
 
 - **Preconditions:** Image configuration UI fixture; English and Chinese.
 - **Steps:** Mark image models and save the provider; choose a different image
-  default from its summary; then unmark the sole image model and save.
+  default from its summary; pick a candidate the stored list no longer offers;
+  then unmark the sole image model and save.
 - **Expected:** Provider edits confirm the provider update, including after
   clearing the image selection. Explicit default selection keeps its specific
-  image-selection confirmation. Persisted bindings retain their existing behavior.
+  image-selection confirmation. A pick the page can no longer accept reports
+  that the image model could not be saved instead of keeping the previous
+  default silently. Persisted bindings retain their existing behavior.
 - **Specs:** 03-runtime/21-image-generation. **Acceptance:** B.
 - **Milestone:** Maintenance. **Status:** Automated by
 ### E2E-IMAGES-remove-configured-model
@@ -2820,13 +2823,18 @@ identify the platform validation still needed.
 
 #### E2E-021: Delete session works
 
-- **Preconditions**: Session exists.
-- **Steps**: 1) Delete a session. 2) Observe session list.
-- **Expected**: Session removed from list; data gone.
-- **Specs linked**: `03-runtime/04-data-storage.md`
+- **Preconditions**: A session exists near the bottom of the expanded Sidebar.
+- **Steps**: 1) Open its overflow menu. 2) Verify the menu and Delete action stay
+  inside the window. 3) Repeat in a short window and scroll the menu to its last
+  action. 4) Delete the session and observe the session list.
+- **Expected**: The menu stays within the viewport, the last action is reachable,
+  and the deleted session disappears from the list with its data removed.
+- **Specs linked**: `03-runtime/04-data-storage.md`,
+  `04-ux/09-interaction-patterns.md`
 - **Acceptance**: F (delete session)
 - **Milestone**: M2
-- **Status**: Draft
+- **Status**: Unit-covered (`sidebar-floating-menu.test.mjs`,
+  `sidebar-navigation.test.mjs`); rendered viewport scenario Draft
 
 #### E2E-021a: Rename session title persists without changing activity
 

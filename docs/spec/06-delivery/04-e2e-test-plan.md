@@ -37,6 +37,26 @@
   and Rust `data_relocation` tests cover rollback and path/filesystem boundaries.
 
 
+### E2E-LEGACY-DICTATION-idle-model-release
+
+- **Preconditions:** Exercise the retained local Dictation service through its
+  `VoiceService` interface with a deterministic controller/model-manager stub
+  and a controlled clock. Do not access a physical microphone or download a
+  model.
+- **Steps:** Start and stop a recording, advance time to just before and then
+  to the 10-minute idle boundary, and inspect unload calls. Repeat with a new
+  recording before the boundary, a rejected new start, an error terminal phase,
+  and service disposal.
+- **Expected:** A settled idle model unloads once at the boundary, never early.
+  A new recording cancels the timer and its terminal phase starts a fresh
+  window. A rejected start does not strand the unload. An active phase at the
+  callback or service disposal prevents unloading.
+- **Coverage:** `apps/desktop/test/voice-service-idle-unload.test.mjs` runs the
+  production `VoiceService` lifecycle with only the runtime and clock mocked.
+  The separate Linux RSS measurement verifies that `TranscribeModel.dispose()`
+  returns memory to the OS and that the existing lazy-load path reloads it.
+- **Specs:** [Live Voice](../03-runtime/live-voice.md).
+
 ### E2E-LIVE-VOICE-public-settings-and-reconnect
 
 - **Preconditions:** A built production Renderer and real Electron/Main/Host,
@@ -4461,23 +4481,31 @@ window; opening a normal panel afterward must still work.
 - **Milestone**: M5
 - **Status**: Draft (manual)
 
-#### E2E-BROWSER-capture-resize: Capture completion preserves the latest viewport
+#### E2E-BROWSER-capture-resize: Capture preserves live placement and restores the latest viewport
 
 - **Preconditions**: Isolated Electron profile and a local responsive page
   taller than the visible browser viewport. No provider account is needed.
-- **Steps**: Start a full-page screenshot, then resize the browser hole twice
-  before Chromium completes it. Repeat while alternating larger and smaller
-  sizes and through raw `Page.captureScreenshot`. Queue overlapping captures,
-  change resource tabs, fail a capture, and close a tab with a queued capture.
-- **Expected**: The completed capture does not restore a stale viewport. The
-  page's `innerWidth`/`innerHeight` match the latest requested bounds. Captures
-  on one page serialize without blocking a sibling page. Failed capture
-  releases resize handling. Closing a page cannot redirect its queued capture
-  to another page. No screenshot is repeated to repair layout.
-- **Status**: Native Electron capture/resize path automated by
+- **Steps**: Start a full-page screenshot and keep it pending while resizing
+  the browser hole twice. Repeat with raw `Page.captureScreenshot`. While a
+  capture is pending, maximize, restore, enter fullscreen, and leave fullscreen
+  so the panel moves or changes size. Also queue overlapping captures, switch
+  resource tabs, hide and restore a captured page, fail a capture, close a tab
+  with a queued capture, and recreate a destroyed guest.
+- **Expected**: During capture, the native guest follows the panel's current
+  position and remains clipped within its bounds; it never covers the
+  conversation. Its capture-time viewport stays stable until completion, then
+  `innerWidth`/`innerHeight` match the latest requested bounds. Captures on one
+  page serialize without blocking a sibling page. Failed capture releases
+  resize handling. Hiding or closing a page cannot expose it or redirect its
+  queued capture to another page. A destroyed guest leaves no orphan native
+  view when it is recreated or disposed. No screenshot is repeated to repair
+  layout.
+- **Status**: Native Electron capture/resize and pending window-transition
+  placement path automated by
   `node scripts/e2e-browser-capture-resize.mjs` (artifacts retained). The
-  production Host/Pane/CDP service paths for failure, queueing and tab closure
-  are covered by `apps/desktop/test/browser-capture-resize.test.mjs`.
+  production Host/Pane/CDP service paths for failure, queueing, tab closure,
+  guest recreation, and relocated-panel clipping are covered by
+  `apps/desktop/test/browser-capture-resize.test.mjs`.
 
 #### E2E-BROWSER-session-preview-race: Session switching does not expose a stale preview
 
@@ -4804,9 +4832,12 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   badge and no context inspector under the answer. 3) Hover the composer
   toolbar inspector trigger, confirm the panel stays closed, then click it.
   4) Inspect the remaining-token-plus-percentage heading, used/window counts,
-  unboxed turn/speed values, one inline provider-usage summary, and one
-  aggregate tool-usage summary, with no doubled heading rule and no inner
-  section hairlines. 5) Scroll the transcript and resize the window while the
+  unboxed turn/speed values, session duration, cumulative model response time
+  with its share of session duration, one inline provider-usage summary, and
+  one aggregate tool-usage summary, with no doubled heading rule and no inner
+  section hairlines. For a transcript with more than one loaded page, wait for
+  the earlier response timings to finish loading and confirm the cumulative
+  value includes them. 5) Scroll the transcript and resize the window while the
   panel is open. Toggle and resize the sidebar and work panel while the panel
   remains open. 6) Move the pointer away from the panel, then dismiss it by
   clicking the trigger again, clicking outside it, and pressing Escape from
@@ -4824,7 +4855,11 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   warning/error states; click or keyboard activation toggles the same compact
   summary while pointer hover alone never opens or closes it. An open panel
   survives the pointer leaving it and closes on a second trigger activation,
-  an outside click, or Escape, which returns focus to the trigger. Provider
+  an outside click, or Escape, which returns focus to the trigger. Session
+  duration runs from session creation to the latest activity (or to now while
+  running); cumulative model response time sums recorded top-level model
+  request durations and its percentage is relative to that wall-time span.
+  Earlier transcript pages load only while the inspector is open. Provider
   values remain exact, tool values remain visibly approximate through the `~`
   aggregate total, and no per-tool list, source badge, progress bar, or
   explanatory estimate paragraph is rendered. Occupancy, turn total, and
@@ -10680,8 +10715,8 @@ This test plan spec is accepted when:
   inline code, and a short list. 2) Confirm each card renders the formatting
   while keeping choices keyboard/selectable. 3) Answer the first question,
   click Next, and select two answers on the multi-select question. 4) Skip the final
-  question without entering text. 5) Inspect the completed tool row and the
-  next model response.
+  question without entering text. 5) Expand the completed tool row and inspect
+  its question-and-answer summary, then inspect the next model response.
 - **Expected**: One question is visible at a time; the small indicators show
   answered, current, and skipped states in the composer approval area, at the
   same dock position used by Plan and Goal approval. The request has no
@@ -10702,7 +10737,10 @@ This test plan spec is accepted when:
   keeps `question：` for the skipped question. Markdown renders as rich text
   without activating embedded links or loading images. Selecting a formatted
   option returns its original Markdown source label. Decline all produces empty placeholders for every
-  question and still completes the tool call. A pending ask shows a stable
+  question and still completes the tool call. The completed row shows the
+  ordered questions and answers, keeps multi-select labels separate, marks
+  skipped questions with localized copy, and does not expose the structured
+  JSON details. Its model-facing result stays unchanged. A pending ask shows a stable
   localized title and the first question in its toast; generated session-title
   text never replaces that title. Background sessions retain the existing
   native notification policy. Exactly one soft chime plays for the ask; the
@@ -11536,7 +11574,16 @@ This test plan spec is accepted when:
      while the saved pin still identifies the chosen provider. Add the second
      provider with the same model ID and confirm both rows and their accessible
      names include their provider IDs to distinguish them. Disable one provider
-     and confirm its unavailable pin stays visible and removable.
+     and confirm its row and move/remove accessible names retain the configured
+     provider name and model ID, with a localized disabled status; the row must
+     not revert to a raw UUID label. Confirm the disabled provider is absent
+     from the add menu, while its saved row remains movable and removable.
+     Save and reopen, then re-enable the provider: its name remains visible,
+     the disabled status clears, and its stored pin is unchanged. A genuinely
+     missing or ambiguous provider binding keeps its raw pin with an unavailable
+     status rather than borrowing another provider's name. Reorder or remove
+     that row, save and reopen, and confirm all remaining pins and their order
+     are preserved exactly.
   5. Confirm the picker offers no **Custom (provider/model)…** entry and the
      field renders no free-text input, so a model id can only come from the
      configured catalog. Switch the picker to **Inherit session model**, save,
@@ -11811,9 +11858,11 @@ This test plan spec is accepted when:
   3. Repeat with the crossing landing while a tool result is still pending,
      then with it landing on a completed turn.
   4. Repeat with the summary request scripted to fail.
-  5. Run the same brief as the session Agent on the same fixture and compare
+  5. Repeat with a summary response containing only thinking blocks or
+     whitespace, including a response stopped at the output limit.
+  6. Run the same brief as the session Agent on the same fixture and compare
      its requests and transcript rows with a run recorded before this change.
-  6. Inspect the delegation card, the transcript, the context inspector, and
+  7. Inspect the delegation card, the transcript, the context inspector, and
      the parent's own model context after the delegate settles.
 - **Expected**: The delegate keeps working instead of failing. The request
   after the crossing is below the hard limit and carries a summary plus the
@@ -11822,10 +11871,13 @@ This test plan spec is accepted when:
   completed turn retains none. A failed summary degrades to the original task
   brief plus the most recent message(s), the run still completes, and the
   report and lifecycle details say it was degraded rather than presenting a
-  partial answer as complete. Delegate compaction adds no transcript row, no
-  host-core checkpoint, no warning toast, and no context-inspector line; the
-  delegate's own rows stay complete and the parent's model context still holds
-  only the report. The session Agent behaves exactly as it did before.
+  partial answer as complete. A thinking-only or whitespace-only summary also
+  follows that degradation path, preserves the recent tool evidence, and never
+  installs an empty successful checkpoint. Delegate compaction adds no
+  transcript row, no host-core checkpoint, no warning toast, and no
+  context-inspector line; the delegate's own rows stay complete and the
+  parent's model context still holds only the report. The session Agent
+  behaves exactly as it did before.
 - **Specs linked**: `03-runtime/02-agent-runtime.md` §5.1, §5f,
   `03-runtime/08-error-codes.md` §3.2, ADR 0299, ADR 0064, ADR 0136
 - **Acceptance criterion**: C — Conversation & stream; Quality
@@ -11892,7 +11944,8 @@ This test plan spec is accepted when:
 - **Preconditions**: The same injected small-window fake provider. One settled
   `reader` chain read enough to exceed the delegate hard limit while staying
   under `MAX_RESUMABLE_READ_LINES`; a second settled chain fits well inside
-  the budget.
+  the budget. The resumed fixture uses `vendorKey: "deepseek"` and includes a
+  persisted assistant row with both answer text and thinking.
 - **Steps**:
   1. `Task.resume` the over-budget chain and capture its first provider
      request in full.
@@ -11903,6 +11956,8 @@ This test plan spec is accepted when:
      the over-budget chain again.
   5. Accumulate more than `MAX_RESUMABLE_READ_LINES` of read-only output in a
      chain and read the reusable list the next prompt offers.
+  6. Inspect the resumed assistant history in the captured request and verify
+     its same-model reasoning remains in `reasoning_content`.
 - **Expected**: The first request of a resumed run is below the hard limit. It
   opens with the original task brief and holds the most recent turns; the
   oldest tool results are dropped first, and dropping an assistant message
@@ -11911,8 +11966,11 @@ This test plan spec is accepted when:
   conclusion is answered from the seeded context; the first round's may be
   gone, and the run says so rather than inventing it. A resume never fails
   with `CONTEXT_TOO_LARGE` or `SUBAGENT_CONTEXT_OVERFLOW` on its first
-  request. `MAX_RESUMABLE_READ_LINES` still removes an over-read chain from
-  the reusable list; truncation does not make it resumable again.
+  request. With a vendorKey binding, restored assistant history uses the same
+  `model.provider` / `model.id` identity as live requests, and its thinking
+  stays in the native `reasoning_content` field. `MAX_RESUMABLE_READ_LINES`
+  still removes an over-read chain from the reusable list; truncation does not
+  make it resumable again.
 - **Specs linked**: `03-runtime/02-agent-runtime.md` §5f, ADR 0299, ADR 0279
 - **Acceptance criterion**: C — Conversation & stream; Quality
 - **Milestone**: M6+
@@ -12156,15 +12214,21 @@ This test plan spec is accepted when:
      maximum, then verify the target follows the live budget (`client width - 360px - expanded sidebar`) instead of a fixed cap.
   4. Close and relaunch the app after the resize settles.
   5. On Windows, start an edge gesture, press Escape, and verify original bounds
-     return. Release the pointer outside the original window bounds, then
-     maximize and enter fullscreen; native hit regions must not block
-     window controls or content in those states.
-  6. On Windows, inspect the default 12 DIP rounded corners, matching the
-     global `--radius-md` token, before and after resizing. Apply authorized
-     theme radii of 0 and 24 DIP, then return to a built-in theme. Reject an
-     out-of-range radius without changing the surface.
-  7. On Windows, minimize and restore the window, then confirm all four native
-     corners still match the selected radius.
+     return. Maximize and enter fullscreen; corners must be square in both
+     states. Restore the window and confirm the selected corner preference
+     returns. Record native corner hit behavior rather than assuming that DWM
+     corners pass clicks through.
+  6. On Windows, inspect the default 12 DIP corner request before and after
+     resizing. Apply authorized theme radii of 0 and 24 DIP, then return to a
+     built-in theme. Radius 0 must be square. On Windows 11, positive values
+     request the same system-rounded preference and are not asserted as exact
+     DIP radii; on earlier Windows builds, the existing clip retains its exact
+     DIP behavior. Reject an out-of-range radius without changing the surface.
+  7. On Windows, minimize and restore the window, then confirm the selected
+     corner preference is applied again. Open browser and plugin child views and
+     confirm their pixels stay within the top-level silhouette. On Windows 11,
+     also verify alpha theme colors are flattened over the built-in theme
+     background on an opaque top-level window.
 - **Expected**: Native edge and corner hit regions remain available in frameless
   chrome, the minimum size remains 800×560 (capped to the display
   work area), and the recovery watchdog does not
@@ -12174,25 +12238,30 @@ This test plan spec is accepted when:
   Electron's frameless native hit regions without the thick-frame rim; no left, bottom,
   or right native rim is visible. No temporary
   work-panel reservation width is persisted or restored.
-  The four normal-window corners follow the active radius; the default is the
-  global 12 DIP `--radius-md` radius, an authorized theme may choose 0..24 DIP,
-  and maximized/fullscreen windows are rectangular. In the proposed ADR 0325
-  implementation, composited pixels blend only between the corner content and
-  the known desktop background, the common content view clips browser/plugin
-  children, and points beyond the antialiased pixel fringe pass hit testing
-  through.
+  Windows 11 uses DWM's native rounded preference for positive radii and a
+  square preference for radius 0, maximize, and fullscreen. The default request
+  remains 12 DIP and authorized themes retain the integer 0..24 DIP range, but
+  DWM selects the actual positive radius and the test does not require 12 and
+  24 to look different. Its top-level surface is opaque, including when a
+  contributed alpha color is flattened over the built-in theme background.
+  Earlier Windows builds retain the existing content clip and integer shape
+  hit region. Browser/plugin child views stay within the top-level outline;
+  Windows 11 corner click behavior is recorded as native system behavior and
+  is not treated as `setShape()` click-through.
 - **Specs linked**: `03-runtime/01-ipc-protocol.md`,
   `04-ux/01-ui-ia.md`, `04-ux/07-ui-design-system.md`,
   `04-ux/08-component-spec.md`, `04-ux/09-interaction-patterns.md`,
   ADR 0029 / ADR 0151 / ADR 0317 / ADR 0325
 - **Acceptance**: A (app shell), F (persistence), Quality
 - **Milestone**: M6+
-- **Status**: `test:e2e:window-controls` covers corner hit regions before and
+- **Status**: `test:e2e:window-controls` covers corner preferences before and
   after minimize/restore, theme radius changes, fullscreen, maximize, and
   controls in an isolated profile. The isolated `test:e2e:window-surface`
-  candidate samples controlled light/dark desktop backgrounds and the shared
-  parent clip at radii 0, 12, and 24 DIP. Both Windows suites still require a
-  dedicated Windows desktop; source tests do not qualify native compositing.
+  candidate samples controlled light/dark desktop backgrounds and child-view
+  bounds. Windows 11 additionally verifies the opaque DWM path and system
+  preference; earlier Windows builds verify the legacy clip and shape path.
+  Both Windows suites still require a dedicated Windows desktop; source tests
+  do not qualify native compositing.
   `test:e2e:window-resize-native` adds physical Windows left/right/bottom/corner
   drags and the 800×560 minimum; run it on a dedicated interactive desktop,
   since another app can take foreground or pointer input during the gesture.

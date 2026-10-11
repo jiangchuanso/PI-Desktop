@@ -9504,73 +9504,84 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   because the host has no device backend yet, so this scenario stays Draft until
   audio lands.
 
-### E2E-CONFIG-SYNC-webdav-portable-configuration
+<a id="e2e-config-sync-webdav-portable-configuration"></a>
 
-- **Preconditions:** A built task candidate, an isolated host profile, and a
-  local WebDAV fixture that supports strong ETags and conditional PUT, plus a
-  fixture variant that ignores conditional headers but supports `PROPFIND`
-  directory listing. No real WebDAV account, provider, or production desktop.
-  Developer mode starts off so the destination is exercised as developed.
-- **Steps:** 1) In a development build with developer mode off, confirm Cloud
-  sync is present in the rail and returned by settings search, then open it and
-  confirm neither the rail row nor the page title carries an Experimental
-  badge. 2) Toggle developer mode on and off and confirm the destination stays
-  reachable either way. 3) Enter the fixture URL,
-  device label, directory, and backup password. 4) Run the capability test and
-  confirm it uses temporary objects. 5) Select provider/MCP/skill categories
-  while leaving credentials and memory off; enable credentials in a second
-  preview and verify only redacted counts are shown. 6) Configure device A,
-  create a user provider and MCP definition, and sync. 7) Configure device B
-  against the same vault, sync, inspect pending activation/mapping, and verify
-  no command or task runs before approval. 8) Approve a changed safe entity,
-  reject one staged entity, edit disjoint settings on both devices, and sync
-  again. 9) Exercise a concurrent head writer, wrong password, weak ETag,
-  ciphertext corruption, redirect, archive traversal, and network interruption.
-  10) On the ignored-precondition fixture, select explicit compatibility mode,
-  confirm the warning, and configure two devices. Verify each device publishes
-  its own encrypted head under the heads collection, a concurrent update is
-  merged from both tips, and compatibility mode does not delete immutable
-  history. Cancel the confirmation once and verify configuration is not saved.
-  11) Use the explicit LAN HTTP acknowledgement with a loopback/private fixture,
-  verify the setting survives a state refresh, and confirm a public HTTP
-  endpoint is rejected even when the checkbox is selected. 12) Leave the
-  Cloud sync page with an unfinished connection edit, reopen it, and confirm
-  the non-sensitive draft is painted immediately while host state/history
-  refreshes in the background. Confirm a configured endpoint reuses its stored
-  WebDAV app password, while password fields themselves remain blank and no
-  vault password is written to renderer storage.
-- **Expected:** Cloud sync is reachable in development builds without developer
-  mode, is absent from a packaged build's rail, page, and settings search,
-  carries no Experimental badge, and neither its availability nor its behavior
-  changes when developer mode is toggled.
-  Strict mode refuses
-  unreliable conditional writes. The explicit
-  compatibility mode accepts only a server that proves bounded directory
-  listing, explains that it is not atomic CAS, and retains per-device tips for
-  merge/recovery. A server that ignores conditional headers is never accepted
-  without that user selection. HTTP remains opt-in and is accepted only for
-  localhost, `.local`, or private/link-local addresses; public HTTP endpoints
-  are rejected and the UI explains the credential exposure risk. A fixture that
-  reports a missing object as 502 is accepted only after the capability probe
-  observes that endpoint-specific behavior. WebDAV sees
-  only authenticated ciphertext and opaque object names; raw secrets never
-  appear in renderer state or logs. Identical and disjoint edits converge,
-  conflicts remain reviewable, explicit deletions use tombstones, category
-  opt-out is not deletion, and executable imports remain inactive until local
-  approval and mapping. Reopening Settings does not block on history, and
-  unfinished non-sensitive connection choices survive navigation or reload.
-  Recovery never exposes a partial local apply.
-- **Specs:** `04-ux/06-settings-ia.md`, `03-runtime/22-config-sync.md`,
-  `03-runtime/14-secrets-storage.md`, `05-security/01-security.md`, ADR 0300,
-  ADR 0301.
-- **Acceptance:** F (persistence), Security, Quality.
-- **Milestone:** M6+.
-- **Status:** Draft; merge/crypto, in-process WebDAV conditional-write
-  coverage, and the two-device host/WebDAV path are automated by
-  `pnpm test:e2e:config-sync`. Cloud sync's development-build-only visibility
-  and its packaged-build omission are asserted by
-  `settings-developer-only-destinations.test.mjs`; full
-  renderer-driven persistence and checkpoint recovery fault injection remain.
+### E2E-CONFIG-SYNC-s3-portable-configuration
+
+- **Preconditions:** A built task candidate, isolated Host processes with
+  separate data, HOME and agent directories, and a local S3 fixture with strong
+  ETags and conditional PUT. No real model provider or running desktop instance.
+  A live S3 run is separately opt-in and requires explicit authorization.
+- **Steps:**
+  1. Confirm Cloud sync remains development-build-only and has no Experimental
+     badge. Open Settings and confirm only the new S3 setup is offered;
+     old formats are not detected, migrated or deleted.
+  2. Confirm initial setup shows only required connection/password fields and
+     automatic runs use the shared switch. Expand Advanced to edit region,
+     prefix, addressing, device label and optional token; collapse/reopen it
+     without losing values. Select categories before the first save, keeping
+     credentials/memory opt-in. Test conditional creation, readback, matching
+     update, stale-write rejection and probe cleanup.
+     Reject ignored preconditions, weak ETags, redirects, public HTTP and 403;
+     never interpret 502 as a missing object. LAN HTTP follows network policy.
+  3. Configure two sync devices. Publish a provider and mapped packaged skill,
+     receive them as pending where approval is required, approve, and verify
+     visible persisted configuration and resource bytes. Exercise disjoint edits,
+     same-entity conflicts and explicit choice convergence, remote deletion
+     versus offline edit, and repeated polling. Credential opt-out must not
+     manufacture local edits or prevent deletion convergence. No real executable
+     capability is run.
+  4. Configure backup mode. Verify remote configuration is not applied, backup
+     history is separate, unchanged snapshots do not duplicate revisions, and
+     a local restore does not change either cloud head.
+  5. Restore an older sync revision with propagation acknowledgment. Verify a
+     local recovery point, a new shared revision and propagation to the second
+     device, with sensitive activation still requiring approval. Rewrap the
+     password without claiming revocation of already unlocked devices.
+  6. Reopen Settings with saved and unfinished drafts. Preserve typed S3 choices
+     and automatic-run preferences, but never persist secret keys, tokens or
+     passwords. Test blank credential reuse, explicit token clearing and full
+     replacement. Invalidate history on destination/mode changes and ignore
+     outstanding responses from the old connection. Unsaved mode changes must
+     not alter restore confirmation or propagation flags.
+     Saved connections reopen collapsed while status, manual run and inline
+     unlock remain visible above them. Open History and Security/connection
+     to restore, change password or disconnect. Pending approvals and errors
+     remain visible. At narrow content widths the form becomes one column
+     without horizontal overflow. In light/dark themes, activate shared
+     checkboxes by label and Space; verify focus, disabled and mixed states.
+  7. Restart an isolated Host and verify persisted state, then disconnect without
+     deleting unrelated data. Inspect remote object bytes for known fixture
+     plaintext and verify there is no automatic immutable-object GC.
+  8. Hold an in-flight manual sync, navigate away from Settings and return.
+     Verify Host still reports `syncing`, duplicate actions stay disabled, and
+     releasing the fixture completes the operation and refreshes Host state.
+- **Expected:** Only S3 is supported, with mandatory conditional writes and
+  encrypted vault contents. Identical/disjoint edits converge; conflicts and
+  tombstones preserve changes; excluded categories do not imply deletion.
+  Backup never downloads/applies remote configuration during normal runs.
+  History queries index at most 30 revisions; stored immutable objects are not
+  automatically deleted. Import recovery remains observable; per-file atomic
+  replacement is not asserted to be a whole-filesystem transaction.
+- **Live S3 safety:** `--live-s3 --env-file <authorized-file>` reads credentials
+  programmatically without logging/copying them. Use a new random test prefix,
+  confirm it is initially empty, run actual isolated Host processes, delete
+  only objects created under that prefix, and verify it is empty afterward.
+  Never use an existing backup prefix or production desktop profile. Record
+  tested base/candidate and distinguish this run from a standalone SDK probe.
+- **Automation:** `pnpm test:e2e:config-sync` is the multi-Host harness.
+  Rust `config_sync::` and `user_skills::` suites cover transport, merge,
+  application and resource safety. `config-sync-user-path.test.mjs` runs the
+  real settings page and shared checkbox with a mocked external IPC boundary,
+  actual styles and isolated Electron input, without network access;
+  `config-sync-ipc.test.mjs` covers Main notification shape. Visibility remains
+  covered by `settings-developer-only-destinations.test.mjs`.
+- **Specs:** `03-runtime/22-config-sync.md`, `04-ux/06-settings-ia.md`,
+  `03-runtime/14-secrets-storage.md`, `05-security/01-security.md`,
+  `docs/adr/s3-only-configuration-backup-sync.md`.
+- **Acceptance:** F (persistence), Security, Quality. **Milestone:** M6+.
+- **Status:** Candidate validation required; full checkpoint-recovery fault
+  injection is not claimed by the settings or multi-Host happy-path suites.
 
 **E2E-CHAT-session-todo-checklist: TodoWrite to session-aware TodoDock**
 
@@ -9623,7 +9634,7 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
 | C / F — Hourly task updates | E2E-SCHEDULED-manual-to-hourly |
 | C / F / Quality — Saved project isolation | E2E-SCHEDULED-manual-workspace-binding |
 | C / F / Quality — Desktop automations | E2E-SCHEDULED-desktop-automation-lifecycle |
-| F / Security / Quality — Portable configuration sync | E2E-CONFIG-SYNC-webdav-portable-configuration |
+| F / Security / Quality — Portable configuration sync | E2E-CONFIG-SYNC-s3-portable-configuration |
 | A / C — Unicode stdio framing | E2E-RPC-unicode-separators |
 | C / G / Quality — Plugins navigation | E2E-NAV-plugins-button-goes-back |
 | C / D / Quality — Sidebar row states | E2E-LAYOUT-sidebar-row-states |

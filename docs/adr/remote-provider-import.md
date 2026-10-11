@@ -1,4 +1,4 @@
-# Explicit provider import into a running remote Host
+# ADR: Explicit provider import into a running remote Host
 
 - Status: Accepted for the experimental SSH MVP
 - Refines: ADR 0292, ADR 0293; remote architecture §5.2 and security §3.5

@@ -1535,7 +1535,8 @@ Stopping a session aborts its in-flight user MCP tool calls. The client sends
 `notifications/cancelled` for each active request without closing a connection
 used by other sessions; a completed or canceled tool call is never replayed.
 Cancellation stops the local wait, while a server may ignore the notification
-and finish an already started side effect.
+and finish an already started side effect. A request that times out is
+cancelled the same way, with reason `timeout`; `initialize` is never cancelled.
 
 Desktop-only channels scan configuration written by other agent tools on the
 same machine — Claude Desktop (`claude_desktop_config.json` on macOS, Windows

@@ -1871,8 +1871,9 @@ unchanged. See [provider configuration](12-provider-config-schema.md).
 
 ## 15. 云配置同步
 
-The development-build-only page keeps its channel names. Inputs and results
-use the S3-only contract in `types/config-sync.ts` and the current source spec.
+The page is available in all builds and carries an Experimental badge. Channel
+names stay stable. Inputs and results use the S3-only contract in
+`types/config-sync.ts` and the current source spec.
 
 | IPC 通道 | Host 方法 | 契约 |
 |---|---|---|

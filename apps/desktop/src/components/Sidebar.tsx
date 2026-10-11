@@ -1,4 +1,6 @@
 import { IconClock } from "./icons";
+import { RemoteProjectGroups } from "./remote/RemoteProjectGroups";
+import { groupRemoteProjectSessions } from "../lib/remote-project-catalog";
 import { isRemoteSession, sessionAllows } from "../lib/remote-session-safety";
 import {
   useCallback,
@@ -967,14 +969,16 @@ export function Sidebar({
       session: { ...session, title: taskTitle(session.title) },
       target,
       temporary,
-      space: temporary ? t("nav.hoverCardTemporarySpace") : entry?.name ?? projectName(projectPath),
+      space: isRemoteSession(session)
+        ? `${session.remoteWorkspaceLabel ?? t("remote:workspace")} · ${session.remoteHostLabel ?? t("remote:remote")}`
+        : temporary ? t("nav.hoverCardTemporarySpace") : entry?.name ?? projectName(projectPath),
       branch: entry?.branch,
     });
   }, [projectEntriesByPath, revealSessionHoverCard, t, taskTitle]);
 
   const temporarySessions = useMemo(
     () => filtered
-      .filter((session) => !normalizeProjectPath(session.projectPath))
+      .filter((session) => !normalizeProjectPath(session.projectPath) && !(isRemoteSession(session) && session.remoteProjectId))
       .sort(compareSessions),
     [filtered, compareSessions],
   );
@@ -982,6 +986,9 @@ export function Sidebar({
     () => temporarySessions.filter((session) => !pinnedSessionIds.has(session.id)),
     [temporarySessions, pinnedSessionIds],
   );
+  const remoteProjectGroups = useMemo(() => groupRemoteProjectSessions(
+    filtered.filter((session) => isRemoteSession(session) && !pinnedSessionIds.has(session.id)), compareSessions,
+  ), [filtered, pinnedSessionIds, compareSessions]);
   // Flat ordered list of every visible session id — used for Shift+click range selection.
   const flatSessionOrder = useMemo(() => {
     const ids: string[] = [];
@@ -993,10 +1000,11 @@ export function Sidebar({
         if (!pinnedSessionIds.has(s.id)) ids.push(s.id);
       }
     }
+    for (const group of remoteProjectGroups) for (const session of group.sessions) ids.push(session.id);
     // Then temporary (standalone) sessions
     for (const s of temporarySessionHistory) ids.push(s.id);
     return ids;
-  }, [pinnedSessions, projectEntries, pinnedSessionIds, temporarySessionHistory]);
+  }, [pinnedSessions, projectEntries, pinnedSessionIds, temporarySessionHistory, remoteProjectGroups]);
 
   /** Handle multi-select click on a session row. Returns true if the click was consumed by multi-select. */
   const handleMultiSelectClick = (event: React.MouseEvent, sessionId: string): boolean => {
@@ -2516,6 +2524,8 @@ export function Sidebar({
               </div>
             </section>
           )}
+          <RemoteProjectGroups groups={remoteProjectGroups}
+            renderSessions={(sessions) => renderSessionRows(sessions, { temporary: false })} />
         </div>
 
         <div className="sidebar-footer no-drag">

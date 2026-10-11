@@ -802,6 +802,7 @@ sklm: {
     },
     configSync: {
       title: "云同步",
+      experimental: "实验性",
       connectionTitle: "连接设置",
       connectionDescription: "在设备间同步应用配置，或备份到你的私有 S3 存储。不包含聊天记录和项目文件。",
       advancedTitle: "高级设置",
@@ -899,7 +900,6 @@ sklm: {
       categorySkills: "技能",
       categorySubagents: "子智能体",
       categoryInstructions: "指令和提示词模板",
-      categoryProjects: "项目和文件夹映射",
       categoryPlugins: "插件安装意图",
       categoryAutomation: "自动化定义",
       categoryMemory: "项目记忆",

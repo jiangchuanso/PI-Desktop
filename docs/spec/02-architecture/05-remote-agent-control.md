@@ -179,12 +179,27 @@ Host uses its existing Rust RPC connection; the CLI never starts another databas
 writer. Configuration and credentials never cross RACP or return to the renderer.
 See `docs/adr/remote-provider-import.md` and security §3.5.
 
-**Experimental desktop MVP.** The current narrow client opens remote projects
-and Agent/Ask sessions, sends text, answers tool/input requests, and reads bounded
-history and workspace text/diffs. Sessions retain remote identity even offline;
+**Experimental desktop MVP.** Chat home uses the shared Create project dialog
+for local folders, Git checkouts, and connected remote hosts. Remote selection
+lists registered projects, browses Host-owned directories under the Host's
+existing browse root, and accepts an explicit absolute remote path. Registration
+and session creation execute on that Host; remote project names remain Host-owned
+directory labels. The home switcher and sidebar expose remote projects by their
+host/project identity, so equal directory names on different hosts remain distinct.
+New chat reuses an empty chat only within that remote project and never activates
+its path locally. Remote chats use the regular home, Composer, retained transcript
+panes, and permission/input cards, with unsupported controls disabled by capabilities.
+The client opens Agent/Ask sessions, sends text, and reads bounded history and
+workspace text/diffs. Sessions retain remote identity even offline;
 remote paths are labels, never local workspace activation targets. Missing remote
 backends or unsupported actions fail closed. Local model configuration, attachments,
 message edits, local tools, terminal UI, and cross-host handoff are unavailable.
+Remote chat rendering cannot invoke local plugin slots, local slash commands,
+file previews, attachment staging, or local image resolution. Remote history
+cursors are session-owned opaque values even when represented as numbers; the
+renderer forwards returned cursors without local offset arithmetic or ordering.
+The additive `remoteHostBrowseProjects` Desktop IPC forwards only validated
+Host/path input to `project/browse` and validates returned directory entries.
 The broader R2 target below is not an acceptance claim for this slice.
 
 Reconnect rebuilds SSH forwarding and RACP subscriptions, acknowledges durable

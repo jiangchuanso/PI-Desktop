@@ -811,6 +811,7 @@ sklm: {
     },
     configSync: {
       title: "Cloud sync",
+      experimental: "실험적",
       connectionTitle: "연결 설정",
       connectionDescription: "기기 간 앱 설정을 동기화하거나 비공개 S3 저장소에 백업합니다. 대화와 프로젝트 파일은 로컬에 유지됩니다.",
       advancedTitle: "고급 설정",
@@ -910,7 +911,6 @@ sklm: {
       categorySkills: "Skills",
       categorySubagents: "Subagents",
       categoryInstructions: "Instructions and prompt templates",
-      categoryProjects: "Projects and folder mappings",
       categoryPlugins: "Plugin installation intent",
       categoryAutomation: "Automation definitions",
       categoryMemory: "Project memory",

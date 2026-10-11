@@ -108,6 +108,7 @@ import type {
   PlanningStateEvent,
   PlansPendingResult,
   RemoteHostProjectsResult,
+  RemoteHostBrowseProjectsResult,
   RemoteHostRegisterProjectResult,
   RemoteHostSessionsResult,
   RemoteHostCreateSessionRequest,
@@ -1647,6 +1648,8 @@ export const api = {
     invoke<{ ok: true }>(IPC.invoke.remoteHostRemove, { hostKey }),
   reconnectRemoteHost: (hostKey: string) =>
     invoke<{ host: RemoteHostSummary }>(IPC.invoke.remoteHostReconnect, { hostKey }),
+  remoteHostBrowseProjects: (hostKey: string, path?: string) =>
+    invoke<RemoteHostBrowseProjectsResult>(IPC.invoke.remoteHostBrowseProjects, { hostKey, ...(path === undefined ? {} : { path }) }),
   remoteHostProjects: (hostKey: string) =>
     invoke<RemoteHostProjectsResult>(IPC.invoke.remoteHostProjects, { hostKey }),
   registerRemoteProject: (hostKey: string, path: string) =>

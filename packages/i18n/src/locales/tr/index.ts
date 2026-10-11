@@ -811,6 +811,7 @@ sklm: {
     },
     configSync: {
       title: "Bulut senkronizasyonu",
+      experimental: "Deneysel",
       connectionTitle: "Bağlantı ayarları",
       connectionDescription: "Uygulama ayarlarını cihazlar arasında eşitleyin veya özel S3 depolamanıza yedekleyin. Sohbetler ve proje dosyaları yerel kalır.",
       advancedTitle: "Gelişmiş ayarlar",
@@ -908,7 +909,6 @@ sklm: {
       categorySkills: "Beceriler",
       categorySubagents: "Alt ajanlar",
       categoryInstructions: "Yönergeler ve istem şablonları",
-      categoryProjects: "Projeler ve klasör eşlemeleri",
       categoryPlugins: "Eklenti yükleme amacı",
       categoryAutomation: "Otomasyon tanımları",
       categoryMemory: "Proje belleği",

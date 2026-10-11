@@ -625,7 +625,10 @@ message appends in its application-owned outbox while host-core is restarting;
 the outbox flushes in order after a successful handshake and treats
 `UNIQUE constraint failed: messages.id` as an ack rather than pausing the
 queue. A `PERMISSION_DENIED:` append is dropped the same way so a poison head
-cannot stall the FIFO (D597). A missing sessions row is restored from the live JSONL (or created as a
+cannot stall the FIFO (D597). An append the outbox cannot classify is retried
+on a bounded backoff and then quarantined to an application-owned dead-letter
+file instead of holding that head, so one refused append cannot stall every
+session's writes (D656). A missing sessions row is restored from the live JSONL (or created as a
 stub under the same id when the file is gone) so a queued outbox can drain
 (D318). `session.delete` drops that session's outbox entries. In-flight
 checkpoints never go through the outbox: a checkpoint is only meaningful

@@ -802,6 +802,7 @@ sklm: {
     },
     configSync: {
       title: "雲端同步",
+      experimental: "實驗性",
       connectionTitle: "連線設定",
       connectionDescription: "在裝置間同步應用程式設定，或備份到你的私有 S3 儲存空間。不包含聊天記錄和專案檔案。",
       advancedTitle: "進階設定",
@@ -899,7 +900,6 @@ sklm: {
       categorySkills: "技能",
       categorySubagents: "子代理程式",
       categoryInstructions: "指令與提示詞範本",
-      categoryProjects: "專案與資料夾對應",
       categoryPlugins: "外掛程式安裝意圖",
       categoryAutomation: "自動化定義",
       categoryMemory: "專案記憶",

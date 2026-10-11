@@ -30,14 +30,13 @@ const syncError = await read(
   "../src/components/settings/ConfigSyncError.tsx",
 );
 
-test("cloud sync rendering follows the settings visibility gate", () => {
+test("cloud sync is Experimental and available in packaged Settings", () => {
   assert.match(settingsPage, /tab === "sync" && !tabHidden && <ConfigSyncPage \/>/);
   assert.match(settingsIndex, /id: "sync"/);
-  // The cloud backup ships hidden from packaged builds: the destination stays
-  // a development-build surface until it opens.
-  assert.match(settingsIndex, /id: "sync"[\s\S]{0,400}developmentOnly: true/);
-  assert.doesNotMatch(settingsIndex, /experimentalBadgeKey: "settings\.configSync\.experimental"/);
+  assert.doesNotMatch(settingsIndex, /id: "sync"[\s\S]{0,400}developmentOnly: true/);
+  assert.match(settingsIndex, /experimentalBadgeKey: "settings\.configSync\.experimental"/);
   assert.match(settingsIndex, /settings\.configSync\.connectionTitle/);
+  assert.match(settingsIndex, /"settings\.configSync\.experimental"/);
 });
 
 test("cloud sync keeps credentials and vault operations on the host boundary", () => {

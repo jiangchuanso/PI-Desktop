@@ -5978,7 +5978,7 @@ eleven-tool-round desktop paths are verified by
 - 打开设置（页脚配置文件 → 设置）。
 - 预计**全页**设置（无应用程序 sidebar/nav）。左导轨有返回应用、搜索，以及常规、AI、
   快捷键、指令、模型、技能、MCP、子智能体、项目、云同步、远程主机、信息，
-  按该顺序排列（打包构建不显示云同步）；内容窗格显示所选设置页或
+  按该顺序排列（云同步和远程主机在打包版均显示实验性标签）；内容窗格显示所选设置页或
   项目存档。
 - 返回应用程序外壳并期望插件保持独立
   侧边栏页脚目的地。
@@ -6163,7 +6163,7 @@ eleven-tool-round desktop paths are verified by
 - 在约 1200×690 的窗口中打开浅色主题的“设置 → 常规”。
 - 侧栏宽度约 275 像素，背景为 `#f4f4f4`，常规项为唯一选中项，并显示返回和搜索。
 - 主题选择器可正常使用，且没有无效开关或打开目标行。
-- “常规”页显示外观卡片，“AI”页显示权限和默认值卡片。核心侧栏依次包含常规、AI、快捷键、指令、模型、技能、MCP、子智能体、项目、云同步（仅开发构建）和信息；仅开发者模式显示远程主机。开发版且开启开发者模式时，AI 与快捷键之间可能显示语音；插件扩展目的地位于核心分组之后。侧栏不再有“导入”入口。
+- “常规”页显示外观卡片，“AI”页显示权限和默认值卡片。核心侧栏依次包含常规、AI、快捷键、指令、模型、技能、MCP、子智能体、项目、云同步、远程主机和信息；云同步与远程主机在所有构建中都显示实验性标签。开发版且开启开发者模式时，AI 与快捷键之间可能显示语音；插件扩展目的地位于核心分组之后。侧栏不再有“导入”入口。
 - 在 800、1200 和 1600 像素宽度之间调整窗口；内容卡片填充
   每种尺寸都可用右窗格，无需更换导轨或引入
   水平滚动。
@@ -8945,6 +8945,10 @@ Follow the [current S3 acceptance scenario](/spec/06-delivery/04-e2e-test-plan#e
   Local S3 fixtures exercise conditional writes, authentication, merge,
   conflict choices and repeated convergence, deletions, credential opt-out,
   approval and skill resources.
+- 项目和项目组列表保留在本机，不提供 projects 同步类别。发布项目/项目组元数据
+  不会在接收设备创建或修改项目/项目组；接收设备自行注册 workspace 后，映射并
+  审批项目级技能，验证资源成功到达而本机项目组名称、根目录及排序保持不变。
+  同步/恢复忽略旧 vault 的 `projects` 实体，保留本机项目和云端历史。
 - Backup only uploads local snapshots; histories are mode-specific. Sync
   restore publishes with explicit acknowledgment; backup restore stays local.
 - The real settings-page test covers secret-free drafts, saved credential reuse,
@@ -9259,8 +9263,9 @@ Follow the [current S3 acceptance scenario](/spec/06-delivery/04-e2e-test-plan#e
 - 自动化覆盖：`pnpm test:e2e:settings-scroll` 在隔离 Electron 中挂载真实的
   SettingsPage、store、翻译和构建后的 CSS，探针运行的是开发构建。仅 preload
   数据使用 fixture；搜索导航调用 SearchDialog 使用的公开 store 入口。该测试还
-  检查云同步仍是仅开发构建可见的目的地（无开发者模式门控、无实验性徽章），远程
-  主机保留其徽章，以及回落到常规。该测试覆盖渲染层交互，不覆盖 host 持久化或
+  检查开发版中云同步与远程主机的实验性标签；`settings-developer-only-destinations.test.mjs`
+  另行验证打包版可见性、搜索结果及仅开发者目的地的回落行为。该测试覆盖渲染层交互，
+  不覆盖 host 持久化或
   完整全局搜索弹窗。
 
 ### E2E-SCHEDULED-dispatch

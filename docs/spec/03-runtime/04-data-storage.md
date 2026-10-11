@@ -1715,7 +1715,16 @@ no-op against that remapped row. The outbox treats
 `UNIQUE constraint failed: messages.id` as an ack and keeps draining (D444).
 A permanently rejected append whose host error carries a `PERMISSION_DENIED:`
 prefix is likewise dropped so the FIFO can continue; `PLUGIN_PERMISSION_DENIED`
-and other host failures still pause (D597). When the 1024-entry cap remains
+and other host failures still pause while their retry budget lasts (D597). A
+failure the outbox cannot classify is retried within the same host generation
+on a bounded backoff (5s doubling to 60s) and quarantined after five
+consecutive failures into `session-message-outbox.dead-letter.json` (newest 256
+appends, oldest discarded first), carrying its payload, session id, timestamp,
+and host error, so one unclassifiable head cannot starve every session's writes
+(D656). A restarted host is a new generation and retries the head at once.
+Quarantined appends are never replayed automatically, and `session.delete`
+drops that session's quarantined appends too.
+When the 1024-entry cap remains
 full after a flush attempt, enqueue logs the rejected key/session and rejects;
 it does not report that entry as queued. Generic foreign-key errors are not
 treated as acknowledgements. Steering into a claimed collaboration delivery

@@ -33,7 +33,7 @@ granularity, activation, and recovery policy for every supported domain.
 
 The current adapter set covers application preferences, user-owned providers,
 MCP definitions, user skills, global subagents, app-managed global/project
-instructions and projects, plugin installation intent, scheduled automations,
+instructions, plugin installation intent, scheduled automations,
 and optional project memory. Credentials are opt-in. Provider API keys and MCP
 environment variables/headers are included only when the credential category
 is selected; OAuth access/refresh tokens and cookies are never exported.
@@ -50,6 +50,15 @@ validated by Host before approved resources are written: at most 256 resources
 per package, 2 MiB per resource, and 16 MiB per package, while the skill
 document itself stays capped at 128 KiB because it can reach a prompt. Scripts
 are stored as bytes and are never executed by import.
+
+Project and project-group lists are device-local. Their names, pinning, root
+lists, and ordering are not captured or applied by sync or backup, and there is
+no projects category. Legacy `projects` entities in existing vault revisions
+are ignored during sync and restore; this does not delete local projects or
+remote revision history. Project-scoped MCP, skills, instructions, memory, and
+automation bindings remain supported through local folder mappings. Receiving
+devices register their own projects and groups when those features require a
+local workspace.
 
 Project and workspace bindings are represented by opaque logical identifiers.
 Host-core assigns a persistent logical identity to each registered standalone
@@ -180,9 +189,10 @@ the whole filesystem.
 
 ## 5. Settings workflow
 
-The destination is a development-build-only surface for now: a packaged build
-omits the Settings → Cloud sync row, page, and settings-search hits, while
-the Host-owned sync behavior described here is unchanged.
+The Settings → Cloud sync destination is available in development and
+packaged builds and carries an Experimental badge on its rail row and page
+title. Its visibility does not change the Host-owned sync behavior described
+here.
 
 Settings → Cloud sync provides S3 connection fields, a vault password, device
 label, `sync` (default) or `backup` mode, automatic-run selection, categories,

@@ -12,18 +12,22 @@ Use a Desktop and Host bundle built from the same candidate.
 2. Add an SSH host using your existing SSH key/configuration, or password where
    supported. Bootstrap downloads the same-version platform bundle and verifies
    the published checksum. The server needs Node and outbound release access.
-3. Open **Conversations / New conversation** on the connected host.
-4. Select eligible model configurations and explicitly consent to copying their
+3. If the Host needs a model, open **Conversations / New conversation** on the
+   connected host. Select eligible model configurations and explicitly consent to copying their
    API credentials to that host. Optionally set its default model. OAuth,
    CLI/plugin providers and local-only endpoints are excluded. Direct URL pairing
    does not offer credential copy.
-5. Select a registered project, or enter an existing absolute remote project path.
-   Create a conversation (Agent mode, Ask permissions).
+4. Return to Chat home and open **Create project → Remote**. Choose the connected
+   host, select an existing project, browse a directory, or enter an absolute
+   remote path. Creation opens an empty chat in the usual home layout (Agent
+   mode, Ask permissions). Project labels follow the remote directory name.
+5. Use the home project switcher or the sidebar's remote project group to reopen
+   it or start another chat. Chats stay bound to that host and project.
 6. Send text, approve/deny tools, answer questions, and inspect read-only Files /
    Review. Remote paths never activate a local workspace. Reconnect recovers
    subscriptions and pending requests without resending the turn.
 
-The UI does not offer remote terminal, attachments, local model controls,
+The regular Composer and transcript are shared with local chats. The UI does not offer remote terminal, attachments, local model controls,
 message edits, Plan/Goal creation, desktop plugin/MCP relay or cross-host handoff.
 This is not full R2 acceptance.
 

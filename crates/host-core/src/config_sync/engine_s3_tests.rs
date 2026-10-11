@@ -1,3 +1,4 @@
+use super::remote::{revision_path, serialize_json};
 use super::tests::{
     configure_test_device, configure_test_device_mode, pending_approvals, run_in_isolated_process,
 };
@@ -230,6 +231,9 @@ async fn resource_updates_and_packaged_skill_deletion_reach_the_other_device() -
     fs::create_dir_all(&project_b)?;
     let project_a = project_a.canonicalize()?.to_string_lossy().into_owned();
     let project_b = project_b.canonicalize()?.to_string_lossy().into_owned();
+    // Project registration is device-local; scoped capability capture requires
+    // the receiving device to have registered its own mapped project.
+    device_b.lock().await.db.ensure_project(&project_b, false)?;
     {
         let mut state = device_a.lock().await;
         state.db.ensure_project(&project_a, false)?;
@@ -359,5 +363,216 @@ async fn chosen_conflict_is_published_without_reopening_old_candidates() -> Resu
         assert!(pending_approvals(&sync_now(b.clone(), tx.clone()).await?).is_empty());
         assert!(pending_approvals(&sync_now(a.clone(), tx.clone()).await?).is_empty());
     }
+    Ok(())
+}
+
+fn legacy_project(entity_id: &str, payload: Value, deleted: bool) -> PortableEntity {
+    PortableEntity {
+        domain: "projects".into(),
+        entity_id: entity_id.into(),
+        label: "Legacy project".into(),
+        deleted,
+        requires_approval: true,
+        secret_bearing: false,
+        mapping_required: true,
+        digest: format!("legacy-{entity_id}-{deleted}"),
+        payload,
+        resource_ids: Vec::new(),
+    }
+}
+
+#[tokio::test]
+async fn legacy_project_revision_sync_and_restore_preserve_local_projects() -> Result<()> {
+    if run_in_isolated_process(
+        "config_sync::engine::s3_tests::legacy_project_revision_sync_and_restore_preserve_local_projects",
+    )? {
+        return Ok(());
+    }
+    let fixture = fixture(false).await;
+    let directory_a = tempfile::tempdir()?;
+    let directory_b = tempfile::tempdir()?;
+    let device_a = configure_test_device(directory_a.path(), &fixture.endpoint).await?;
+    let device_b = configure_test_device(directory_b.path(), &fixture.endpoint).await?;
+    let project_path = directory_b.path().join("existing-project");
+    fs::create_dir_all(&project_path)?;
+    let project_path = project_path.canonicalize()?.to_string_lossy().into_owned();
+    let (projects_before, groups_before) = {
+        let state = device_b.lock().await;
+        state.db.ensure_project(&project_path, false)?;
+        state
+            .db
+            .create_project_group("Local group", std::slice::from_ref(&project_path))?;
+        let mut config = load_config(&state)?.expect("configured device");
+        config
+            .project_mappings
+            .insert("existing".into(), project_path.clone());
+        config
+            .project_mappings
+            .insert("removed".into(), project_path.clone());
+        config.project_group_mappings.insert(
+            "project-group:existing-group".into(),
+            vec![project_path.clone()],
+        );
+        save_config(&state, &config)?;
+        (
+            serde_json::to_value(state.db.list_projects()?)?,
+            serde_json::to_value(state.db.list_project_groups()?)?,
+        )
+    };
+    let legacy_revision = {
+        let mut state = device_a.lock().await;
+        state.db.set_setting("app", &json!({"theme":"light"}))?;
+        let config = load_config(&state)?.expect("configured device");
+        let key = local_vault_key(&state, &config)?.expect("unlocked device");
+        let transport = configured_transport(&state, &config)?;
+        let mut snapshot = domains::capture(
+            &mut state,
+            &key,
+            &selection(&config),
+            config.include_secrets,
+            &config.plugin_intents,
+            &identity_overrides(&config),
+        )?;
+        snapshot.manifest.entities.extend([
+            legacy_project("project:existing", json!({"logicalId":"existing","name":"Remote name","pinned":true}), false),
+            legacy_project("project:removed", json!({"logicalId":"removed"}), true),
+            legacy_project("project:new", json!({"logicalId":"new","name":"New remote project"}), false),
+            legacy_project("project-group:existing-group", json!({"logicalId":"project-group:existing-group","name":"Remote group","roots":[{"name":"Remote root","position":0}]}), false),
+        ]);
+        // Write authenticated historical bytes directly: the current exporter
+        // must never produce the retired domain, even for compatibility tests.
+        let revision_id = snapshot.manifest.revision_id.clone();
+        let encrypted = encrypt_object(
+            &key,
+            &format!("manifest/{revision_id}"),
+            &config.vault_id,
+            &serialize_json(&snapshot.manifest)?,
+        )?;
+        assert!(
+            transport
+                .put_if_none(&revision_path(&config, &revision_id)?, encrypted)
+                .await?
+        );
+        assert!(
+            publish_head(
+                &transport,
+                &config,
+                &key,
+                &next_head(&revision_id, None),
+                None
+            )
+            .await?
+        );
+        revision_id
+    };
+    let (tx, _rx) = mpsc::unbounded_channel();
+    let received = sync_now(device_b.clone(), tx.clone()).await?;
+    assert!(pending_approvals(&received).is_empty());
+    assert_eq!(theme(&*device_b.lock().await)?, "light");
+    assert!(list_history(device_b.clone()).await?.as_array().is_some());
+    {
+        let state = device_b.lock().await;
+        assert_eq!(
+            serde_json::to_value(state.db.list_projects()?)?,
+            projects_before
+        );
+        assert_eq!(
+            serde_json::to_value(state.db.list_project_groups()?)?,
+            groups_before
+        );
+        state.db.set_setting("app", &json!({"theme":"dark"}))?;
+    }
+    sync_now(device_b.clone(), tx.clone()).await?;
+    let restored = restore(
+        device_b.clone(),
+        json!({"revisionId":legacy_revision,"acknowledgePropagation":true}),
+        tx,
+    )
+    .await?;
+    assert!(pending_approvals(&restored).is_empty());
+    let state = device_b.lock().await;
+    assert_eq!(theme(&state)?, "light");
+    assert_eq!(
+        serde_json::to_value(state.db.list_projects()?)?,
+        projects_before
+    );
+    assert_eq!(
+        serde_json::to_value(state.db.list_project_groups()?)?,
+        groups_before
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn legacy_project_config_and_pending_approval_do_not_block_sync() -> Result<()> {
+    if run_in_isolated_process(
+        "config_sync::engine::s3_tests::legacy_project_config_and_pending_approval_do_not_block_sync",
+    )? {
+        return Ok(());
+    }
+    let fixture = fixture(false).await;
+    let directory = tempfile::tempdir()?;
+    let device = configure_test_device(directory.path(), &fixture.endpoint).await?;
+    {
+        let mut state = device.lock().await;
+        let config = load_config(&state)?.expect("configured device");
+        let key = local_vault_key(&state, &config)?.expect("unlocked device");
+        let mut raw_config = serde_json::to_value(&config)?;
+        raw_config["categories"]["projects"] = json!(true);
+        state.db.kv_set(CONFIG_NS, CONFIG_KEY, &raw_config)?;
+        assert!(!load_config(&state)?
+            .expect("configured device")
+            .categories
+            .contains_key("projects"));
+        let snapshot = domains::capture(
+            &mut state,
+            &key,
+            &selection(&config),
+            config.include_secrets,
+            &config.plugin_intents,
+            &identity_overrides(&config),
+        )?;
+        let entity = legacy_project("project:obsolete", json!({"logicalId":"obsolete"}), false);
+        let mut manifest = snapshot.manifest;
+        manifest.entities.push(entity.clone());
+        store_pending(
+            &state,
+            &key,
+            &PendingBundle {
+                remote_revision_id: manifest.revision_id.clone(),
+                local_before: Some(manifest.clone()),
+                manifest,
+                resources: BTreeMap::new(),
+                approvals: vec![PendingApproval {
+                    approval_id: "legacy-approval".into(),
+                    entity,
+                    reason: "mapping".into(),
+                    approved: false,
+                }],
+                conflicts: Vec::new(),
+                journal_state: "staged".into(),
+            },
+        )?;
+        let pending = load_pending(&state, &key)?.expect("pending journal");
+        assert!(pending.approvals.is_empty());
+        assert!(pending
+            .manifest
+            .entities
+            .iter()
+            .all(|entity| entity.domain != "projects"));
+        assert!(pending
+            .local_before
+            .as_ref()
+            .expect("local snapshot")
+            .entities
+            .iter()
+            .all(|entity| entity.domain != "projects"));
+    }
+    let (tx, _rx) = mpsc::unbounded_channel();
+    assert!(pending_approvals(&get_state(device.clone()).await?).is_empty());
+    let synced = sync_now(device.clone(), tx).await?;
+    assert!(pending_approvals(&synced).is_empty());
+    assert!(synced["lastRevisionId"].as_str().is_some());
+    assert!(device.lock().await.db.list_projects()?.is_empty());
     Ok(())
 }

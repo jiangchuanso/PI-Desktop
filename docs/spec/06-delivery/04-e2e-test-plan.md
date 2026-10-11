@@ -1766,6 +1766,36 @@ identify the platform validation still needed.
   `persistence-outbox.test.mjs`); desktop journey outstanding
 
 
+#### E2E-SESSION-outbox-unclassifiable-failure-does-not-stall-the-queue
+
+- **Preconditions**: One queued outbox append fails with an error the outbox
+  cannot classify (`Error: stream did not contain valid UTF-8` from a torn host
+  transcript), while later appends from other sessions queue behind it.
+  Optionally the outbox is already at its 1024-entry cap and the flush log
+  shows repeated `session persistence flush paused` for that key.
+- **Steps**: 1) Produce the unclassifiable append failure. 2) Keep sending
+  messages in two other sessions. 3) Observe `logs/app/persistence.log` for
+  `session persistence flush paused` (bounded attempts), then
+  `session persistence flush quarantined entry`, and for the absence of
+  `session.persistence.outbox.is.full`. 4) Confirm
+  `session-message-outbox.dead-letter.json` holds that key with its payload and
+  error, and that `session-message-outbox.json` drops below the cap. 5) Restart
+  the app and confirm the quarantined append is not replayed. 6) Optional:
+  delete the failing session and confirm its dead letter is dropped.
+- **Expected**: The failing append is paused four times with a growing backoff
+  and quarantined on the fifth consecutive failure, then skipped. Later
+  appends from every session drain, no enqueue is rejected with `outbox is
+  full`, and the queued outbox file empties. The dead letter survives a
+  restart without being replayed.
+- **Specs linked**: `03-runtime/04-data-storage.md`,
+  `03-runtime/06-host-rpc-protocol.md`, ADR 0041, D318, D444, D597, D656
+- **Acceptance**: F (persistence)
+- **Milestone**: M2
+- **Status**: Unit-covered (`persistence-outbox.test.mjs` bounded retry,
+  quarantine, dead-letter persistence and cap tests); desktop journey
+  outstanding
+
+
 #### E2E-011: Switch between project and temporary sessions
 
 - **Preconditions**: One retained project session and one path-less Temporary
@@ -2966,8 +2996,8 @@ identify the platform validation still needed.
   15. Archive one project session, open it from Projects, and return to Projects.
   16. Return to the app shell and open Plugins.
 - **Expected**: The rail contains exactly General, AI, Shortcuts, Instructions, Models, Skills, MCP, Subagents, Projects, Cloud sync, Remote Hosts, and Info in that order, each with its semantic Lucide icon (Sliders / Sparkles / Keyboard / FileText / Bot / BookOpen / Server / Bot / Archive / CloudDownload / Globe / Info). The flat directory is visually grouped under four muted, non-interactive headings — Preferences / 偏好 for General, AI, and Shortcuts; Agent / 智能体 for Instructions and Models; Workspace / 工作区 for Projects; About / 关于 for Info — with whitespace and no divider lines between groups; searching keeps the destination results flat and hides empty groups together with their headings. Appearance remains in General, while Permissions, Defaults, and the Command shell row live under 全局 AI; an available selected shell is represented by the selector without a duplicate Configured status, while default, fallback, and no-effective-shell states remain explicit; Context management has no settings card; Keyboard shortcuts and global instructions have their own destinations; Developer lives under Info; Projects shows active, closed, and archived durable rows without a visibility toggle, grouping them under the always-visible Pinned / All projects / Archived strips (D168/D267/D455) with per-section counts in a one-column workbench. The destination renders no hero block and no page-level counter run: the intro is one quiet description line, and each group strip's count agrees with its rendered rows; a click selects a row without leaving Settings; sorting by Name reorders rows inside every section without hiding any; search matches project fields and session titles and reports a match count, a session-title result selects its owning project, lists sessions in the inspector by latest activity with relative update times, and reveals history in batches of eight; clearing the search restores the complete index. The inspector menu closes on Escape and on an outside press. Bootstrap completion and background refreshes do not return Settings or Extensions to the chat home; the destination changes only after an explicit navigation action. Restore keeps the archive open and activation returns to chat with the restored project retained in the sidebar. Opening an archived session succeeds before clearing its archived state, returns to chat with that session selected, and makes it visible in the project sidebar; returning to Project archive no longer shows that session as archived. The home sidebar and global page results have no standalone Projects destination; Settings search finds Projects; Plugins remains an independent app-shell destination.
-  A packaged build omits Cloud sync from the rail and settings search; see
-  `04-ux/06-settings-ia.md`.
+  Cloud sync and Remote Hosts appear in packaged Settings with Experimental
+  badges on their navigation rows and page titles; see `04-ux/06-settings-ia.md`.
 - **Specs linked**: `04-ux/06-settings-ia.md`, `04-ux/01-ui-ia.md`, `03-runtime/11-provider-model-system.md`
 - **Acceptance**: B (model configuration), F (project persistence)
 - **Milestone**: M4
@@ -9513,9 +9543,10 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   ETags and conditional PUT. No real model provider or running desktop instance.
   A live S3 run is separately opt-in and requires explicit authorization.
 - **Steps:**
-  1. Confirm Cloud sync remains development-build-only and has no Experimental
-     badge. Open Settings and confirm only the new S3 setup is offered;
-     old formats are not detected, migrated or deleted.
+  1. In a packaged build, confirm Cloud sync appears in Settings navigation
+     and search with Experimental badges on its row and page title. Open the
+     destination and confirm only the new S3 setup is offered; old formats are
+     not detected, migrated or deleted.
   2. Confirm initial setup shows only required connection/password fields and
      automatic runs use the shared switch. Expand Advanced to edit region,
      prefix, addressing, device label and optional token; collapse/reopen it
@@ -9526,7 +9557,13 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
      never interpret 502 as a missing object. LAN HTTP follows network policy.
   3. Configure two sync devices. Publish a provider and mapped packaged skill,
      receive them as pending where approval is required, approve, and verify
-     visible persisted configuration and resource bytes. Exercise disjoint edits,
+     visible persisted configuration and resource bytes. Verify there is no
+     projects category and publishing project/group metadata neither registers
+     nor changes projects/groups on the receiving device. Register its workspace
+     locally, then map and approve the project skill; its resources must arrive
+     without changing local group names, roots or ordering. Existing vault
+     `projects` entities are ignored on sync/restore, preserving local projects
+     and cloud history. Exercise disjoint edits,
      same-entity conflicts and explicit choice convergence, remote deletion
      versus offline edit, and repeated polling. Credential opt-out must not
      manufacture local edits or prevent deletion convergence. No real executable
@@ -9653,7 +9690,7 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
 | D — Workspace | E2E-012, E2E-013, E2E-022B, E2E-024I, E2E-047, E2E-049, E2E-057, E2E-058, E2E-060, E2E-068, E2E-075, E2E-078, E2E-153, E2E-158, E2E-182, E2E-187, E2E-252 |
 | D — Workspace (project ordering) | E2E-253 |
 | E — Tools & permissions | E2E-008a, E2E-014, E2E-015, E2E-016, E2E-017, E2E-018, E2E-019, E2E-024I, E2E-024K, E2E-040, E2E-049, E2E-074, E2E-093, E2E-097, E2E-099, E2E-100, E2E-101, E2E-102, E2E-102d, E2E-102e, E2E-102g, E2E-103, E2E-105, E2E-106, E2E-107, E2E-111, E2E-112, E2E-113, E2E-114, E2E-115, E2E-116, E2E-119, E2E-121, E2E-122, E2E-142, E2E-145, E2E-147, E2E-155, E2E-158, E2E-166, E2E-181, E2E-PLUGIN-imported-pi-package-skills |
-| F — Persistence | E2E-020, E2E-021, E2E-021a, E2E-038, E2E-SETTINGS-inline-capability-imports, E2E-040, E2E-042, E2E-047, E2E-048, E2E-051, E2E-054, E2E-056, E2E-061, E2E-062, E2E-064, E2E-066, E2E-068, E2E-071, E2E-072, E2E-073, E2E-082, E2E-084, E2E-096, E2E-098, E2E-102, E2E-102b, E2E-102c, E2E-102d, E2E-102g, E2E-102i, E2E-103, E2E-AGENTS-001, E2E-061a, E2E-073a, E2E-104, E2E-106, E2E-107, E2E-108, E2E-109, E2E-110, E2E-112, E2E-118, E2E-119, E2E-120, E2E-121, E2E-123, E2E-142, E2E-146, E2E-146a, E2E-148, E2E-151, E2E-158, E2E-160, E2E-168, E2E-171, E2E-177, E2E-178, E2E-183, E2E-186, E2E-005J, E2E-PLUGIN-session-orchestrator-real-workers, E2E-PLUGIN-provider-catalog-add-service |
+| F — Persistence | E2E-020, E2E-021, E2E-021a, E2E-038, E2E-SETTINGS-inline-capability-imports, E2E-040, E2E-042, E2E-047, E2E-048, E2E-051, E2E-054, E2E-056, E2E-061, E2E-062, E2E-064, E2E-066, E2E-068, E2E-071, E2E-072, E2E-073, E2E-082, E2E-084, E2E-096, E2E-098, E2E-102, E2E-102b, E2E-102c, E2E-102d, E2E-102g, E2E-102i, E2E-103, E2E-AGENTS-001, E2E-061a, E2E-073a, E2E-104, E2E-106, E2E-107, E2E-108, E2E-109, E2E-110, E2E-112, E2E-118, E2E-119, E2E-120, E2E-121, E2E-123, E2E-142, E2E-146, E2E-146a, E2E-148, E2E-151, E2E-158, E2E-160, E2E-168, E2E-171, E2E-177, E2E-178, E2E-183, E2E-186, E2E-005J, E2E-PLUGIN-session-orchestrator-real-workers, E2E-PLUGIN-provider-catalog-add-service, E2E-SESSION-outbox-unclassifiable-failure-does-not-stall-the-queue |
 | F — Persistence (project ordering) | E2E-251 |
 | G / Security — Fetch redirect policy | E2E-PLUGIN-fetch-redirect-policy |
 | G — Plugins | E2E-022, E2E-022A, E2E-022B, E2E-022C, E2E-023, E2E-024, E2E-024B, E2E-024C, E2E-024D, E2E-024AA, E2E-024E, E2E-024W, E2E-024F, E2E-024G, E2E-024H, E2E-024I, E2E-024J, E2E-024K, E2E-024L, E2E-024M, E2E-024N, E2E-024O, E2E-024P, E2E-025, E2E-026, E2E-105, E2E-117, E2E-120, E2E-122, E2E-123, E2E-024Q, E2E-148, E2E-152, E2E-153, E2E-PLUGIN-imported-pi-package-skills, E2E-PLUGIN-imported-pi-package-wrapper, E2E-PLUGIN-import-extension-installs-dependencies, E2E-PLUGIN-import-extension-reports-missing-dependency, E2E-PLUGIN-global-shortcut-owns-only-its-own-command, E2E-PLUGIN-permission-gate-for-real-time-capabilities, E2E-PLUGIN-background-audio-and-realtime-connection, E2E-PLUGIN-fs-root-follows-the-calling-session, E2E-PLUGIN-provider-catalog-add-service |
@@ -10008,8 +10045,8 @@ This test plan spec is accepted when:
 - Expect **full-page** Codex settings (no app sidebar/nav). Left rail has Back
   to app, search, and exactly General / AI / Shortcuts / Instructions / Models /
   Skills / MCP / Subagents / Projects, Cloud sync / Remote Hosts / Info in that
-  order (a packaged build leaves Cloud sync out); content pane shows the
-  selected destination.
+  order; packaged builds show both Cloud sync and Remote Hosts with Experimental
+  badges. The content pane shows the selected destination.
 - Return to the app shell and expect Plugins to remain an independent
   sidebar-footer destination.
 - Drag the empty 46px top band over either the rail or content pane; the native
@@ -10220,8 +10257,8 @@ This test plan spec is accepted when:
 - Expect the working theme selector without inert toggle or open-target rows.
 - Expect Appearance in General and Permissions + Defaults in AI. The rail
   contains General, AI, Shortcuts, Instructions, Models, Skills, MCP,
-  Subagents, Projects, Cloud sync (development builds only), and Info; Remote
-  Hosts appears only in developer mode. Voice may appear between AI and
+  Subagents, Projects, Cloud sync and Remote Hosts (both Experimental in all
+  builds), and Info. Voice may appear between AI and
   builds with developer mode on; plugin-contributed destinations follow the
   core groups. There is no Import destination.
 - Resize between 800px, 1200px, and 1600px widths; the content cards fill the
@@ -14527,6 +14564,34 @@ browser milestones are scheduled.
 - **Status**: Automated narrow-MVP scenario. Linux `sshd`, release download,
   password authentication and full R2 remain separately gated by E2E-231.
 
+#### E2E-REMOTE-HOME: Create and continue a remote project from Chat home
+
+- **Preconditions**: Isolated Desktop/Chromium profile, two connected SSH host
+  fixtures, existing local workspace, and remote directory/project IPC fixtures.
+  No production Host, user profile, credentials, or paid model calls.
+- **Steps**: Open Create project from home, select Remote, change hosts while
+  directory browsing is pending, browse and select a remote directory, then
+  create. Send text through the regular Composer and inspect the transcript.
+  Reopen the project and start New chat; repeat with an existing remote project.
+  Disconnect and retry. Review a remote permission request and resolve it.
+- **Expected**: Late responses cannot replace the newly selected Host. Creation
+  registers and creates once on the selected Host, then shows the same empty
+  home and docked transcript layout as local chats. Remote projects are listed
+  by host/project identity in the home switcher and sidebar. Empty chat reuse
+  never crosses hosts. Local workspace remains unchanged; remote paths never
+  enter local activation, attachment, preview, slash-command, or plugin calls.
+  Offline/unsupported actions fail closed, preserve drafts, and never replay.
+  History forwards opaque session cursors and Return to latest restores live rows.
+- **Specs**: `02-architecture/05-remote-agent-control.md`, `04-ux/01-ui-ia.md`.
+- **Acceptance / milestone**: Home remote-project UX; additive Desktop IPC only,
+  no Host wire protocol, persisted data, or R2 SSH acceptance change.
+- **Automation**: `remote-project-session.test.mjs`,
+  `remote-session-user-path.test.mjs`, `remote-unified-chat.test.mjs`,
+  `transcript-reading.test.mjs`, `remote-project-dialog-user-path.test.mjs`,
+  and `scripts/e2e-remote-mvp-ui.mjs`.
+- **Status**: Component/service and main-routing acceptance; real SSH release
+  validation remains the separately provisioned E2E-231 scenario.
+
 #### E2E-231: The desktop drives a remote Host over an SSH tunnel
 
 - **Preconditions**: A Linux test machine runs `sshd` and holds a project
@@ -16817,9 +16882,10 @@ the latest destination. These assertions measure work counts, not device FPS.
 - Automated coverage: `pnpm test:e2e:settings-scroll` mounts the production
   SettingsPage, store, translations, and built CSS in isolated Electron. Only
   preload data is stubbed; search navigation uses SearchDialog's public store
-  entry points. It also checks that Cloud sync stays a development-build-only
-  destination with no developer-mode gate and no Experimental badge, that
-  Remote hosts keeps its badge, and the fallback to General. This covers
+  entry points. The development UI path checks both destinations and their
+  Experimental badge surfaces; `settings-developer-only-destinations.test.mjs`
+  separately verifies packaged visibility/search and developer-only fallback.
+  This covers
   renderer interaction, not host persistence or the
   full global-search dialog.
 

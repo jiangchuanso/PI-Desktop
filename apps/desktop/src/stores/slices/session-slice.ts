@@ -37,6 +37,7 @@ import {
 import { api } from "../../lib/api";
 import { isRemoteSession, safeSessionSummary, sessionAllows } from "../../lib/remote-session-safety";
 import { createRefreshCoordinator } from "../../lib/refresh-coordinator";
+import { openRemoteProjectSession, remoteProjectForSession } from "../../lib/remote-project-session";
 import {
   applyOptimisticSessionConfiguration,
 } from "../../lib/session-thinking";
@@ -633,6 +634,15 @@ export function createSessionSlice({
     },
 
     newSession: async (options) => {
+      const activeSession = get().sessions.find((session) => session.id === get().activeSessionId);
+      const remoteProject = options?.remoteProject ?? (
+        options && "projectPath" in options ? undefined
+          : remoteProjectForSession(activeSession)
+      );
+      if (remoteProject) return openRemoteProjectSession({ get, set, runtime }, remoteProject);
+      if (!(options && "projectPath" in options) && isRemoteSession(activeSession ?? (
+        get().activeSessionId?.startsWith("remote:") ? { id: get().activeSessionId! } : undefined
+      ))) throw new Error(i18n.t("remote:REMOTE_PROJECT_REQUIRED"));
       const requestedProjectPath =
         options && "projectPath" in options
           ? options.projectPath ?? null

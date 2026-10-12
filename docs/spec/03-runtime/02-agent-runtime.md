@@ -47,7 +47,9 @@ image blocks are passed to vision-capable models and retained when tool history
 is restored; malformed image entries are ignored without failing the tool call.
 Embedded MCP text resources contribute their `resource.text`, and MCP resource
 links contribute a one-line `[resource link]` reference, to the model-visible
-text alongside sibling text blocks; binary resources are not inlined.
+text alongside sibling text blocks; binary resources are not inlined. When no
+text block is available, the JSON fallback likewise keeps image `data` and
+resource `blob` bytes out of the model-visible text.
 
 ## 4. Runtime API (package-level)
 
@@ -1353,6 +1355,12 @@ an older aggregate `skills` section upgrades it once at the continuation
 boundary; checkpoints retain the effective per-entry state. Bodies remain
 on-demand and permission-checked. Different plugin tool schemas/permissions
 invalidate idle reuse even when their names are unchanged.
+
+The host-owned activation state for bundled skills is read when a session
+catalog is built. A disabled built-in is omitted from the prompt and slash
+catalog, and a stale direct load through `Skill` is refused. This switch governs
+the skill document only; associated agent tools keep their independent
+registration and activation behavior.
 
 Before model dispatch, Desktop acknowledges new system records through Host's
 existing transcript writer. Restart replays these provider-neutral records in

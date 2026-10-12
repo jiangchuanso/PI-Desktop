@@ -887,6 +887,8 @@ sklm: {
     },
     skills: "Skills",
     skillsGlobalPath: "Global skills path",
+    builtinSkills: "Built-in skills",
+    builtin: "Built-in",
     skillsProjectPath: "Project skills path",
     mcp: "MCP servers",
     mcpGlobalPath: "Global MCP path",

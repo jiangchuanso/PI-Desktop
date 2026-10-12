@@ -861,6 +861,8 @@ export const ptBR = {
     },
     skills: "Habilidades",
     skillsGlobalPath: "Caminho global de habilidades",
+    builtinSkills: "Habilidades integradas",
+    builtin: "Integrada",
     skillsProjectPath: "Caminho de habilidades do projeto",
     mcp: "Servidores MCP",
     mcpGlobalPath: "Caminho MCP global",

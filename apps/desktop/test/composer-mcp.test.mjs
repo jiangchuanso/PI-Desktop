@@ -115,6 +115,7 @@ test("Skill commands use an explicit namespace and resolve original ids at send 
     },
     agentExtensions: { allCommands: () => [] },
     activeUserSkills: async () => [{ id: "review", name: "User review" }],
+    disabledBuiltinSkills: async () => ["pi-desktop/imagegen"],
     pluginActiveInProject: () => true,
     loadComposerTemplatesCached: async () => [{ name: "review" }],
   });
@@ -124,7 +125,7 @@ test("Skill commands use an explicit namespace and resolve original ids at send 
   const pluginSkill = skills.find((command) => command.skillId === "plugin/review");
   const userSkill = skills.find((command) => command.skillId === "review");
 
-  assert.equal(builtinSkill?.name, "skill:pi-desktop/imagegen");
+  assert.equal(builtinSkill, undefined);
   assert.equal(pluginSkill?.name, "skill:plugin/review");
   assert.equal(userSkill?.name, "skill:review");
   assert.equal(commands.find((command) => command.name === "review")?.kind, "template");

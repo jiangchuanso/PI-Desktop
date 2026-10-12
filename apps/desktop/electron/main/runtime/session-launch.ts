@@ -209,6 +209,26 @@ export function createSessionLaunchRuntime({
     }
   }
 
+  /** Built-in skill activation is host-owned and defaults on. */
+  async function disabledBuiltinSkills(): Promise<string[]> {
+    if (!runtimeState.host?.isAvailable()) {
+      throw new Error("host unavailable while reading built-in skill activation");
+    }
+    try {
+      const result = await runtimeState.host!.call<{ disabled: string[] }>(
+        "skills.disabledBuiltins",
+      );
+      return result.disabled ?? [];
+    } catch (error) {
+      if (!isHostUnavailable(error)) {
+        logger.app("plugin", "warn", "builtin skill state failed", {
+          data: String(error),
+        });
+      }
+      throw error;
+    }
+  }
+
   /**
    * Load one of the user's own skill documents by id, or `null` if there is no
    * such skill — so the caller can fall through to the plugin catalog.
@@ -449,6 +469,7 @@ export function createSessionLaunchRuntime({
       ...builtinSkills({
         workspacePath: projectPath,
         pluginPaths: plugins.listLoaded().map((loaded) => loaded.path),
+        disabledIds: await disabledBuiltinSkills(),
       }),
       ...plugins
         .getSkills()
@@ -716,6 +737,7 @@ export function createSessionLaunchRuntime({
     activeUserSkills,
     activeUserSubagentDocuments,
     disabledBuiltinSubagents,
+    disabledBuiltinSkills,
     loadUserSkillBody,
     resolveEffectiveCommandShell,
     resolveAgentRuntimeLaunch,

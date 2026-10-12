@@ -16,8 +16,6 @@ import {
 } from "react";
 import { TooltipButton, cx } from "./ui";
 
-/** Default number of most-recent sessions shown per project group before the rest fold. */
-const MAX_VISIBLE_SESSIONS = 10;
 import { portalToBody } from "../lib/portal-visibility";
 import {
   clampSidebarFloatingMenuTop,
@@ -35,6 +33,10 @@ import {
   sessionArchived,
   sessionPinned,
 } from "../lib/sidebar-session-groups";
+import {
+  getVisibleProjectSessions,
+  updateProjectSessionExpansion,
+} from "../lib/sidebar-project-sessions";
 import { listableSessions } from "../lib/session-origin";
 import {
   composerDropItems,
@@ -1192,6 +1194,11 @@ export function Sidebar({
   const setCollapsed = (path: string, value: boolean) => {
     const normalized = normalizeProjectPath(path) || path;
     setProjectCollapsed(normalized, value);
+    if (value) {
+      setExpandedProjectSessions((previous) =>
+        updateProjectSessionExpansion(previous, normalized, false),
+      );
+    }
   };
 
   const setSort = (next: SessionSort) => {
@@ -1207,7 +1214,9 @@ export function Sidebar({
   };
 
   const expandProjectSessions = (projectKey: string) => {
-    setExpandedProjectSessions((prev) => ({ ...prev, [projectKey]: true }));
+    setExpandedProjectSessions((previous) =>
+      updateProjectSessionExpansion(previous, projectKey, true),
+    );
   };
 
   const toggleSessionPin = (session: SessionSummary) => {
@@ -1834,13 +1843,14 @@ export function Sidebar({
     const projectId = projectDomId(entry.key);
     const isMenuOpen = projectMenu === entry.key;
 
-    // Show the most recent MAX_VISIBLE_SESSIONS rows by default; the remaining
-    // sessions stay folded behind the same load-more affordance used for the
-    // time-grouped overflow and expand on click.
+    // Show the initial page by default; the remaining sessions stay folded
+    // behind the same load-more affordance used for time-group overflow.
     const sessionsExpanded = expandedProjectSessions[entry.key] ?? false;
     const history = entry.sessions.filter((session) => !pinnedSessionIds.has(session.id));
-    const visibleSessions = sessionsExpanded ? history : history.slice(0, MAX_VISIBLE_SESSIONS);
-    const hiddenCount = history.length - visibleSessions.length;
+    const { visibleSessions, hiddenCount } = getVisibleProjectSessions(
+      history,
+      sessionsExpanded,
+    );
 
     const renderTimeGroupedSessions = (sessions: SessionSummary[]) => {
       const result: React.ReactNode[] = [];

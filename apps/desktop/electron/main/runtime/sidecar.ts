@@ -7,7 +7,10 @@ import {
   classifySidecarCrash,
   sidecarCrashErrorCode,
 } from "@pi-desktop/agent-runtime";
-import { loadBuiltinSkillBody } from "../builtin-skills";
+import {
+  assertBuiltinSkillEnabled,
+  loadBuiltinSkillBody,
+} from "../builtin-skills";
 import { createImageGenerationTool } from "../services/image-generation-service";
 import { registerPluginDevTools } from "../plugin-dev-tools";
 import { resolveLocalFile } from "../browser-view";
@@ -60,6 +63,7 @@ export type SidecarRuntimeDependencies = {
     projectPath: string | null,
   ) => Promise<LoadedSkillDocument | null>;
   activeUserSkills: (projectPath: string | undefined) => Promise<any[]>;
+  disabledBuiltinSkills: () => Promise<string[]>;
   pluginActiveInProject: (pluginId: string, projectPath: string | null | undefined) => boolean;
   currentNetworkProxy: () => any;
 };
@@ -90,6 +94,7 @@ export function createSidecarRuntime({
   sessionProjects,
   loadUserSkillBody,
   activeUserSkills,
+  disabledBuiltinSkills,
   pluginActiveInProject,
   currentNetworkProxy,
 }: SidecarRuntimeDependencies): {
@@ -608,6 +613,7 @@ export function createSidecarRuntime({
     }
     const projectPath = sessionProjects.get(sessionId) ?? null;
     try {
+      await assertBuiltinSkillEnabled(id, disabledBuiltinSkills);
       // Bundled skills answer first; they are not owned by any plugin. A user
       // skill is looked up next, and only then a plugin's — the ids cannot
       // collide, since a plugin skill id always carries a `<pluginId>/` prefix.

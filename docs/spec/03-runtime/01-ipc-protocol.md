@@ -1598,6 +1598,15 @@ one-liner.
 - `skills.read({ id, level?, projectPath? })` → `{ skill, body }`
 - `skills.remove({ id, level?, projectPath? })`
 - `skills.setEnabled({ id, enabled, level, projectPath? })`
+- `skills.disabledBuiltins()` → `{ disabled: string[] }`
+- `skills.setBuiltinEnabled({ id, enabled })` → `{ id, enabled }`
+
+Built-in skill activation is global and defaults to enabled. Host stores only
+disabled IDs in `<data>/agent-capabilities/skill-builtins.json`, separately
+from the scanned user-skill state. Renderer IPC lists bundled entries with
+their effective enabled state and sets one entry's global state. The
+corresponding Desktop channels are `pi-desktop/skill/builtin/list` and
+`pi-desktop/skill/builtin/setEnabled`.
 
 The list contains frontmatter-derived `name` and `description`, not the body.
 Only the description enters the prompt, and the body is fetched when the model

@@ -1028,6 +1028,8 @@ sklm: {
     },
     skills: "技能",
     skillsGlobalPath: "全域性技能路徑",
+    builtinSkills: "內建技能",
+    builtin: "內建",
     skillsProjectPath: "專案技能路徑",
     mcp: "MCP 伺服器",
     mcpGlobalPath: "全域性 MCP 路徑",

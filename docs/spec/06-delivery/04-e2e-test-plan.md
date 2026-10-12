@@ -1065,11 +1065,17 @@ identify the platform validation still needed.
 - **Expected**: `providers.lookupModel` answers a hand-typed id from the local snapshot only — no provider network request and no host call — and a hit seeds the binding the way a picked model is seeded (published context window, max output tokens, thinking levels, `contextWindowSource: "catalog"`) while the stored id stays exactly what the user typed. A miss, a failed call, or an id the current discovery already described leaves the previous behavior intact: one usable row, the generic seed, and no stalled or duplicated list.
   A record published under another spelling of that id — a route prefix, a dated
   stamp, a marker the deployment appends — is a hit too: the row is upgraded in
-  place as soon as the answer arrives, without waiting for a save.
+  place as soon as the answer arrives, without waiting for a save. In a live
+  discovered row, a positive safe integer context/input or output limit reported by
+  the endpoint takes precedence over the catalog for that field; omitted fields
+  independently use catalog metadata. For an unanchored relay, a published
+  owner record outranks reseller matches; dotted/dashed version aliases and one
+  whitelisted deployment label keep the served ID intact, and conflicting
+  owner records do not supply guessed limits.
 - **Specs linked**: `03-runtime/12-provider-config-schema.md`, `03-runtime/13-model-catalog-and-selection.md`
 - **Acceptance**: B (multi-model provider configuration)
 - **Milestone**: M2
-- **Status**: Documented; covered by `apps/desktop/test/model-custom-lookup.test.mjs` and `apps/desktop/test/provider-lookup-model-handler.test.mjs`
+- **Status**: Documented; covered by `apps/desktop/test/model-custom-lookup.test.mjs`, `apps/desktop/test/provider-lookup-model-handler.test.mjs`, and `apps/desktop/test/provider-endpoint-metadata.test.mjs`
 
 #### E2E-PROVIDER-configured-models-search: The chosen pane's search narrows the configured list
 
@@ -9688,6 +9694,7 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
 | C — Conversation & stream | E2E-CHAT-long-history-stream-keeps-responsive, E2E-CHAT-running-status-survives-output-pauses, E2E-008, E2E-008d, E2E-008e, E2E-008a, E2E-009, E2E-010, E2E-011, E2E-011a, E2E-011b, E2E-011d, E2E-011e, E2E-011g, E2E-031, E2E-040, E2E-047, E2E-048, E2E-048A, E2E-049, E2E-052, E2E-053, E2E-054, E2E-055, E2E-059, E2E-059a, E2E-060c, E2E-060d, E2E-061, E2E-061a, E2E-062, E2E-064, E2E-065, E2E-068, E2E-071, E2E-073, E2E-074, E2E-075, E2E-081, E2E-083, E2E-084, E2E-086, E2E-087, E2E-088, E2E-088b, E2E-089, E2E-090, E2E-COMPOSER-narrow-controls, E2E-094, E2E-095, E2E-096, E2E-097, E2E-098, E2E-099, E2E-102, E2E-102a, E2E-102b, E2E-102c, E2E-102d, E2E-102g, E2E-106, E2E-109, E2E-111, E2E-114, E2E-116, E2E-117, E2E-118, E2E-119, E2E-120, E2E-121, E2E-218, E2E-259, E2E-219, E2E-AGENTS-001, E2E-142, E2E-144, E2E-145, E2E-146, E2E-146a, E2E-147, E2E-151, E2E-154, E2E-155, E2E-158, E2E-159, E2E-161, E2E-162, E2E-166, E2E-172, E2E-173, E2E-174, E2E-177, E2E-178, E2E-179, E2E-180, E2E-182, E2E-183, E2E-187, E2E-198, E2E-199, E2E-202, E2E-203, E2E-207, E2E-208, E2E-CHAT-content-width-handles, E2E-250, E2E-102i, E2E-PLUGIN-session-orchestrator-real-workers, E2E-SUBAGENT-settlement-updates-before-parent-poll, E2E-SUBAGENT-resume-a-settled-delegation |
 | C — Conversation & stream (composer drafts) | E2E-011c, E2E-011c-1 |
 | D — Workspace | E2E-012, E2E-013, E2E-022B, E2E-024I, E2E-047, E2E-049, E2E-057, E2E-058, E2E-060, E2E-068, E2E-075, E2E-078, E2E-153, E2E-158, E2E-182, E2E-187, E2E-252 |
+| C / D / Quality — Project session history resets after collapse | E2E-263 |
 | D — Workspace (project ordering) | E2E-253 |
 | E — Tools & permissions | E2E-008a, E2E-014, E2E-015, E2E-016, E2E-017, E2E-018, E2E-019, E2E-024I, E2E-024K, E2E-040, E2E-049, E2E-074, E2E-093, E2E-097, E2E-099, E2E-100, E2E-101, E2E-102, E2E-102d, E2E-102e, E2E-102g, E2E-103, E2E-105, E2E-106, E2E-107, E2E-111, E2E-112, E2E-113, E2E-114, E2E-115, E2E-116, E2E-119, E2E-121, E2E-122, E2E-142, E2E-145, E2E-147, E2E-155, E2E-158, E2E-166, E2E-181, E2E-PLUGIN-imported-pi-package-skills |
 | F — Persistence | E2E-020, E2E-021, E2E-021a, E2E-038, E2E-SETTINGS-inline-capability-imports, E2E-040, E2E-042, E2E-047, E2E-048, E2E-051, E2E-054, E2E-056, E2E-061, E2E-062, E2E-064, E2E-066, E2E-068, E2E-071, E2E-072, E2E-073, E2E-082, E2E-084, E2E-096, E2E-098, E2E-102, E2E-102b, E2E-102c, E2E-102d, E2E-102g, E2E-102i, E2E-103, E2E-AGENTS-001, E2E-061a, E2E-073a, E2E-104, E2E-106, E2E-107, E2E-108, E2E-109, E2E-110, E2E-112, E2E-118, E2E-119, E2E-120, E2E-121, E2E-123, E2E-142, E2E-146, E2E-146a, E2E-148, E2E-151, E2E-158, E2E-160, E2E-168, E2E-171, E2E-177, E2E-178, E2E-183, E2E-186, E2E-005J, E2E-PLUGIN-session-orchestrator-real-workers, E2E-PLUGIN-provider-catalog-add-service, E2E-SESSION-outbox-unclassifiable-failure-does-not-stall-the-queue |
@@ -9701,6 +9708,7 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
 | C — Conversation & stream (IME slash alias) | E2E-255 |
 | E — Tools & permissions (Skill residency) | E2E-254 |
 | Quality (Skill residency and IME slash alias) | E2E-254, E2E-255 |
+| C / E / F / Quality — Built-in skill activation | E2E-SKILL-builtin-activation |
 | C — Conversation & stream (plugin session import visibility) | E2E-257 |
 | F — Persistence (plugin session import visibility) | E2E-257 |
 | G — Plugins (session import visibility) | E2E-257 |
@@ -10784,8 +10792,12 @@ This test plan spec is accepted when:
   fixture contains enough options to overflow, only that list scrolls and the
   question header, custom-answer input, and Skip / Next / Submit actions remain
   reachable. Scrolling the list does not move the conversation page or hide the
-  action row. The tool output is ordered as
-  `question：answer`, uses `、` between multiple answers and `\n---\n`
+  action row. A long question prompt is bounded the same way: the question body
+  scrolls inside the card (`min(208px, 24dvh)`, with a `24vh` fallback) and the
+  header actions stay outside that scroller. The question body is keyboard
+  focusable with a visible focus ring. Next, Skip, and the step indicators open
+  each question at the top of that body. The tool output is
+  ordered as `question：answer`, uses `、` between multiple answers and `\n---\n`
   between questions, and
   keeps `question：` for the skipped question. Markdown renders as rich text
   without activating embedded links or loading images. Selecting a formatted
@@ -10802,7 +10814,11 @@ This test plan spec is accepted when:
   `04-ux/11-asktool-question-card.md`, ADR 0077
 - **Acceptance**: E (interactive tool output), C (inline card)
 - **Milestone**: M5
-- **Status**: Draft (runtime/unit coverage active; desktop journey pending)
+- **Automated coverage**: `pnpm test:e2e:asktool-card` mounts the production
+  component in Electron and covers long-prompt scrolling, keyboard reachability,
+  visible header actions, and scroll reset on Next.
+- **Status**: Partially automated (component paths and long-prompt behavior are
+  covered; full application journey pending)
 
 - **Request transition regression**: Keep a one-question request pending in chat
   B. In chat A, advance a two-question request to question two, then select B.
@@ -15258,6 +15274,41 @@ plugin-form fixtures in an isolated temporary directory at runtime.
   rendered desktop journey Draft
   (run only in a capable environment when this surface changes)
 
+#### E2E-SKILL-builtin-activation: Manage bundled skills from Settings
+
+- **Preconditions**: An isolated Desktop profile and an ordinary project
+  workspace. Keep a separate active user or plugin Skill so the `Skill` tool
+  remains available after imagegen is disabled.
+- **Steps**:
+  1. Open Settings > Agent > Skills and inspect the Built-in skills group.
+     Confirm `pi-desktop/imagegen` and `pi-desktop/plugin-development` are
+     listed and enabled by default.
+  2. Turn off `pi-desktop/imagegen` and open a new session in the ordinary
+     workspace. Inspect its skill catalog and Composer's `/` menu.
+  3. Invoke the local `Skill` tool with the stale imagegen id.
+  4. Turn imagegen back on and open another session. Restart the app and
+     inspect the setting and a new session catalog again.
+- **Expected**: The disabled imagegen skill is absent from the prompt catalog
+  and the `skill:pi-desktop/imagegen` slash entry. A stale direct `Skill` load
+  reports that the built-in skill is disabled. Re-enabling restores both
+  entries on a new session, and the setting survives restart. The
+  plugin-development row stays visible in Settings but its session entry
+  remains limited to plugin workspaces. Associated agent tools remain
+  independently available.
+- **Specs linked**: `07-plugins/01-plugin-system.md` (§12.3),
+  `03-runtime/01-ipc-protocol.md` (§12b), `03-runtime/02-agent-runtime.md`
+  (§7.0.0), `04-ux/04-builtin-commands.md` (§8)
+- **Acceptance**: C (conversation & stream), E (tools & permissions),
+  F (persistence), Quality
+- **Coverage**: `settings-inline-import-user-path.test.mjs` exercises the
+  Settings switch in isolated Electron and asserts the persisted IPC request
+  and visible off state. `image-generation.test.mjs`,
+  `composer-mcp.test.mjs`, host-core user-skill/RPC tests cover catalog
+  filtering, stale loads, persistence, and the activation wire contract. The
+  restart and full new-session journey remain part of desktop acceptance.
+- **Milestone**: M6+
+- **Status**: Rendered desktop journey Draft
+
 #### E2E-255: An ideographic comma opens the slash menu
 
 - **Preconditions**: A Chinese IME is available, the composer draft is empty,
@@ -15536,11 +15587,30 @@ plugin-form fixtures in an isolated temporary directory at runtime.
   window-drag and visual checks remain required on each platform. Branch runs
   are exploratory and do not satisfy the integrated-main gate.
 
+### E2E-WORK-PANEL-overflow-tab-drag-exclusion
+
+- **Preconditions**: On Windows, open a desktop session and create enough work-panel
+  tabs to overflow the horizontal tab strip.
+- **Steps**: Scroll the strip toward both ends, switch to another conversation and
+  back, reorder a tab with the keyboard, then close tabs until one and none remain.
+  Query native `WM_NCHITTEST` over the adjacent sidebar and conversation titlebars,
+  visible tabs, header actions, and spare header space.
+- **Expected**: Offscreen tabs do not block native dragging outside the visible
+  scroll viewport. Adjacent titlebars and unused header space return `HTCAPTION`;
+  visible tabs and actions return `HTCLIENT`. Switching, reordering, and closing
+  tabs preserve those hit regions.
+- **Specs linked**: `04-ux/07-ui-design-system.md` §10
+- **Acceptance**: Quality
+- **Status**: Windows native regression covered by
+  `scripts/e2e-work-panel-drag.mjs` (`pnpm test:e2e:work-panel-drag`). macOS/Linux
+  native dragging remains unqualified.
+
 #### E2E-LAYOUT-sidebar-project-group-fold
 
-- **Preconditions**: Four retained sidebar project groups, seeded through the
+- **Preconditions**: Five retained sidebar project groups, seeded through the
   host: one holding five sessions across four date buckets, one holding a single
   session, one holding none, and one holding ten pinned sessions.
+  A fifth group has twelve unpinned sessions for the project history pager.
   `prefers-reduced-motion` is unset.
 - **Steps**:
   1. Inspect the groups: body layering, row and date-label counts, the empty
@@ -15595,9 +15665,11 @@ plugin-form fixtures in an isolated temporary directory at runtime.
 - **Steps**: In dark and light themes, select a project conversation, hover its
   project title and an unselected conversation, then hover the selected row.
   Exercise the window-blur handler, drop-target styling, project action hover
-  and keyboard Tab/Shift+Tab focus. Fold and reopen the selected conversation's
-  group. Select pinned and standalone conversations. Open Settings and return.
-  Enable reduced motion and inspect both row transition durations.
+  and keyboard Tab/Shift+Tab focus. Fold and reopen its group. Select pinned and
+  standalone conversations. Open Settings and return. Enable reduced motion and
+  inspect both row transition durations. In a separate twelve-session project,
+  load the remaining two sessions, fold and reopen the group, and verify only
+  the initial ten sessions remain visible.
 - **Expected**: Project and conversation hover backgrounds, radii and transitions
   match. The title button stays transparent. Only a conversation uses selected
   fill, which wins over hover; workspace identity remains a separate dot with
@@ -15606,17 +15678,21 @@ plugin-form fixtures in an isolated temporary directory at runtime.
   retains an outline, action buttons retain local feedback, drop-target paint
   wins over hover, and blur releases hover without clearing selection. Settings
   replaces sidebar navigation, and returning restores conversation and workspace
-  context without a second selected row. Rendered component tests additionally
-  cover no selected session, a pending destination and non-chat page state.
+  context without a second selected row. Loading more sessions reveals all
+  twelve; folding and reopening restores the initial ten and the two-session
+  remainder control. Rendered component tests additionally cover no selected
+  session, a pending destination and non-chat page state.
 - **Specs linked**: `04-ux/01-ui-ia.md`, `04-ux/08-component-spec.md`,
   `04-ux/09-interaction-patterns.md` §9.1c
 - **Acceptance**: C, D, Quality
 - **Milestone**: Post-M6 desktop shell maintenance
 - **Status**: Automated via `pnpm test:e2e:layout` and
   `scripts/e2e/sidebar-row-states.mjs`: real CDP pointer/keyboard input and
-  computed-style assertions. Window blur/focus events and the drop-target class
-  are injected for those styling checks; this is not a native focus/drag test.
-  Unit coverage: `sidebar-navigation.test.mjs`, `sidebar-pinned-rendering.test.mjs`.
+  computed-style assertions, plus the load-more / fold / reopen session-history
+  flow. Window blur/focus events and the drop-target class are injected for those
+  styling checks; this is not a native focus/drag test. Unit coverage:
+  `sidebar-navigation.test.mjs`, `sidebar-pinned-rendering.test.mjs`, and
+  `sidebar-project-sessions.test.mjs`.
 
 #### E2E-LAYOUT-sidebar-settings
 
@@ -17169,6 +17245,28 @@ renderer's durable transcript reads. No real model or provider is contacted.
 - **Status:** `node scripts/e2e-file-ref-line-scroll.mjs` mounts production
   `LinkifiedText` and `FilesTab` in isolated Electron with filesystem IPC
   fixtures; no real project files or provider are used.
+
+#### E2E-263: Collapsing a project resets its loaded session history
+
+- **Preconditions:** One retained project has at least twelve unpinned sessions,
+  and its group can be expanded in the sidebar.
+- **Steps:** 1. Expand the project and confirm the latest ten sessions plus a
+  Load more control are visible. 2. Click Load more and confirm all twelve
+  sessions appear. 3. Collapse the project, then expand it again. 4. Inspect the
+  visible sessions and the Load more count.
+- **Expected:** Reopening the project shows only the latest ten unpinned
+  sessions, and Load more reports the two hidden sessions. The collapse clears
+  only that project's loaded-more state; session selection and other project
+  groups remain unchanged.
+- **Specs:** `04-ux/08-component-spec.md` §3.9;
+  `04-ux/09-interaction-patterns.md` §1.6.
+- **Acceptance:** C / D / Quality.
+- **Milestone:** Post-MVP maintenance.
+- **Coverage:** `scripts/e2e/sidebar-row-states.mjs` exercises the full user path
+  with a host-seeded project and real CDP pointer clicks. The unit test
+  `sidebar-project-sessions.test.mjs` covers the initial page, Load more,
+  collapse reset, and project isolation. `app-store-sidebar.test.mjs` checks
+  that sidebar collapse and Load more use those transitions.
 
 ### Imported-extension GUI executable discovery regression (#1173)
 

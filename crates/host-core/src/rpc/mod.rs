@@ -4710,6 +4710,23 @@ async fn handle_request(
             let skills = st.user_skills.active_for(project_path).map_err(skill_err)?;
             Ok(json!({ "skills": skills }))
         }
+        "skills.disabledBuiltins" => {
+            let st = state.lock().await;
+            Ok(json!({ "disabled": st.user_skills.disabled_builtins() }))
+        }
+        "skills.setBuiltinEnabled" => {
+            let id = require_id(&params)?;
+            let enabled = params
+                .get("enabled")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            let mut st = state.lock().await;
+            let id = st
+                .user_skills
+                .set_builtin_enabled(&id, enabled)
+                .map_err(skill_err)?;
+            Ok(json!({ "id": id, "enabled": enabled }))
+        }
         "skills.create" => {
             let input = parse_skill_input(&params)?;
             let mut st = state.lock().await;
@@ -5080,6 +5097,70 @@ mod tests {
     use crate::sessions;
     use crate::state::AppState;
     use std::time::Duration;
+
+    #[tokio::test]
+    async fn builtin_skill_activation_rpc_round_trips() {
+        let data_dir = tempfile::tempdir().unwrap();
+        let mut app_state = AppState::open(data_dir.path()).unwrap();
+        app_state.handshook = true;
+        let state = Arc::new(Mutex::new(app_state));
+        let tx = mpsc::unbounded_channel().0;
+
+        let initial = handle_request(
+            state.clone(),
+            "skills.disabledBuiltins",
+            json!({}),
+            tx.clone(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(initial, json!({ "disabled": [] }));
+
+        let disabled = handle_request(
+            state.clone(),
+            "skills.setBuiltinEnabled",
+            json!({ "id": "pi-desktop/imagegen", "enabled": false }),
+            tx.clone(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            disabled,
+            json!({ "id": "pi-desktop/imagegen", "enabled": false })
+        );
+
+        let current = handle_request(
+            state.clone(),
+            "skills.disabledBuiltins",
+            json!({}),
+            tx.clone(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(current, json!({ "disabled": ["pi-desktop/imagegen"] }));
+
+        let enabled = handle_request(
+            state.clone(),
+            "skills.setBuiltinEnabled",
+            json!({ "id": "pi-desktop/imagegen", "enabled": true }),
+            tx,
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            enabled,
+            json!({ "id": "pi-desktop/imagegen", "enabled": true })
+        );
+        let current = handle_request(
+            state,
+            "skills.disabledBuiltins",
+            json!({}),
+            mpsc::unbounded_channel().0,
+        )
+        .await
+        .unwrap();
+        assert_eq!(current, json!({ "disabled": [] }));
+    }
 
     // Issue #1071: the per-request wall-clock budget must cut loose requests
     // stuck on the global state lock (the dominant queueing case) so their

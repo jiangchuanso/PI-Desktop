@@ -387,6 +387,12 @@ Codex CLI 版本（`CODEX_MODELS_CLIENT_VERSION`），账户模型缺失时调�
 
 ### Anthropic token 端点限流
 
+每次 token 请求都发送 pi-ai 自己的 `User-Agent`（`pi (<platform> <release>;
+<arch>)`）。Electron Main 把全局 `fetch` 替换为 `net.fetch`，其默认值是
+Chromium 的浏览器 `User-Agent`；token 端点对浏览器和 `claude-code/` 的
+`User-Agent` 每次都返回 429 `rate_limit_error`，不显式设置时登录永远无法
+成功（issue #1337）。服务商行上自定义的 `User-Agent` 仍可覆盖它。
+
 固定版本 pi-ai 1.1.0 的仓库补丁为 Anthropic 授权码交换与刷新提供同一套
 有限策略：只重试明确的 HTTP 429，最多总共三次请求。先等待至少 1 秒、再
 等待至少 2 秒；若 `Retry-After` 给出更长的秒数或 HTTP 日期，则遵守该时间。

@@ -1043,6 +1043,8 @@ sklm: {
     },
     skills: "스킬",
     skillsGlobalPath: "전역 스킬 경로",
+    builtinSkills: "기본 제공 스킬",
+    builtin: "기본 제공",
     skillsProjectPath: "프로젝트 스킬 경로",
     mcp: "MCP 서버",
     mcpGlobalPath: "전역 MCP 경로",

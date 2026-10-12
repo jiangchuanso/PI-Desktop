@@ -391,10 +391,11 @@ task-candidate E2E 从请求工作树运行，但使用主工作区已经准备�
 - **预期**：`providers.lookupModel` 只从本地快照回答手输 id —— 不访问提供商网络、不调用主机 —— 命中时按「被勾选的模型」同样的口径播种绑定（已发布的上下文长度、最大输出、思考等级，`contextWindowSource: "catalog"`），而存储的 id 保持用户输入的原样。未命中、调用失败，或该 id 已被本次发现结果描述过时，行为与之前一致：一行可用，通用种子，列表既不卡住也不重复。
   该 id 以另一种拼写发布（路由前缀、日期戳、部署自己追加的标记）同样算命中：
   答复到达即就地升级该行，不必等到保存。
+- 实时发现的模型行若由服务报告正安全整数上下文/输入或输出上限，则该字段优先使用服务值；未报告字段独立回退到目录元数据。对于未锚定的中继，若模型所有者发布了匹配记录，则优先使用所有者记录；带点/连字符版本别名和一个白名单部署标签不会改写服务端 ID，所有者记录冲突时不会猜测限额。
 - **链接规格**：`03-runtime/12-provider-config-schema.md`、`03-runtime/13-model-catalog-and-selection.md`
 - **接受**：B（多模型提供商配置）
 - **里程碑**：M2
-- **状态**：已文档化；由 `apps/desktop/test/model-custom-lookup.test.mjs` 与 `apps/desktop/test/provider-lookup-model-handler.test.mjs` 覆盖
+- **状态**：已文档化；由 `apps/desktop/test/model-custom-lookup.test.mjs`、`apps/desktop/test/provider-lookup-model-handler.test.mjs` 与 `apps/desktop/test/provider-endpoint-metadata.test.mjs` 覆盖
 
 #### E2E-005H：从较长的服务模型列表一次全选当前可见模型
 
@@ -5632,6 +5633,7 @@ eleven-tool-round desktop paths are verified by
 | B / F / Security — 提供商复制 | E2E-PROVIDER-copy-config-without-credentials |
 | B / F / Quality — 已选模型顺序 | E2E-MODEL-selected-order-persists |
 | E / F / Quality — MCP 服务器超时覆盖 | E2E-261 |
+| C / D / Quality — 折叠项目后重置会话历史 | E2E-263 |
 | A — 应用程序启动 | E2E-001、E2E-002、E2E-003、E2E-004、E2E-067、E2E-076、E2E-079、E2E-092、E2E-097、E2E-143、E2E-150、E2E-168、E2E-204、E2E-217 |
 | B——模型配置 | E2E-005、E2E-005G、E2E-006、E2E-007、E2E-038、E2E-050、E2E-052、E2E-055、E2E-066、E2E-080、E2E-082、E2E-151、E2E-005J、E2E-199、E2E-201、E2E-202、E2E-203、E2E-209、E2E-166 |
 | C — 对话和直播 | E2E-CHAT-running-status-survives-output-pauses、E2E-008、E2E-008d、E2E-008a、E2E-009、E2E-010、E2E-011、E2E-011a、E2E-011b、E2E-031、E2E-040、E2E-047、E2E-048、E2E-048c、E2E-048A、E2E-049、E2E-052、 E2E-053、E2E-054、E2E-055、E2E-059、E2E-059a、E2E-060c、E2E-060d、E2E-061、E2E-061a、E2E-062、E2E-064、E2E-065、E2E-068、E2E-071、 E2E-073、E2E-074、E2E-075、E2E-081、E2E-083、E2E-084、E2E-086、E2E-087、E2E-088、E2E-088b、E2E-089、E2E-090、E2E-094、E2E-095、E2E-096、 E2E-097、E2E-098、E2E-099、E2E-102、E2E-102a、E2E-102b、E2E-106、E2E-109、E2E-111、E2E-114、E2E-116、E2E-117、E2E-118、E2E-119、 E2E-120、E2E-121、E2E-代理-001、E2E-142、E2E-144、E2E-145、E2E-146、E2E-147、E2E-151、E2E-199、E2E-250、E2E-166、E2E-SUBAGENT-resume-a-settled-delegation |
@@ -5651,6 +5653,7 @@ eleven-tool-round desktop paths are verified by
 | C — 对话和直播（输入法斜杠别名） | E2E-255 |
 | E——工具和权限（Skill 常驻） | E2E-254 |
 | 品质（Skill 常驻与输入法斜杠别名） | E2E-254、E2E-255 |
+| C / E / F / 品质——内置技能启用状态 | E2E-SKILL-builtin-activation |
 | C — 对话和直播（插件会话导入可见性） | E2E-257 |
 | F——持久化（插件会话导入可见性） | E2E-257 |
 | C — 对话和直播（聊天文件引用） | E2E-CHAT-shorthand-file-ref-opens-the-matching-file、E2E-CHAT-file-ref-opens-the-surface-that-owns-it |
@@ -6551,7 +6554,8 @@ eleven-tool-round desktop paths are verified by
 - **预期**：一次可见一个问题；小指标显示
   输入框批准区域中已回答、当前和跳过的状态
   Plan 和 Goal 批准使用的停靠位置相同。请求没有
-  倒计时。工具输出排序为 `question：answer`，使用 `、`
+  倒计时。过长的问题正文在卡片内滚动（`min(208px, 24dvh)`，并有 `24vh` 回退），可通过键盘聚焦且显示焦点环；标题栏上的
+  Decline、Skip 和 Next/Submit 留在该滚动区域之外。切换问题后正文从顶部开始。工具输出排序为 `question：answer`，使用 `、`
   多个答案之间和问题之间的 `\n---\n` 之间，并保持
   `question：` 用于跳过的问题。拒绝所有产生空
   每个问题的占位符，仍然完成工具调用。
@@ -6559,7 +6563,8 @@ eleven-tool-round desktop paths are verified by
   `04-ux/11-asktool-question-card.md`、ADR 0077
 - **验收**：E（交互式工具输出）、C（内联卡）
 - **里程碑**：M5
-- **状态**：草案（单位覆盖范围有效；桌面旅程待定）
+- **自动化覆盖**：`pnpm test:e2e:asktool-card` 在 Electron 中挂载生产组件，覆盖长问题滚动、键盘可达性、标题栏动作可见性和点击 Next 后的滚动重置。
+- **状态**：部分自动化（组件路径和长问题行为已覆盖；完整应用桌面旅程仍待完成）
 
 - **请求切换回归**：在聊天 B 留下一个单题请求。在聊天 A 将双题请求推进到第二题，
   再切换到 B。B 应显示自己的第一题、空白答案和可用输入框，不应出现应用错误页。
@@ -8209,6 +8214,21 @@ runner 会在运行时的隔离临时目录中生成六个插件形态 fixture�
 - **里程碑**：M5
 - **状态**：单元覆盖（`packages/agent-runtime/src/runtime.test.ts`）；渲染桌面旅程为草稿（除非明确要求，不本地运行 E2E）
 
+#### E2E-SKILL-builtin-activation：在设置中管理内置技能
+
+- **前提条件**：使用隔离的桌面配置文件和普通项目工作区。确保另有一项已启用的用户或插件 Skill，使 imagegen 关闭后 `Skill` 工具仍可用。
+- **步骤**：
+  1. 打开「设置 → Agent → Skills」，检查「内置技能」分组，确认 `pi-desktop/imagegen` 和 `pi-desktop/plugin-development` 默认开启。
+  2. 关闭 `pi-desktop/imagegen`，在普通工作区打开新会话，检查技能目录和 Composer 的 `/` 菜单。
+  3. 使用旧的 imagegen id 调用本地 `Skill` 工具。
+  4. 重新开启 imagegen 并打开另一个会话。重启应用后检查设置和新会话目录。
+- **预期**：关闭后的 imagegen 不会出现在提示词技能目录和 `skill:pi-desktop/imagegen` 斜杠条目中。使用旧 id 直接加载时会提示该内置技能已关闭。重新开启后，新会话可再次看到两项入口；设置在重启后仍保留。plugin-development 在设置中始终可见，但只在插件工作区进入会话目录。关联的 Agent 工具保持独立可用。
+- **链接规格**：`07-plugins/01-plugin-system.md`（§12.3）、`03-runtime/01-ipc-protocol.md`（§12b）、`03-runtime/02-agent-runtime.md`（§7.0.0）、`04-ux/04-builtin-commands.md`（§8）
+- **验收**：C（对话和直播）、E（工具和权限）、F（持久化）、品质
+- **覆盖范围**：`settings-inline-import-user-path.test.mjs` 在隔离 Electron 中验证设置开关、持久化 IPC 请求和页面关闭状态；`image-generation.test.mjs`、`composer-mcp.test.mjs` 及 host-core 技能/RPC 测试覆盖目录过滤、旧 id 加载拒绝、持久化和激活协议。重启和完整新会话旅程仍由桌面验收覆盖。
+- **里程碑**：M6+
+- **状态**：桌面交互旅程草稿
+
 #### E2E-255：顿号打开斜杠菜单
 
 - **前提条件**：可用中文输入法；输入框草稿为空；至少存在一条斜杠条目（内置别名、模板、插件命令或 Skill）。
@@ -8333,6 +8353,15 @@ runner 会在运行时的隔离临时目录中生成六个插件形态 fixture�
   row/spacer ownership, all-platform/fullscreen CSS fixtures in both sidebar
   states). DOM/CDP clicks are not native hit-test proof. Native pointer, drag
   and visual checks remain required; branch runs are exploratory only.
+
+### E2E-WORK-PANEL-overflow-tab-drag-exclusion
+
+- **前提条件**：在 Windows 上打开桌面会话，并创建足够多的工作面板标签，使横向标签栏发生溢出。
+- **步骤**：将标签栏分别滚到两端，切换到另一个对话再切回，用键盘重排标签，然后逐个关闭标签，直到只剩一个和没有标签。使用原生 `WM_NCHITTEST` 检查相邻侧边栏与对话标题栏、可见标签、标题栏操作按钮和多余空白。
+- **预期**：视口外的标签不会阻挡可见滚动视口以外的原生拖动。相邻标题栏和未使用的标题栏空白返回 `HTCAPTION`；可见标签和操作返回 `HTCLIENT`。切换、重排和关闭标签后，这些命中区域保持正确。
+- **链接规格**：`04-ux/07-ui-design-system.md` §10
+- **验收**：品质
+- **状态**：Windows 原生回归由 `scripts/e2e-work-panel-drag.mjs`（`pnpm test:e2e:work-panel-drag`）覆盖；macOS/Linux 原生拖动尚未验证。
 
 #### E2E-LAYOUT-sidebar-project-group-fold
 
@@ -9468,6 +9497,16 @@ Follow the [current S3 acceptance scenario](/spec/06-delivery/04-e2e-test-plan#e
 - **预期：** 即使文件管理器视图可用，带位置的引用仍打开宿主只读文件选项卡。文件请求保留行列号，查看器滚动到视口中间的目标行；打开路径和文件内容与引用目标一致。
 - **规格：** `04-ux/08` §11.8；ADR 0262。
 - **状态：** `node scripts/e2e-file-ref-line-scroll.mjs` 在隔离 Electron 中挂载生产 `LinkifiedText` 与 `FilesTab`，并通过文件系统 IPC fixture 提供文件内容；不访问真实项目文件或模型服务。
+
+#### E2E-263：折叠项目后重置已加载的会话历史
+
+- **前提：** 侧边栏中保留一个至少有 12 条未置顶会话的项目，并可展开该项目组。
+- **步骤：** 1. 展开项目，确认最新的 10 条会话和“加载更多”控件可见。2. 点击“加载更多”，确认 12 条会话全部显示。3. 折叠项目后再次展开。4. 检查显示的会话和“加载更多”数量。
+- **预期：** 重新展开项目后只显示最新的 10 条未置顶会话，“加载更多”显示剩余的 2 条。折叠只清除该项目已加载更多的状态；会话选择和其他项目组不变。
+- **规格：** `04-ux/08-component-spec.md` §3.9；`04-ux/09-interaction-patterns.md` §1.6。
+- **验收：** C / D / Quality。
+- **里程碑：** MVP 后维护。
+- **覆盖：** `scripts/e2e/sidebar-row-states.mjs` 使用 Host fixture 项目和真实 CDP 指针点击验证完整用户流程。`sidebar-project-sessions.test.mjs` 覆盖初始页面、加载更多、折叠重置和项目隔离；`app-store-sidebar.test.mjs` 验证侧边栏折叠与加载更多使用对应状态转换。
 
 ### 导入扩展时发现 GUI 环境下的可执行文件回归（#1173）
 

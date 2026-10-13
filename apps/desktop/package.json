@@ -1,6 +1,6 @@
 {
   "name": "@pi-desktop/desktop",
-  "version": "0.19.1",
+  "version": "0.20.1",
   "desktopName": "pi-desktop.desktop",
   "private": true,
   "description": "PI-Desktop Electron application",
@@ -225,6 +225,10 @@
       ],
       "icon": "build/icon.ico",
       "extraResources": [
+        {
+          "from": "resources/app-update.yml",
+          "to": "app-update.yml"
+        },
         {
           "from": "../../target/release/pi-desktop-host-core.exe",
           "to": "bin/pi-desktop-host-core.exe"

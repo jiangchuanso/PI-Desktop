@@ -2,6 +2,14 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const frEntries: ChangelogEntry[] = [
   {
+    "version": "0.19.1",
+    "date": "2026-10-13",
+    "highlights": [
+      "En revenant au mode personnalisé, votre adresse proxy enregistrée est restaurée même si le brouillon actuel est vide ou invalide.",
+      "Les actions du navigateur expirent et récupèrent lorsque la page ne répond plus, au lieu de rester bloquées indéfiniment.",
+    ],
+  },
+  {
     "version": "0.19.0",
     "date": "2026-10-13",
     "highlights": [

@@ -2,6 +2,14 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const trEntries: ChangelogEntry[] = [
   {
+    "version": "0.19.1",
+    "date": "2026-10-13",
+    "highlights": [
+      "Özel moda döndüğünüzde geçerli bir taslak olmasa bile kayıtlı özel proxy adresiniz geri yüklenir.",
+      "Tarayıcı yanıt vermediğinde işlemler zaman aşımına uğrayıp kurtarılır; araç çağrıları süresiz beklemez.",
+    ],
+  },
+  {
     "version": "0.19.0",
     "date": "2026-10-13",
     "highlights": [

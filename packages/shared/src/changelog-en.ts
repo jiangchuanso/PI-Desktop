@@ -2,6 +2,14 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const enEntries: ChangelogEntry[] = [
   {
+    version: "0.19.1",
+    date: "2026-10-13",
+    highlights: [
+      "Restore your saved custom proxy URL when returning to Custom mode, even if the current draft is empty or invalid.",
+      "Browser actions time out and recover when a page stops responding, instead of leaving tool calls hanging indefinitely.",
+    ],
+  },
+  {
     version: "0.19.0",
     date: "2026-10-13",
     highlights: [

@@ -2,6 +2,14 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const ptBREntries: ChangelogEntry[] = [
   {
+    "version": "0.19.1",
+    "date": "2026-10-13",
+    "highlights": [
+      "Ao voltar ao modo personalizado, o endereço de proxy salvo é restaurado mesmo quando o rascunho atual está vazio ou inválido.",
+      "As ações do navegador expiram e se recuperam quando a página para de responder, em vez de ficarem aguardando indefinidamente.",
+    ],
+  },
+  {
     "version": "0.19.0",
     "date": "2026-10-13",
     "highlights": [

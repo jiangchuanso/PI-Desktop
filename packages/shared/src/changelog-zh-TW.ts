@@ -2,6 +2,14 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const zhTWEntries: ChangelogEntry[] = [
   {
+    version: "0.19.1",
+    date: "2026-10-13",
+    highlights: [
+      "返回自訂 Proxy 模式時，即使目前草稿為空白或無效，也會還原已儲存的 Proxy 位址。",
+      "瀏覽器頁面沒有回應時，操作會逾時並復原，不再無限等待。",
+    ],
+  },
+  {
     version: "0.19.0",
     date: "2026-10-13",
     highlights: [

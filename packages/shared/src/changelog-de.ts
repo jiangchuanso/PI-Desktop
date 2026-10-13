@@ -2,6 +2,14 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const deEntries: ChangelogEntry[] = [
   {
+    "version": "0.19.1",
+    "date": "2026-10-13",
+    "highlights": [
+      "Beim Wechsel zurück zum benutzerdefinierten Modus wird Ihre gespeicherte Proxy-Adresse wiederhergestellt, auch wenn der aktuelle Entwurf leer oder ungültig ist.",
+      "Browseraktionen laufen bei einer nicht reagierenden Seite in eine Zeitüberschreitung und werden wiederhergestellt, statt unbegrenzt zu warten.",
+    ],
+  },
+  {
     "version": "0.19.0",
     "date": "2026-10-13",
     "highlights": [

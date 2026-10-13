@@ -2,6 +2,14 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const esEntries: ChangelogEntry[] = [
   {
+    "version": "0.19.1",
+    "date": "2026-10-13",
+    "highlights": [
+      "Al volver al modo personalizado, se restaura la dirección del proxy guardada aunque el borrador actual esté vacío o no sea válido.",
+      "Las acciones del navegador vencen y se recuperan cuando una página deja de responder, en vez de quedarse esperando indefinidamente.",
+    ],
+  },
+  {
     "version": "0.19.0",
     "date": "2026-10-13",
     "highlights": [

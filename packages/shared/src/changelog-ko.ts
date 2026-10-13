@@ -2,6 +2,14 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const koEntries: ChangelogEntry[] = [
   {
+    "version": "0.19.1",
+    "date": "2026-10-13",
+    "highlights": [
+      "사용자 지정 모드로 돌아갈 때 현재 초안이 비어 있거나 잘못되어도 저장된 프록시 주소가 복원됩니다.",
+      "브라우저 페이지가 응답하지 않으면 작업이 시간 초과 후 복구되어 도구 호출이 무한정 멈추지 않습니다.",
+    ],
+  },
+  {
     "version": "0.19.0",
     "date": "2026-10-13",
     "highlights": [

@@ -2,6 +2,14 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const zhCNEntries: ChangelogEntry[] = [
   {
+    version: "0.19.1",
+    date: "2026-10-13",
+    highlights: [
+      "返回自定义代理模式时，即使当前草稿为空或无效，也会恢复已保存的代理地址。",
+      "浏览器页面无响应时，操作会超时并恢复，不再无限等待。",
+    ],
+  },
+  {
     version: "0.19.0",
     date: "2026-10-13",
     highlights: [

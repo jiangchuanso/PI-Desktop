@@ -171,7 +171,7 @@ function useResolveChatFileRef() {
         : null;
       let result;
       try {
-        result = await api.fsResolveRef(anchored ?? raw, sessionId);
+        result = await api.fsResolveRef(anchored ?? raw, ownerId);
       } catch {
         showToast(t("chat.fileRefLookupFailed"), { variant: "error" });
         return null;
@@ -223,9 +223,10 @@ function useResolveChatFileRef() {
  */
 export function useOpenChatFileRef() {
   const { t } = useTranslation();
+  const paneSessionId = useSlotSessionId();
   const resolveRef = useResolveChatFileRef();
   const workspacePath = useAppStore((s) => s.workspace?.path ?? null);
-  const sessionId = useAppStore((s) => s.activeSessionId);
+  const sessionId = useAppStore((s) => paneSessionId || s.activeSessionId);
   const openFile = useAppStore((s) => s.openFileInWorkPanel);
   const openUrl = useAppStore((s) => s.openUrlInWorkPanel);
   const openTab = useAppStore((s) => s.openWorkPanelTab);
@@ -252,6 +253,7 @@ export function useOpenChatFileRef() {
         }
         const hasPosition = line !== undefined || column !== undefined;
         if (
+          !current.workspace?.remote &&
           !hasPosition &&
           resolved.inProject &&
           resolved.primary &&
@@ -261,7 +263,7 @@ export function useOpenChatFileRef() {
           openUrl(resolved.relativePath);
           return;
         }
-        if (resolved.inProject && !hasPosition) {
+        if (!current.workspace?.remote && resolved.inProject && !hasPosition) {
           if (await ensureFileManagerView(workspacePath)) {
             const latest = useAppStore.getState();
             if (
@@ -309,6 +311,8 @@ export function useOpenChatFileRef() {
 export function useRevealChatFileRef() {
   const { t } = useTranslation();
   const resolveRef = useResolveChatFileRef();
+  const paneSessionId = useSlotSessionId();
+  const sessionId = useAppStore((s) => paneSessionId || s.activeSessionId);
   const showToast = useAppStore((s) => s.showToast);
 
   return useCallback(
@@ -317,13 +321,13 @@ export function useRevealChatFileRef() {
         const resolved = await resolveRef(path, baseDir);
         if (!resolved) return;
         try {
-          await api.fsReveal(resolved.path);
+          await api.fsReveal(resolved.path, sessionId);
         } catch {
           showToast(t("chat.fileRevealFailed"), { variant: "error" });
         }
       })();
     },
-    [resolveRef, showToast, t],
+    [resolveRef, sessionId, showToast, t],
   );
 }
 

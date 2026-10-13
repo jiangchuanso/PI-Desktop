@@ -132,13 +132,14 @@ export function registerAgentIpc({
         errorCode: ErrorCodes.TURN_NOT_FOUND,
       });
     }
-    const context = await sidecar.call<{ projectPath?: string; supportsVision: boolean }>(
+    const context = await sidecar.call<{ projectPath?: string; remoteWorkspace?: unknown; supportsVision: boolean }>(
       "agent.steeringContext", { sessionId: req.sessionId, expectedTurnId: req.expectedTurnId },
     );
+    const localProjectPath = context.remoteWorkspace ? undefined : context.projectPath;
     const mcpExpansion = /^\/mcp:\S/.test(req.content)
       ? expandMcpInvocation(
           req.content,
-          await composerCommandService.buildComposerCommands(context.projectPath ?? null),
+          await composerCommandService.buildComposerCommands(localProjectPath ?? null),
           Boolean(req.attachments?.length),
         )
       : null;
@@ -146,7 +147,7 @@ export function registerAgentIpc({
     // shows and where each image block sits in the prompt.
     const steerContent = mcpExpansion?.expanded ?? req.content;
     const prepared = await preparePromptAttachments(
-      dataDir, req.sessionId, context.projectPath, req.attachments ?? [],
+      dataDir, req.sessionId, localProjectPath, req.attachments ?? [],
       context.supportsVision, steerContent,
     );
     const session = await host.call<{ session?: { messages?: UiMessage[] } }>("session.get", {
@@ -232,7 +233,7 @@ export function registerAgentIpc({
       ? expandMcpInvocation(
           req.content,
           await composerCommandService.buildComposerCommands(
-            typeof session.projectPath === "string" ? session.projectPath.trim() || null : null,
+            !session.remoteWorkspace && typeof session.projectPath === "string" ? session.projectPath.trim() || null : null,
           ),
           Boolean(req.attachments?.length),
         )
@@ -355,7 +356,7 @@ export function registerAgentIpc({
           ? req.content.slice(1, commandEnd === -1 ? undefined : commandEnd)
           : "";
         const commands = await composerCommandService.buildComposerCommands(
-          launch.projectPath ?? root,
+          session.remoteWorkspace ? null : launch.projectPath ?? root,
         );
         const command = commands.find((item) => item.name === commandName);
         const activeSkills = new Map(
@@ -407,7 +408,7 @@ export function registerAgentIpc({
       preparedAttachments = await preparePromptAttachments(
         dataDir,
         req.sessionId,
-        typeof session.projectPath === "string" && session.projectPath.trim()
+        !session.remoteWorkspace && typeof session.projectPath === "string" && session.projectPath.trim()
           ? session.projectPath.trim()
           : undefined,
         req.attachments ?? [],

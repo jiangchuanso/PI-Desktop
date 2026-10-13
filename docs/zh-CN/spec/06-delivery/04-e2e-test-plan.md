@@ -392,6 +392,7 @@ task-candidate E2E 从请求工作树运行，但使用主工作区已经准备�
   该 id 以另一种拼写发布（路由前缀、日期戳、部署自己追加的标记）同样算命中：
   答复到达即就地升级该行，不必等到保存。
 - 实时发现的模型行若由服务报告正安全整数上下文/输入或输出上限，则该字段优先使用服务值；未报告字段独立回退到目录元数据。对于未锚定的中继，若模型所有者发布了匹配记录，则优先使用所有者记录；带点/连字符版本别名和一个白名单部署标签不会改写服务端 ID，所有者记录冲突时不会猜测限额。
+  所有者的兄弟键仅在公开键没有表态时补充证据；若至少两个独立发布者一致声明同一规范模型指向所有者前缀下的另一名称，可按 models.dev 的 canonical 声明转换名称，容量仍取自所有者自己的记录，且不改写服务端 ID。
 - **链接规格**：`03-runtime/12-provider-config-schema.md`、`03-runtime/13-model-catalog-and-selection.md`
 - **接受**：B（多模型提供商配置）
 - **里程碑**：M2
@@ -2097,7 +2098,7 @@ hover/focus 不带移位标签，项目标题 hover/focus 路径显示
 #### E2E-048c：分离含聊天的项目文件夹并单独删除
 
 - **前提：** 一个保留的逻辑项目包含一个主文件夹和一个有至少一条已保存聊天的附加文件夹；所有聊天均处于空闲状态。
-- **步骤：** 1) 打开“编辑项目”并移除附加文件夹。2) 保存后检查剩余项目组及该文件夹对应的独立项目行。3) 打开独立项目中的聊天，确认对话记录完整。4) 使用两步删除操作删除该独立项目。5) 检查剩余项目组、项目列表、聊天列表及磁盘上的文件夹。
+- **步骤：** 1) 打开“编辑项目”并移除附加文件夹。2) 保存后检查剩余项目组及该文件夹对应的独立项目行。3) 打开独立项目中的聊天，确认对话记录完整。4) 对独立项目选择“删除项目”，并在确认对话框中明确确认。5) 检查剩余项目组、项目列表、聊天列表及磁盘上的文件夹。
 - **预期：** 从项目组移除文件夹会保留其项目记录、聊天和对话记录，并将其作为独立项目显示。新聊天使用该项目的路径级上下文；共享说明和记忆仍属于原项目组。确认删除后会移除该项目的会话及对话记录，但保留磁盘上的文件夹；原项目组仍保留主文件夹。
 - **链接规格：** `03-runtime/04-data-storage.md`、`04-ux/08-component-spec.md`、`04-ux/09-interaction-patterns.md`、ADR 0249、ADR 0251。
 - **验收：** C（项目和聊天交互）、F（持久化）、品质。
@@ -2471,6 +2472,7 @@ MainChat 弥补了缺口。 Maximized/fullscreen 调用保留最新的
   截图视口在完成前保持稳定，完成后 `innerWidth`/`innerHeight` 与最新请求尺寸一致。同一页面的截图串行执行，
   不阻塞其他标签。失败截图会解除尺寸锁定；隐藏或关闭页面不会意外显示页面，也不会把排队截图转发到其他页面。
   重建或释放销毁的 guest 后不残留孤立原生视图。无需重复截图来修复布局。
+- **超时恢复**：任一截图 API 超过 30 秒仍未完成时，以 `TIMEOUT` 失败，分离卡住的 CDP 会话并释放该页面的截图队列；后续截图可以重新连接并继续。
 - **关联规范**：英文源规格中的 [E2E-BROWSER-capture-resize](../../../spec/06-delivery/04-e2e-test-plan.md#e2e-browser-capture-resize-capture-preserves-live-placement-and-restores-the-latest-viewport)。
 - **状态**：原生 Electron 截图/尺寸及窗口切换期间的位置验证由 `node scripts/e2e-browser-capture-resize.mjs` 自动执行（保留产物）。`apps/desktop/test/browser-capture-resize.test.mjs` 覆盖生产 Host/Pane/CDP 路径、失败、排队、标签关闭、guest 重建及面板裁剪。
 
@@ -2578,6 +2580,16 @@ MainChat 弥补了缺口。 Maximized/fullscreen 调用保留最新的
 
 - **完整历史回归**：打开包含 140 条消息的会话，不向上翻页，选择复制整个对话；剪贴板必须包含第 1–140 条消息。从搜索上下文窗口和长消息截断预览重复验证。保留当前可见的生成中文字；读取失败时提示错误，剪贴板保持不变。仅在选择复制后读取完整历史，不改变阅读位置。运行 `node scripts/e2e-copy-conversation.mjs`。
 - 编辑时复制应使用草稿选区，无选区时复制整份草稿；选中消息文本应选中草稿。菜单不提供编辑、删除或版本切换；取消后原消息及其菜单保持不变。自动化验证：`node scripts/e2e-message-edit-copy.mjs`。
+
+#### E2E-CHAT-delete-turn-preserves-other-live-outputs：删除回合后保留其他实时输出
+
+- **前提条件**：会话有三个已完成的回合。渲染器包含这三个回合的助手和工具输出，但由于 outbox 追加仍在等待，持久化内容至少缺少一条输出。
+- **步骤**：删除中间的用户回合；转录替换完成后重新加载会话。
+- **预期**：被删除的用户回合及其输出仍然不存在；第一个和第三个回合的用户、助手和工具消息在删除前后及重新加载后都保留。待处理的追加不能在转录替换后执行并恢复被删除的回合。
+- **关联规范**：`03-runtime/04-data-storage.md`、`03-runtime/06-host-rpc-protocol.md`、ADR 0060
+- **验收**：C（聊天流）、F（持久化）、质量
+- **里程碑**：M6+
+- **状态**：单元已覆盖（`delete-message-preserves-transcript.test.mjs`、`persistence-outbox.test.mjs`）；完整桌面旅程仍为草稿
 
 #### E2E-CHAT-copy-formula-as-tex：复制渲染后的公式得到源码
 
@@ -5626,6 +5638,7 @@ eleven-tool-round desktop paths are verified by
 | A / C — Unicode stdio 成帧 | E2E-RPC-unicode-separators |
 | C / G / Quality — Plugins navigation | E2E-NAV-plugins-button-goes-back |
 | C / D / Quality — 侧边栏行状态 | E2E-LAYOUT-sidebar-row-states |
+| E / Quality — 浏览器截图超时恢复 | E2E-BROWSER-capture-resize |
 | A / C / Quality — 侧栏材质与设置返回 | E2E-LAYOUT-sidebar-settings |
 | C / Quality — 目的页加载与焦点 | E2E-087b |
 | A / H / Quality — 渲染器进程崩溃恢复 | E2E-RUNTIME-renderer-crash-recovery |
@@ -5687,6 +5700,7 @@ eleven-tool-round desktop paths are verified by
 | Security (plugin real-time capabilities) | E2E-PLUGIN-global-shortcut-owns-only-its-own-command、E2E-PLUGIN-permission-gate-for-real-time-capabilities、E2E-PLUGIN-background-audio-and-realtime-connection |
 | C — 对话与流式（展开详情保持阅读位置） | E2E-CHAT-disclosure-toggle-keeps-reading-position |
 | E — 工具与权限（展开详情保持阅读位置） | E2E-CHAT-disclosure-toggle-keeps-reading-position |
+| D（界面表面）/ 品质 — 远程主机添加与配对表单折叠 | E2E-REMOTE-HOST-settings-compact-inventory |
 | E — 工具与权限（能力跨级别迁移） | E2E-CAPABILITY-move-across-levels |
 | F — 持久化（能力跨级别迁移） | E2E-CAPABILITY-move-across-levels |
 | 品质（能力跨级别迁移） | E2E-CAPABILITY-move-across-levels |
@@ -6267,23 +6281,8 @@ eleven-tool-round desktop paths are verified by
 
 - **前提条件**：三个持久项目 A、B 和 C，每个都至少有一个带转录本的会话；A 已归档并作为
   侧边栏选项卡保留；B 是活动工作区；C 是一个已存储双文件夹项目组的根目录。
-- **步骤**：打开设置 → 项目存档，打开 A 的行菜单，选择删除项目，并在对话框中确认。然后
-  从侧边栏项目菜单对正处于活动工作区的 B 重复同一操作：第一次点击只是武装该项，只有第二次
-  点击才会移除 B。接着对 C 尝试同一操作，然后对一个宿主已不再知晓的路径尝试，最后在 D 的
-  某个任务仍在运行时尝试删除 D。
-- **预期**：对话框会指明项目名称，说明该项目及其会话与转录本会被永久移除，并说明磁盘上的
-  文件夹不会被删除；确认之前不会移除任何内容，被武装后放置不管的项会自行解除武装、不会移除
-  任何东西。确认后，持久项目行、该项目的会话、其转录本、scratch 和 review 文件以及该项目的
-  持久记忆均已消失，而磁盘上的文件夹保持原样。被删除的项目会立即从设置 → 项目存档和侧边栏
-  中消失，重新加载后依然如此：没有保留的选项卡、没有最近项目条目、没有由会话推导的行，也没有
-  残留的 pin、archive 或 order 偏好。其他所有项目的会话与转录本不受影响。当被删除的项目曾是
-  活动工作区时，工作区回退到另一个已打开的项目
-  或 Temporary，且下次启动不会重新打开已删除的路径。磁盘上文件夹已被移动或删除的项目仍可
-  移除。删除 C 会被拒绝并给出提示消息，该组保持不变；宿主已无持久行的路径仍会从项目存档与
-  侧边栏中移除，不会报出缺少项目的错误。当 D 的任务仍在运行时删除 D 会打开确认对话框，而不是给出
-  一条随 toast 消失的警告；对话框会指明正在运行的会话，其确认按钮表述为停止这些任务，取消不会移除
-  任何内容，确认则先停止这些轮次，然后再删除 D（见
-  E2E-PROJECT-delete-running-sessions-are-named-and-stopped）。
+- **步骤**：打开设置 → 项目存档，为 A 选择“删除项目”，确认在任何内容移除前会打开确认对话框。点击 X 并确认 A 仍存在，再打开对话框并明确确认删除。然后从侧边栏项目菜单对活动项目 B 重复：选择删除、取消并确认 B 仍存在，再重新打开对话框并确认删除。随后尝试删除 C、宿主已不再知晓的路径，以及仍有任务运行的第四个项目 D。
+- **预期**：两个界面的空闲项目在选择“删除项目”后都会立即打开确认对话框。点击 X、“取消”、按 Escape 或点击遮罩层只会关闭对话框，不会移除项目、会话或转录本。对话框会说明项目、所属会话及转录本将被永久移除，并说明磁盘文件夹不会被删除。明确确认后，持久项目行、所属会话、转录本、scratch、review 文件及项目记忆都会移除。项目会立即从设置 → 项目存档和侧边栏消失，重新加载后也不会重新出现：没有保留的选项卡、最近项目条目、会话推导行或残留的 pin/archive/order 偏好。其他项目的会话和转录本不受影响。若删除的是活动项目，工作区会回退到另一个已打开项目或 Temporary，下次启动也不会重新打开该路径。即使项目文件夹已被移动或删除，仍可移除项目。删除 C 会被拒绝并显示提示，项目组保持不变；宿主已无持久行的路径仍会从项目存档和侧边栏移除，不会报缺少项目错误。删除仍有运行任务的 D 时会打开同一个确认对话框并列出运行中的会话，确认按钮会明确表示停止并删除；取消会保留项目和任务，确认则先停止对应轮次再删除 D（见 E2E-PROJECT-delete-running-sessions-are-named-and-stopped）。
 - **链接规格**：`03-runtime/06-host-rpc-protocol.md` §项目、
   `03-runtime/04-data-storage.md`、`04-ux/08-component-spec.md` §3.9、ADR 0251
 - **验收**：D（工作区）、F（持久化）、品质
@@ -6317,21 +6316,13 @@ eleven-tool-round desktop paths are verified by
 
 ### E2E-SESSION-two-click-delete-arms-first
 
-- **前提条件**：一个包含一个空闲会话和一个运行中会话的项目，二者都可从侧边栏会话菜单、侧边栏
-  项目菜单以及项目索引到达。
-- **步骤**：打开空闲会话的会话菜单，按一次删除，并让该项保持武装直到武装超时，然后再按一次以
-  确认移除。对来自侧边栏菜单与项目索引的项目行重复该操作。
-- **预期**：第一次按下不会移除任何东西，并把该项标签改为 `nav.deleteTaskConfirm` /
-  `project.deleteMenuConfirm`（"Delete?" / "确认删除？"）且带 `data-armed="true"`；菜单保持
-  打开，点击外部、按 Escape 或武装超时都会解除武装且不移除任何内容。只有第二次按下才会移除
-  该会话及其转录本和该行，也只有对项目行的第二次按下才会移除空闲项目。会话与项目永远不会共用
-  一次武装。删除仍有运行中轮次的项目时，仍会打开指明这些会话并停止它们的对话框（见
-  E2E-PROJECT-delete-running-sessions-are-named-and-stopped）。
-- **链接规格**：`04-ux/09-interaction-patterns.md` §1.6、D421、D431、D441
+- **前提条件**：一个项目包含一个空闲会话和一个仍在运行中的会话，两者都可从侧边栏会话菜单访问。
+- **步骤**：打开空闲会话菜单并按一次“删除”，确认该项进入武装状态；按 Escape 或等待武装超时后，确认会话仍存在。重新打开菜单，连续点击两次“删除”，确认会话被移除。待运行中的会话结束后，对它重复武装、取消和确认流程。
+- **预期**：第一次点击不会移除内容，并把标签改为 `nav.deleteTaskConfirm`（“Delete?” / “确认删除？”），且带 `data-armed="true"`；菜单保持打开，点击外部、按 Escape 或等待超时都会解除武装且不移除内容。只有第二次点击才会删除会话及其转录本。项目删除则必须通过明确的确认对话框（见 E2E-PROJECT-delete-removes-project-and-owned-sessions）。
+- **链接规格**：`04-ux/09-interaction-patterns.md` §1.6、D421、D431
 - **验收**：品质
 - **里程碑**：M6+
-- **状态**：部分自动化 —— `apps/desktop/test/two-step-delete.test.mjs` 固定了共享的武装与它的
-  超时、所有已发布语言包中的两个标签，以及第一次按下只做武装；端到端旅程仍为草稿
+- **状态**：部分自动化 —— `apps/desktop/test/two-step-delete.test.mjs` 固定了会话武装状态、超时及本地化标签；端到端旅程仍为草稿
 
 ### US-UI-59 基于会话的后台工具
 - 在项目 A 中启动可见轮次，在项目 B 运行时切换到项目 B，并且
@@ -7452,10 +7443,10 @@ eleven-tool-round desktop paths are verified by
 - **步骤**：
   1. 打开设置 → 常规。确认网络卡提供系统 / 直连 / 自定义。从未配置过代理的配置文件默认是系统。
   2. 选择自定义。确认代理 URL、默认绕过列表和测试。输入 `not-a-proxy` 并失焦。确认内联错误且未保存。
-  3. 输入 `socks5://127.0.0.1:1080` 或 `http://127.0.0.1:7890` 并失焦。确认 `settings.get` 中 `networkProxy.mode` 为 `custom`。
+  3. 输入 `socks5://127.0.0.1:1080` 或 `http://127.0.0.1:7890` 后，立即选择“系统”，中间不要点击其他位置。确认 `settings.get` 中 `mode` 为 `system`，且 URL 与绕过列表仍保留。再选回“自定义”，确认两个值恢复到输入框，且 `mode` 为 `custom`。
   4. 对正在监听的代理点测试，确认已连接；对关闭的端口点测试，确认失败且不改已保存 URL。对需要认证的 HTTP / SOCKS5 代理填入 `user:pass@` 后再测，确认是已连接而不是 `net::ERR_NO_SUPPORTED_PROXIES`（issue #490）。
   5. 保存自定义代理后，通过已配置供应商发送一条简短提示。确认供应商请求和响应经过代理；即使 SOCKS5 代理将完整 bind 响应合并在一个 TCP 数据块中，请求仍能完成。再确认扩展市场刷新和 models.dev 刷新走代理；绕过列表中的回环地址不走代理。
-  6. 切到直连再切回系统。确认无需重启应用即可生效。
+  6. 切到直连再切回系统。确认无需重启应用即可生效。再选回自定义，确认第 3 步的 URL 与绕过列表原样回来（系统/直连期间它们保留在 `AppSettings.networkProxy` 里）。
 - **预期**：自定义覆盖模型请求、市场、更新、插件 `net.fetch` 和内置浏览器。工作区 Bash 的 `env` 看不到该设置写入的 `HTTP_PROXY` / `ALL_PROXY`。OAuth 仍走系统浏览器。`file:` / `ftp:`、SOCKS4 以及百分号编码错误的认证信息均被拒绝。带账号密码的 HTTP / SOCKS5 测试与应用不再报 `net::ERR_NO_SUPPORTED_PROXIES`（issue #490）。无协议/存储版本升级。
 - **链接规格**：`04-ux/06-settings-ia.md`、`03-runtime/07-process-model.md`、ADR 0177、D340
 - **验收**：B（设置）、F（供应商）、安全

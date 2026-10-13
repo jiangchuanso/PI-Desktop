@@ -2,9 +2,27 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const deEntries: ChangelogEntry[] = [
   {
+    "version": "0.19.0",
+    "date": "2026-10-13",
+    "highlights": [
+      "Erstellen Sie SSH-Arbeitsbereichsprojekte auf der Startseite, durchsuchen Sie entfernte Ordner in einem eigenen Dialog und wählen Sie eine SSH-Identität pro Host.",
+      "Fügen Sie einem Projekt geeignete Ordner hinzu oder entfernen Sie sie; bestehende Chats bleiben in ihrem bisherigen Arbeitsbereich.",
+      "Synchronisieren Sie ausgewählte Einstellungen zwischen Geräten, während Projektlisten lokal bleiben.",
+      "Gekoppelte Remote Hosts aktualisieren sich über die geprüfte SSH-Einrichtung auf die aktuelle Desktop-Version und verbinden sich am selben Ort erneut.",
+      "Aktivieren oder deaktivieren Sie mitgelieferte Skills in den Einstellungen und stellen Sie die ausgelieferten Vorgaben wieder her.",
+      "Die Update-Karte zeigt den Downloadfortschritt und bietet klare Aktionen zum Abbrechen oder erneuten Versuchen.",
+      "Ihre eigene Proxy-Konfiguration bleibt beim Wechsel des Netzwerkmodus erhalten.",
+      "Beim Löschen einer Nachricht bleiben laufende KI-Ausgaben und die übrigen Gesprächsnachrichten erhalten.",
+      "Hängende Browser-Screenshot-Aufnahmen werden beendet und wiederhergestellt, statt die Seite festzusetzen.",
+      "Der mitgelieferte Modellkatalog enthält neue Modelle und aktuelle Fähigkeitsdaten.",
+      "AskTool-Fragen haben jetzt eine klare Längenbegrenzung; zu lange Fragen werden vor dem Öffnen der Karte abgewiesen.",
+    ],
+  },
+  {
     "version": "0.18.0",
     "date": "2026-10-09",
     "highlights": [
+      "SSH-Arbeitsbereichsprojekte auf der Startseite benennen und Ordner in einem eigenen Dialog wählen; Modellanfragen und Zugangsdaten bleiben auf Ihrem Computer.",
       "Richten Sie den Jev-Klassifizierer von TypeSafe über „Dienst hinzufügen“ ein; der API-Schlüssel wird vor dem Speichern geprüft.",
       "Cloud-Synchronisierung ist in den Einstellungen der installierten Version verfügbar und als experimentell gekennzeichnet. Projektlisten bleiben auf dem jeweiligen Gerät.",
       "Fügen Sie über „Dienst hinzufügen“ Plugin-eigene API-Schlüssel-Dienste hinzu, mit lokalisierten Beschreibungen und Modellerkennung nach der Einrichtung.",
@@ -17,6 +35,7 @@ export const deEntries: ChangelogEntry[] = [
       "Plugins können Netzwerkweiterleitungen prüfen oder ablehnen; bestehende Fetch-Aufrufe folgen Weiterleitungen weiterhin standardmäßig.",
       "Stoppen Sie einen laufenden Unteragenten direkt über seine Karte oder Detailansicht oder alle Unteragenten der aktuellen Sitzung, ohne den Hauptagenten zu stoppen.",
       "Sehen Sie die gesamte Sitzungsdauer, die kumulierte Modellantwortzeit und deren Anteil an der Sitzung im Kontextverbrauchsfenster.",
+      "Ein gekoppelter entfernter Host, der hinter der Desktop-Version zurückbleibt, aktualisiert sich jetzt über dieselbe verifizierte SSH-Installation und wird an Ort und Stelle neu gekoppelt, statt Sie nur zum Aktualisieren aufzufordern.",
     ],
   },
   {

@@ -5921,6 +5921,7 @@ that was sitting at the bottom — including after the turn had finished.
 
 ## 2026-09-17 — Session and project rows delete on the second click (D441)
 
+- **Amended 2026-10-09**: Project menus now open `ProjectDeleteDialog` immediately, including for idle projects; the project-menu Close action is removed in favor of reversible Archive. Only the dialog's explicit confirm action deletes; X, Cancel, Escape, and backdrop clicks dismiss without changes. Session deletion retains the two-click arm. This supersedes the idle-project shortcut recorded below.
 - The sidebar's session item and both project menus (sidebar and Projects index)
   removed the row on the first click of Delete. Every other destructive row
   action — the settings provider rows, vendor accounts, and the capability

@@ -367,7 +367,8 @@ export function createSidecarRuntime({
   s.setProjectInstructionResolver(async ({ projectPath, path }) => {
     // The root is registered by Electron main from the host-owned session
     // record. The sidecar can provide a target path, never an arbitrary root.
-    const instructions = await loadInstructionChain(projectPath, path);
+    const instructions = projectPath?.startsWith("remote-project:")
+      ? await loadInstructionChain(undefined) : await loadInstructionChain(projectPath, path);
     if (!projectPath || !runtimeState.host) return instructions;
     try {
       const result = await runtimeState.host.call<{

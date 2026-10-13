@@ -2,9 +2,27 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const frEntries: ChangelogEntry[] = [
   {
+    "version": "0.19.0",
+    "date": "2026-10-13",
+    "highlights": [
+      "Créez des projets SSH depuis l’accueil, parcourez les dossiers distants dans une boîte de dialogue dédiée et choisissez une identité SSH par hôte.",
+      "Ajoutez ou retirez des dossiers compatibles d’un projet sans déplacer les conversations existantes de leur espace de travail.",
+      "Synchronisez les paramètres choisis entre appareils tout en gardant les listes de projets locales.",
+      "Les Hosts distants appairés se mettent à jour vers la version actuelle du bureau via l’installation SSH vérifiée, puis se reconnectent sur place.",
+      "Activez ou désactivez les Skills intégrés depuis les paramètres et restaurez les valeurs fournies avec l’application.",
+      "La carte de mise à jour affiche la progression du téléchargement et permet de l’annuler ou de réessayer.",
+      "Votre proxy personnalisé reste configuré lorsque vous changez de mode réseau.",
+      "La suppression d’un message préserve la sortie IA en cours et les autres messages de la conversation.",
+      "Les captures d’écran du navigateur récupèrent après un blocage sans laisser la page figée.",
+      "Le catalogue de modèles intégré a été actualisé avec de nouveaux modèles et leurs capacités actuelles.",
+      "AskTool limite clairement la longueur des questions ; les questions trop longues sont refusées avant l’ouverture de la carte.",
+    ],
+  },
+  {
     "version": "0.18.0",
     "date": "2026-10-09",
     "highlights": [
+      "Créez et nommez des projets SSH depuis l’accueil, choisissez les dossiers dans une boîte de dialogue dédiée et gardez les requêtes et identifiants du modèle sur votre ordinateur.",
       "Configurez le classificateur Jev de TypeSafe depuis Ajouter un service et vérifiez la clé API avant de l'enregistrer.",
       "La synchronisation cloud est disponible dans les paramètres de la version empaquetée et porte la mention « expérimental ». Les listes de projets restent sur chaque appareil.",
       "Ajoutez depuis Ajouter un service des fournisseurs de plugins avec clé API, descriptions localisées et découverte des modèles après configuration.",
@@ -17,6 +35,7 @@ export const frEntries: ChangelogEntry[] = [
       "Les plugins peuvent inspecter ou refuser les redirections réseau ; les appels fetch existants continuent de les suivre par défaut.",
       "Arrêtez un sous-agent en cours depuis sa carte ou ses détails, ou tous ceux de la session en cours, sans arrêter le coordinateur.",
       "Consultez la durée totale de la session, le temps de réponse cumulé du modèle et sa part dans le panneau d'utilisation du contexte.",
+      "Un Host distant appairé qui reste en retard sur la version du bureau se met désormais à niveau via la même installation SSH vérifiée et se réappaire sur place, au lieu de simplement vous demander de le mettre à jour.",
     ],
   },
   {

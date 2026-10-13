@@ -2,9 +2,27 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const enEntries: ChangelogEntry[] = [
   {
+    version: "0.19.0",
+    date: "2026-10-13",
+    highlights: [
+      "Create SSH workspace projects from Home, browse remote folders in a separate dialog, and choose an SSH identity for each host.",
+      "Add or remove eligible folders from a project while its existing chats stay in their original workspace.",
+      "Sync selected settings across devices while keeping project lists local to each device.",
+      "Paired Remote Hosts can update to the current desktop release through verified SSH setup and reconnect in place.",
+      "Enable or disable bundled Skills from Settings and restore the defaults shipped with the app.",
+      "See app-update download progress and use clear cancel or retry actions from the update card.",
+      "Keep custom proxy settings when switching network modes.",
+      "Keep live AI output and the remaining conversation messages when removing a message.",
+      "Browser screenshots recover from stalled captures instead of leaving the page stuck.",
+      "The bundled model catalog now includes new models and current capability details.",
+      "AskTool questions now have a clear length limit, and overlong questions are rejected before a card opens.",
+    ],
+  },
+  {
     version: "0.18.0",
     date: "2026-10-09",
     highlights: [
+      "Create named SSH workspace projects from Home, browse folders in a separate dialog, and keep model requests and credentials on your computer.",
       "Set up TypeSafe's Jev classifier from Add Service and verify its API key before saving.",
       "Find Cloud sync in packaged Settings with its Experimental badge. Project lists stay on each device.",
       "Add plugin-owned API-key services from Add Service, with localized descriptions and model discovery after setup.",
@@ -17,6 +35,7 @@ export const enEntries: ChangelogEntry[] = [
       "Plugins can inspect or refuse network redirects; existing fetch calls still follow redirects by default.",
       "Stop a running subagent directly from its card or detail panel, or stop all subagents in the current session without stopping the coordinator.",
       "See total session time beside cumulative model response time and its share of the session.",
+      "A paired remote Host that falls behind the desktop release now upgrades itself through the same verified SSH install and re-pairs in place, instead of only asking you to upgrade it.",
     ],
   },
   {

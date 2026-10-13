@@ -179,14 +179,16 @@ destination, chat as the home surface, tools and permissions inline.
   redundant supporting paragraph, developer starter cards, or contextual
   quick-action row is rendered (D204/D206).
 - Create project uses one dialog with local folder, Git, and remote host sources.
-  Remote selection offers a connected-host chooser, existing projects, directory
-  browsing, and an absolute path field. Remote project labels follow the Host's
-  directory name. Successful remote selection opens its empty chat in the same
-  home layout and Composer as local selection. The sidebar groups its chats under
-  the remote project and host; New chat keeps that host/project identity. Local
-  and remote projects remain distinct even if their directory names match.
-  Unsupported remote controls remain disabled; remote paths never reach local
-  directory pickers, workspace activation, file previews, or plugin actions.
+  The project name is editable for every source and remains locally managed.
+  Remote selection chooses a connected host and an absolute directory, without
+  a Host project catalog; Settings → Remote Hosts opens the same dialog with the
+  clicked host preselected. Browse opens a separate directory dialog with path
+  entry, parent navigation, directory rows and explicit confirmation. Cancel
+  returns to the project form and restores focus; stale host responses cannot
+  replace the current selection. The same sidebar, switcher, archive and chat
+  workflow manage created projects. Model choices and requests use local settings;
+  remote machines execute admitted workspace tools only. Actual remote paths
+  are display/execution data, never local filesystem activation paths.
 - With transcript: message stream + tool disclosure rows (D071), a contextual
   message-scoped review card immediately after each successful workspace
   Write/Edit row, docked composer, and a session-scoped permission card inline.

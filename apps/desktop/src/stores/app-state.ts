@@ -208,7 +208,12 @@ export type AppState = {
     id: string,
     opts?: { record?: boolean } & NavigationOptions,
   ) => Promise<void>;
-  newSession: (options?: { projectPath?: string | null; remoteProject?: RemoteProjectTarget }) => Promise<void>;
+  newSession: (options?: {
+    projectPath?: string | null;
+    remoteProject?: RemoteProjectTarget;
+    /** Create an isolated session in its own git worktree (ADR 0329). */
+    isolated?: boolean;
+  }) => Promise<void>;
   forkSession: (id: string) => Promise<void>;
   forkAssistantMessage: (messageId: string) => Promise<void>;
   configureActiveSession: (config: {

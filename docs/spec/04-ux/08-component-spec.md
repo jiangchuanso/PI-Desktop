@@ -2213,7 +2213,8 @@ quotes and cell line breaks are escaped, and formula-leading nonnumeric cells
 are exported as text. Clipboard failures produce an error toast.
 
 The expanded view uses a modal dialog with the existing theme tokens, a scrollable
-table and opaque sticky headers, and copy/download controls. Columns retain
+table with visible scrollbars whenever either axis overflows, opaque sticky
+headers, and copy/download controls. Columns retain
 readable minimum widths; narrow previews scroll horizontally instead of crushing
 short labels. It follows streamed rows,
 contains keyboard focus, closes with Escape or Close, and restores focus to its

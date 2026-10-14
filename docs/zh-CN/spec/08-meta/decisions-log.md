@@ -5400,3 +5400,21 @@ Markdown 源码，不是 `text/html` 负载；对禁用行内 HTML 的外部编�
 - 由 `apps/desktop/test/browser-pane-navigation.test.mjs`、
   `apps/desktop/test/browser-local-file-feedback.test.mjs` 与 E2E-059 覆盖。见 ADR 0328、
   `04-ux/08-component-spec.md`、`07-plugins/03-plugin-api.md` 与 `05-security/01-security.md`。
+
+## 2026-10-13 —— 适配器不作标识的端点上的会话身份（D658）
+
+- 对用户自己指向的端点——base URL 主机不属于任何已发布厂商主机的提供商行——agent-runtime
+  在 `openai-completions`、`anthropic-messages` 与 `openai-responses` 三种线协议上补上逐会话身份。在 Completions 与 Anthropic 上，构造出的模型
+  会带上 `compat.sendSessionAffinityHeaders` 与 `sessionAffinityFormat: "openai"`，适配器据此
+  写出 `x-session-affinity` 与 `x-client-request-id`，并在格式为 `openai` 时一并写出
+  `session_id`；Chat Completions 的载荷若不含 `prompt_cache_key`，则补上会话 id 作为该键，按
+  适配器的 64 字符上限截断。行自身 `compat` 仍然优先，该键添加在副本上且排在其它载荷钩子之后。
+- 自建 Responses 行保留适配器原有的 `session_id`、`x-client-request-id` 与缓存键，并额外带上稳定的
+  `x-session-affinity`，让丢弃下划线标头的反向代理仍可路由会话。
+- 该身份覆盖会话回合、子智能体回合、上下文压缩摘要，以及拿到会话 id 的插件一次性调用。属于已发布
+  厂商主机的行（按主机与 `NAMED_ENDPOINT_PRESETS` 比对）、OpenCode 线路自带的
+  `x-opencode-session`，以及已发布厂商主机上 Responses 适配器的行为都保持原有出网字节，因此不改变任何
+  厂商已发布的缓存语义；没有会话 id 的调用方不会得到请求体键或 `x-session-affinity` 标头。
+- 由 `packages/agent-runtime/src/session-affinity.test.ts` 与
+  E2E-PROVIDER-custom-endpoint-session-identity 覆盖。见 issue #1634、
+  `03-runtime/02-agent-runtime.md` §6.3 与 `03-runtime/11-provider-model-system.md`。

@@ -260,6 +260,17 @@ export function registerProviderIpc({
         baseUrl,
         apiKey: secret.value,
         apiStyle: detail.provider?.apiStyle,
+        /*
+          Resolved the same way the model list is resolved, so a service that
+          publishes its model list in another style than it generates in (a
+          subscription plan on Anthropic Messages) is tested with the
+          credentials that actually answer.
+        */
+        discoveryStyle: inferEndpointProfile({
+          baseUrl,
+          apiStyle: normalizeApiStyle(detail.provider?.apiStyle),
+          explicitApiStyle: true,
+        })?.discoveryStyle,
         headers: detail.provider?.headers,
         signal: controller.signal,
       });

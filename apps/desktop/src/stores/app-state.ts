@@ -32,6 +32,7 @@ import type {
 } from "@pi-desktop/shared";
 import type { SettingsTabId } from "../lib/settings-search";
 import type { TranscriptSearchTarget, TranscriptView } from "../lib/transcript-reading";
+import type { TranscriptReadingPosition } from "../lib/transcript-reading-position";
 import type {
   ProjectMeta,
   ProjectSort,
@@ -63,6 +64,8 @@ export type ToastItem = {
   duration: number;
   /** Notification chime is enabled by default. */
   sound: boolean;
+  /** Optional conversation opened when the user activates the toast. */
+  sessionId?: string;
 };
 
 export type ToastOptions = {
@@ -71,6 +74,8 @@ export type ToastOptions = {
   duration?: number;
   /** Suppress the default soft chime when another notification surface already played it. */
   sound?: boolean;
+  /** Make the toast message an explicit conversation-navigation action. */
+  sessionId?: string;
 };
 
 export type AgentTurnResult = {
@@ -202,6 +207,7 @@ export type AppState = {
   refreshSessions: (options?: RefreshSessionsOptions) => Promise<void>;
   prefetchSession: (id: string) => Promise<void>;
   navigateTranscript: (target: Omit<TranscriptSearchTarget, "requestId">) => Promise<void>;
+  restoreTranscriptReading: (sessionId: string, position: TranscriptReadingPosition, signal: AbortSignal) => Promise<boolean>;
   loadTranscriptPage: (sessionId: string, direction: "before" | "after") => Promise<void>;
   returnToLatestTranscript: (sessionId: string) => void;
   selectSession: (

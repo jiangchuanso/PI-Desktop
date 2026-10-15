@@ -117,7 +117,11 @@ Outer frame that positions Topbar, Sidebar, MainChat, and WorkPanel. Owns resize
   stay mounted but are hidden with `visibility: hidden` +
   `content-visibility: hidden` — never `display: none`, which would destroy the
   layout box and its scroll offset — and are `aria-hidden` and non-interactive.
-  Evicting a pane makes its session behave like a cold open on the next visit.
+  Eviction releases the DOM, not the renderer-lifetime reading bookmark. On
+  return, restore the bookmarked message and its viewport offset, loading a
+  bounded historical range when necessary without search focus/highlighting.
+  Explicit disclosure choices and the mounted-window budget survive eviction;
+  bookmarks do not persist across renderer/app restarts.
 - A pane renders the store's live `messages` while its session is the active one
   and its retained snapshot otherwise, so no pane can show another session's rows.
   While a session is running, or still holds live rows the durable page has

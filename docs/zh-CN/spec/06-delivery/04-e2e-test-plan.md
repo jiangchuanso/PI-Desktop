@@ -1346,6 +1346,21 @@ task-candidate E2E 从请求工作树运行，但使用主工作区已经准备�
 - **状态**：草案。2026-09-20 的嵌套披露变更仅把本场景作为静态源码／设计审查的
   预期行为；该范围不新增或运行单元、组件、集成、浏览器、Electron 或 E2E 测试。
 
+#### E2E-TRANSCRIPT-invalid-utf8-window-remains-readable
+
+- **先决条件**：隔离的 Host 配置中有一个会话转录，损坏行前后都有有效消息。完整行内含非法
+  UTF-8 字节：一份夹具把字节放在消息文本中，另一份使消息行无法解析。不使用真实用户数据。
+- **步骤**：通过渲染器的有界 `session.get` 路径以 `messageLimit` 打开会话，分页经过损坏行，
+  再通过 Host API 读取完整历史。比较读取前后的转录文件。
+- **预期**：会话仍可读取。前后有效消息按顺序出现；可解析的损坏文本以 U+FFFD 替代非法字节，
+  无法解析的行会跳过。源转录逐字节不变，分页位置保持一致。
+- **链接规格**：`03-runtime/04-data-storage.md`、ADR 0127。
+- **验收**：C（对话和流）、F（持久性）、质量。
+- **里程碑**：维护。
+- **自动化**：`pnpm test:e2e:transcript-cache` 通过隔离 Host 的有界 `session.get` 验证替代文本
+  和源文件不变；`crates/host-core/src/transcripts_layout_tests.rs` 直接覆盖坏行与布局读取。完整
+  Renderer 用户旅程仍为草案。
+
 #### E2E-041：对话小地图导航长记录
 
 - **先决条件**：会话包含足够的用户和助理轮流
@@ -5807,8 +5822,11 @@ eleven-tool-round desktop paths are verified by
 | C / F / 品质 —— 上下文估算保持安全（校准） | E2E-CONTEXT-estimate-calibration-stays-safe |
 | C — 对话与流式（工具调用 id 唯一） | E2E-RUNTIME-unique-tool-call-ids-per-request |
 | 品质（工具调用 id 唯一） | E2E-RUNTIME-unique-tool-call-ids-per-request |
+| C — 对话与流式（工具执行期间的系统更新恢复） | E2E-RUNTIME-system-update-during-tool-call-restore |
+| 品质（工具执行期间的系统更新恢复） | E2E-RUNTIME-system-update-during-tool-call-restore |
 | C — 对话与流式（循环上下文归属） | E2E-RUNTIME-loop-context-ownership |
 | 品质（循环上下文归属） | E2E-RUNTIME-loop-context-ownership |
+| C / F / 质量 — 转录非法 UTF-8 恢复 | E2E-TRANSCRIPT-invalid-utf8-window-remains-readable |
 | G — 插件宿主生命周期（崩溃上报） | E2E-PLUGIN-crash-report-names-the-exit-code |
 | 品质（崩溃上报） | E2E-PLUGIN-crash-report-names-the-exit-code |
 | F — 持久化（存储的模型绑定数组） | E2E-PROVIDER-stored-binding-array-reads-entry-by-entry |
@@ -9126,6 +9144,19 @@ Follow the [current S3 acceptance scenario](/spec/06-delivery/04-e2e-test-plan#e
 
 - **状态：** 单元测试覆盖；没有端到端驱动对重复转录发出真实提供商请求。
 
+### E2E-RUNTIME-system-update-during-tool-call-restore
+
+- **先决条件：** 一份会话转录，其中一条模型系统记录在工具调用执行期间保存：位于发出该调用的助手行之后、该调用的工具行之前
+  （`beforeMessageId` 为工具行 id）。在启用对话中途系统消息的确定性 Anthropic Messages 夹具下加载进重新创建的运行时；不使用真实凭据。
+- **步骤：** 发一条提示，使运行时组装并发出请求。读取夹具收到的出站请求体。
+- **预期：** 工具调用仍挂在发出它的助手消息上、紧随该消息的文本，不合成只含调用的助手消息。每条对话中途的 `system` 消息都跟在
+  `user` 消息之后，因此提供商不会回 `role 'system' must follow a 'user' message or an 'assistant' message ending in a server tool result`。
+- **规格：** 03-runtime/02-agent-runtime §5c 与 §7.0.0、08-meta/decisions-log D127。**验收：** C（对话与流）、品质。
+  **里程碑：** Post-MVP 回归覆盖。
+- **自动化：** `packages/agent-runtime/src/system-transcript-runtime.test.ts` 把这些行恢复进真实运行时，并把捕获的请求交给 Pi 的 Anthropic 适配器。
+
+- **状态：** 单元测试覆盖；没有端到端驱动对 Anthropic 提供商夹具恢复这类转录。
+
 ### E2E-RUNTIME-loop-context-ownership
 
 - **先决条件：** 一个确定性提供商夹具：前两轮各回一次工具调用，并在第二轮之后像用户 Stop 那样结束回合；不使用真实凭据。
@@ -9646,3 +9677,16 @@ host-created files. The full app's file-preview viewer is covered separately.
 - **步骤：**为目录发布 1M 的模型保存 500K 用户额度。打开 Composer 模型列表，然后发送一条简短消息并检查上下文用量。对目录管理的额度以及模型发现不可用的情况重复验证。
 - **预期：**用户配置的模型行和上下文检查器显示 500K；目录管理的额度跟随已发布值；没有发现信息的已配置模型仍显示保存的额度。模型选择保持不变。
 - **状态：**`apps/desktop/test/composer-models.test.mjs` 自动覆盖用户覆盖值、目录继承值及发现不可用时保留额度；完整的“保存 → 模型列表 → 发送消息 → 上下文检查器”路径仍需手动验证。
+
+### E2E-264：重新打开归档项目后恢复侧栏显示
+
+- **前提条件**：本地文件夹已有持久项目组，且可通过渲染层侧边栏偏好归档。
+- **步骤**：
+  1. 归档项目，确认它从默认侧边栏隐藏，但仍可在“设置”→“项目归档”中找到。
+  2. 点击项目归档页中的“打开”。
+  3. 再次归档，打开“添加项目”，选择同一目录并创建。
+  4. 再次归档，从项目归档页打开其会话。
+- **预期**：每次激活成功后都会清除该路径的归档展示状态、返回聊天并使项目重新显示在侧栏。仅选中详情行而不激活、普通会话刷新都不会更改归档状态。重新选择同一目录会复用现有项目组，不会复制项目或会话数据。
+- **关联规格**：`04-ux/06-settings-ia.md`、`04-ux/09-interaction-patterns.md`、ADR 0294、D659、issue #1653。
+- **验收**：仅在 Host 项目激活成功后，渲染层才恢复该规范化路径的本地归档元数据。
+- **状态**：`apps/desktop/test/app-store-sidebar.test.mjs` 与 `apps/desktop/test/project-create-dialog.test.mjs` 有源码契约覆盖；完整 UI 场景仍为草稿，仅在明确请求且环境可用时运行。

@@ -11149,11 +11149,12 @@ This test plan spec is accepted when:
 
 - **Preconditions**: Built desktop app on macOS, Windows, and Linux; English
   and zh-CN locales are available; a normal main window is open.
-- **Steps**: 1) On Windows, leave the focused main window visible and click its
+- **Steps**: 1) On Windows, maximize the focused main window and click its
   taskbar button; confirm it minimizes while the PI-Desktop taskbar entry
-  remains. Click the same taskbar button again and confirm the window restores
-  and focuses. Cover the window with another app, click the PI-Desktop taskbar
-  entry, and confirm it comes to the front without entering the tray. 2) On
+  remains. Click the same taskbar button again; after the restore settles,
+  confirm the window remains maximized within the display work area and the
+  taskbar stays visible. Cover the window with another app, click the PI-Desktop
+  taskbar entry, and confirm it comes to the front without entering the tray. 2) On
 -  macOS, click the traffic-light minimize control and confirm it hides the
   window to the tray. On Windows/Linux, use the renderer minimize control and
   confirm the native taskbar entry remains available; click it again and
@@ -11164,7 +11165,9 @@ This test plan spec is accepted when:
   zh-CN and invoke macOS app activation while the window is tray-hidden.
 - **Expected**: Windows native taskbar toggling and the Windows/Linux renderer
   minimize controls keep the taskbar entry and round-trip through native
-  minimize/restore; a taskbar click on a covered window brings it to the front.
+  minimize/restore. Restoring a maximized frameless Windows window keeps it
+  within the display work area and leaves the taskbar visible. A taskbar click
+  on a covered window brings it to the front.
   Close to tray is the only Windows/Linux close path that hides the window,
   while Quit exits. On macOS the menu bar icon is a readable transparent
   monochrome PI mark without the rounded application tile, and native minimize

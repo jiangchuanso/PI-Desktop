@@ -124,3 +124,39 @@ test("the connection test of that row uses the same credentials as its model lis
     "a valid key must not be reported as rejected",
   );
 });
+
+test("the connection test probes the effective endpoint when a row has an operation suffix", async (t) => {
+  const row = {
+    ...stepfunPlanRow,
+    baseUrl: "https://api.stepfun.com/step_plan/v1/messages",
+  };
+  const { calls, handlers } = await handlersFor(t, row);
+
+  const result = await handlers.get(IPC.invoke.providersTest)(row.id);
+
+  assert.deepEqual(calls.map((call) => call.url), [
+    "https://api.stepfun.com/step_plan/v1/models",
+  ]);
+  assert.equal(calls[0].headers.Authorization, "Bearer sk-secret");
+  assert.equal(calls[0].headers["x-api-key"], undefined);
+  assert.deepEqual(
+    { ok: result.ok, network: result.network },
+    { ok: true, network: "ok" },
+    "a valid key must not be rejected because the operation suffix was appended",
+  );
+});
+
+test("the connection test probes the resolved effective endpoint, matching model discovery", async () => {
+  const { readMainSource } = await import("./helpers/source-contracts.mjs");
+  const source = await readMainSource("ipc/provider-ipc.ts");
+
+  // Contract (#1687): the probe's baseUrl is the profile's effectiveBaseUrl —
+  // operation suffixes like a saved `/messages` must not send the connection
+  // test to `<endpoint>/messages/models` while the model list on the same
+  // page loads from `<endpoint>/models`.
+  assert.match(
+    source,
+    /const\s+profile\s*=\s*inferEndpointProfile\(\{[\s\S]*?baseUrl,[\s\S]*?explicitApiStyle:\s*true,\s*\}\);[\s\S]*?probeProviderEndpoint\(\{[\s\S]*?baseUrl:\s*profile\?\.effectiveBaseUrl\s*\?\?\s*baseUrl,[\s\S]*?discoveryStyle:\s*profile\?\.discoveryStyle,/,
+    "the connection test must resolve the endpoint profile once and probe its effectiveBaseUrl",
+  );
+});

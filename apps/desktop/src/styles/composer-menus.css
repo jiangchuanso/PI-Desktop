@@ -606,7 +606,7 @@
   border-radius: var(--radius-sm);
 }
 
-.composer-plus-item.active span:last-child {
+.composer-plus-item.active span:last-child:not(.composer-ac-path) {
   color: var(--ds-text-primary);
 }
 

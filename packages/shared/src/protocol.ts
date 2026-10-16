@@ -169,6 +169,9 @@ export const IPC = {
     settingsGet: "pi-desktop/settings/get",
     settingsSet: "pi-desktop/settings/set",
     configSyncGetState: "pi-desktop/configSync/getState",
+    backgroundTasksList: "pi-desktop/backgroundTasks/list",
+    backgroundTasksOutput: "pi-desktop/backgroundTasks/output",
+    backgroundTasksStop: "pi-desktop/backgroundTasks/stop",
     configSyncConfigure: "pi-desktop/configSync/configure",
     configSyncTest: "pi-desktop/configSync/test",
     configSyncSyncNow: "pi-desktop/configSync/syncNow",
@@ -417,6 +420,8 @@ export const IPC = {
     /** Host-originated app settings mutation (e.g. plugin `app.setTheme`). */
     settingsChanged: "pi-desktop/app/event/settingsChanged",
     configSyncChanged: "pi-desktop/configSync/event/changed",
+    /** A chat-started background task started, exited, or was stopped. */
+    backgroundTasksChanged: "pi-desktop/backgroundTasks/event/changed",
     /** What a running sync is doing, while it is still running. */
     configSyncProgress: "pi-desktop/configSync/event/progress",
     extensionsUiPrompt: "pi-desktop/extensions/event/uiPrompt",

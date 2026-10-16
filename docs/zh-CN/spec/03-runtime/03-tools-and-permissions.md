@@ -365,7 +365,7 @@ tool/protocol 名称，请求中单独携带固定的 shell ID。
 2. Unix：众所周知的位置（`/bin/bash`、`/usr/bin/bash`、`/usr/local/bin/bash`、Homebrew），然后是 PATH
 3. Windows：来自 Git 的 Windows 的 `bash.exe` — 派生自 PATH 上的 `git`，然后是标准安装目录，然后是排除 `System32` 中的 WSL 启动器的 PATH
 
-- Unix 调用 `bash -lc`（登录 shell 为 Finder/Dock 启动保留配置文件路径）； Windows 使用 `CREATE_NO_WINDOW` 调用 `bash -c`
+- Unix 调用 `bash -lc`（登录 shell 为 Finder/Dock 启动保留配置文件路径）；Windows 使用 `CREATE_NO_WINDOW` 调用 `bash -c`。负责拥有命令树的隐藏 host-core runner 还会使用 `CREATE_BREAKAWAY_FROM_JOB` 创建，然后被分配到自己的 kill-on-close Job Object 中。这样，启动器或策略 Job 不会成为 Desktop 进程的终止范围。如果 Windows 拒绝 breakaway，runner 会安全失败而不启动命令；shell 本身仍留在 host 拥有的 job 中，因此超时和中止仍会终止完整的命令树。
 - 在 Unix 上，Bash 工具另外探测用户的登录 shell 以获取其信息
   路径 — `$SHELL`（回退 `/bin/zsh` → `/bin/bash` → `/bin/sh`）
   `-lic 'printf %s "$PATH"'`，5 秒范围内，每个进程缓存 — 并注入它
@@ -389,6 +389,18 @@ tool/protocol 名称，请求中单独携带固定的 shell ID。
 - Git Bash 使用发现的 Git 来执行 Windows 可执行文件。
 - Unix Bash 使用经过批准的系统 Bash 条目。
 - 用户中止和超时在返回之前终止整个进程树。
+- `runInBackground: true` 让命令脱离本轮：shell 一启动就返回 `backgroundTaskId`，
+  不再套用超时，进程也不会被 `tools.abort` / `agent.abort` 终止。进程树归宿主
+  所有，通过输入框上方的运行中任务栏展示，可由用户停止或随应用退出而结束。
+    最多同时运行 32 个任务，每个输出流保留最后 256KB。
+- 后台任务先排空输出，再发布最终状态，保留跨管道读取边界的 UTF-8 字符；
+  退出和停止时已排队的输出不会丢失。关闭宿主时发送停止信号不依赖输出锁。
+- 输入框上方保持 Todo、后台命令、Plan/Ask 决策、输入框的既有顺序，没有可配置的
+  显示优先级。任务列表在 `min(200px, 24vh)` 内滚动，不随任务数量无限增高；
+  审批和 Ask 对输入的既有约束不变。
+- 同时只展开一个输出预览；任务运行时，上次读取完成后每秒刷新一次，折叠的日志
+  不读取。预览最多展示 stdout 的 8,000 字符和 stderr 的 4,000 字符，忽略切换前
+  的过期响应。读取或停止失败会显示错误，停止操作可以重试。
 
 初始拒绝名单（可扩展）：
 

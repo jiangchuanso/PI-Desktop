@@ -20,6 +20,7 @@ use tokio::sync::{mpsc, oneshot, Mutex, Semaphore};
 use crate::agent_capabilities::CapabilityLevel;
 use crate::artifacts;
 use crate::audit;
+use crate::background_tasks;
 use crate::notifications;
 use crate::permissions::{PermissionDecision, PermissionEvaluationParams, PermissionManager};
 use crate::plans;
@@ -308,6 +309,27 @@ pub async fn serve(state: Arc<Mutex<AppState>>) -> Result<()> {
     // chord. Keep the native fallback beside the host transport so it remains
     // active even when PI-Desktop is unfocused.
     crate::keyboard::start(tx.clone());
+    // Fan background-task state changes out to the renderer. The supervisors
+    // bump a static counter (no AppState lock involved); this loop watches it
+    // and emits `backgroundTasks.changed` so the composer bar stays current.
+    let background_change_task = {
+        let tx = tx.clone();
+        tokio::spawn(async move {
+            let mut seen = background_tasks::change_counter();
+            loop {
+                tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+                let current = background_tasks::change_counter();
+                if current != seen {
+                    seen = current;
+                    send_notification(
+                        &tx,
+                        "backgroundTasks.changed",
+                        json!({ "version": current }),
+                    );
+                }
+            }
+        })
+    };
     let (input_tx, mut input_rx) = mpsc::unbounded_channel::<StdinEvent>();
     let _stdin_reader = match spawn_stdin_reader(input_tx) {
         Ok(handle) => handle,
@@ -458,6 +480,8 @@ pub async fn serve(state: Arc<Mutex<AppState>>) -> Result<()> {
 
     config_sync_scheduler.abort();
     let _ = config_sync_scheduler.await;
+    background_change_task.abort();
+    let _ = background_change_task.await;
     {
         let mut st = state.lock().await;
         st.shutdown();
@@ -518,6 +542,18 @@ fn request_budget_ms(method: &str, params: &Value) -> Option<u64> {
     }
     if !matches!(method, "tools.execute" | "tools.workspaceExecute") {
         return Some(RPC_REQUEST_BUDGET_MS);
+    }
+    // A background Bash call returns as soon as the process is spawned; the
+    // task lives in the registry, not in this request. The sidecar relay must
+    // not budget it like a foreground execution or the turn's abort path
+    // would race the spawn.
+    let run_in_background = params
+        .get("runInBackground")
+        .or_else(|| params.get("run_in_background"))
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    if run_in_background {
+        return Some(RPC_REQUEST_BUDGET_MS + RPC_TOOL_BUDGET_GRACE_MS);
     }
     // `ToolsExecuteParams` is `#[serde(rename_all = "camelCase")]`, so the wire
     // carries `toolName` / `timeoutMs`. Reading the snake_case spellings here
@@ -3784,6 +3820,45 @@ async fn handle_request(
             }
             Ok(json!({ "tools": definitions }))
         }
+        "backgroundTasks.list" => {
+            let st = state.lock().await;
+            Ok(json!({
+                "tasks": st.background_tasks.summaries(),
+                // The change counter is the single version source: supervisors
+                // bump it on every transition and the renderer re-lists on the
+                // matching notification.
+                "version": background_tasks::change_counter(),
+            }))
+        }
+        "backgroundTasks.output" => {
+            let id = params
+                .get("id")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| rpc_err(1002, "id required", "INVALID_PARAMS"))?;
+            let st = state.lock().await;
+            match background_tasks::task_output(&st.background_tasks, id).await {
+                Ok(Some(output)) => Ok(output),
+                // `NOT_FOUND` is the registered, documented code for an unknown
+                // entity id; a dedicated TASK_NOT_FOUND would be a new contract
+                // (ErrorCodes + 08-error-codes) for no behavioural gain.
+                Ok(None) => Err(rpc_err(1007, "task not found", "NOT_FOUND")),
+                Err(message) => Err(rpc_err(1000, message, "INTERNAL")),
+            }
+        }
+        "backgroundTasks.stop" => {
+            let id = params
+                .get("id")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| rpc_err(1002, "id required", "INVALID_PARAMS"))?;
+            let st = state.lock().await;
+            // Signalling is enough: the supervisor kills the tree, records the
+            // terminal state, and bumps the change counter, which fans out the
+            // `backgroundTasks.changed` notification for this same task.
+            let found = background_tasks::stop_task(&st.background_tasks, id)
+                .await
+                .map_err(|message| rpc_err(1000, message, "INTERNAL"))?;
+            Ok(json!({ "ok": true, "found": found }))
+        }
         "tools.execute" => {
             let call_started = std::time::Instant::now();
             let p: ToolsExecuteParams = serde_json::from_value(params.clone())
@@ -3859,7 +3934,11 @@ async fn handle_request(
             // Register before permission evaluation so tools.abort can cancel
             // an approval wait as well as an already-spawned process.
             let cancellation_receiver = if remote_workspace.is_some()
-                || matches!(p.tool_name.as_str(), "Bash" | "GenerateImages")
+                || (matches!(p.tool_name.as_str(), "Bash" | "GenerateImages")
+                    // A background Bash task is detached from the turn: it
+                    // never joins the per-tool-call cancellation registry, so
+                    // tools.abort / agent.abort cannot kill it.
+                    && !p.run_in_background)
             {
                 let mut st = state.lock().await;
                 match st.register_bash_cancellation(&p.session_id, &p.tool_call_id) {
@@ -4315,6 +4394,8 @@ async fn handle_request(
                         cancellation,
                         output_tx: Some(tx.clone()),
                         extra_env: worktree_env.clone(),
+                        run_in_background: p.run_in_background,
+                        app_state: Some(state.clone()),
                     });
                 }
 

@@ -24,6 +24,7 @@ import { registerSessionIpc } from "./session-ipc";
 import { registerSettingsIpc } from "./settings-ipc";
 import { registerStorageIpc } from "../storage/ipc";
 import { registerConfigSyncIpc } from "./config-sync-ipc";
+import { registerBackgroundTasksIpc } from "./background-tasks-ipc";
 import { registerSkillsIpc } from "./skills-ipc";
 import { registerAgentImportIpc } from "./agent-import-ipc";
 import { registerRemoteHostIpc } from "./remote-host-ipc";
@@ -294,6 +295,10 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     registrar,
     getHost,
     sendToRenderer,
+  });
+  registerBackgroundTasksIpc({
+    registrar,
+    getHost,
   });
   registerProviderIpc({
     registrar,

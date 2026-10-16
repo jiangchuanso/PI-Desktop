@@ -424,6 +424,24 @@ Host execution baseline:
 - A command that exits non-zero returns `ok: false`, `isError: true`, and
   `errorCode: TOOL_FAILED` while preserving its `exitCode`, stdout, and stderr
   in `content` so the agent can diagnose the command without blindly retrying.
+- `runInBackground: true` detaches the command from the turn: the call returns
+  `backgroundTaskId` as soon as the shell starts, no timeout applies, and the
+  process survives `tools.abort` and `agent.abort`. The host owns the process
+  tree, reports it through the composer's running-tasks bar, and stops it on
+  request or on app shutdown. At most 32 tasks run concurrently and each stream
+  keeps its last 256KB.
+- Background output is drained before a terminal state is published, including
+  output queued when the process exits or is stopped. UTF-8 characters split
+  across pipe reads remain intact. Shutdown signals do not acquire output locks.
+- The task list keeps the existing Composer order: Todo, background commands,
+  Plan/Ask decisions, then the input. There is no configurable display priority.
+  The list scrolls within `min(200px, 24vh)` so additional tasks do not displace
+  the decision surfaces. Existing approval and Ask input gating is unchanged.
+- Only one output preview is open at a time. While its task runs, the Renderer
+  refreshes that preview at one-second intervals after the previous read settles;
+  collapsed outputs are not fetched. The preview shows at most 8,000 stdout
+  characters and 4,000 stderr characters. Late reads from a previous selection
+  are ignored. Read/stop failures are visible and stopping can be retried.
 
 Shell catalog (D190) exposes the stable IDs `windows-powershell`, `windows-pwsh`,
 `cmd`, `git-bash`, and `bash` where supported by the platform. The host persists
@@ -440,7 +458,7 @@ or executable path hash is accepted as shell identity.
 2. Unix: well-known locations (`/bin/bash`, `/usr/bin/bash`, `/usr/local/bin/bash`, Homebrew), then PATH
 3. Windows: `bash.exe` from Git for Windows — derived from the `git` on PATH, then standard install dirs, then PATH excluding the WSL launcher in `System32`
 
-- Unix invokes `bash -lc` (login shell keeps profile PATH for Finder/Dock launches); Windows invokes `bash -c` with `CREATE_NO_WINDOW`
+- Unix invokes `bash -lc` (login shell keeps profile PATH for Finder/Dock launches); Windows invokes `bash -c` with `CREATE_NO_WINDOW`. The hidden host-core runner that owns the command tree is created with both `CREATE_NO_WINDOW` and `CREATE_BREAKAWAY_FROM_JOB`, then assigned to its own kill-on-close Job Object. This keeps a launcher or policy Job around the Desktop process from becoming the runner's termination scope. If Windows refuses the breakaway, runner creation fails closed; the shell itself stays inside the host-owned job so timeout and abort still terminate the complete command tree.
 - On Unix, the Bash tool additionally probes the user's login shell for its
   PATH — `$SHELL` (fallback `/bin/zsh` → `/bin/bash` → `/bin/sh`) with
   `-lic 'printf %s "$PATH"'`, 5s-bounded, cached per process — and injects it

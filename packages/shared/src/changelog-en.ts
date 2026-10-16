@@ -2,6 +2,24 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const enEntries: ChangelogEntry[] = [
   {
+    version: "0.21.0",
+    date: "2026-10-16",
+    highlights: [
+      "Keep long-running Bash commands going after a turn ends, then review their output as background tasks.",
+      "Run parallel conversations in a project with an isolated Git worktree for each session.",
+      "Keep the Todo list docked beside the Composer and expand it when you need the full checklist.",
+      "See Bash commands and reasoning in separate transcript rows.",
+      "See running activity in project headers, including collapsed groups, and choose the count badge and activity rail independently.",
+      "Copy session and project details from contextual sidebar submenus.",
+      "Find files by their full relative path in @ suggestions.",
+      "Return to the same reading position when you switch away from a long conversation and back.",
+      "Reopen archived projects from the sidebar.",
+      "Open local HTML artifacts within the session that created them.",
+      "Scroll wide Markdown tables without losing the conversation layout.",
+      "Keep conversations usable when a tool returns an oversized image.",
+    ],
+  },
+  {
     version: "0.20.1",
     date: "2026-10-13",
     highlights: [

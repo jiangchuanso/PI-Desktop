@@ -2,6 +2,7 @@ import { en, type EnglishCatalog } from "../en/index.js";
 
 export const zhCN = {
   worktree: {
+    menu: { group: "Git" },
     newIsolatedSession: "新建隔离会话",
     uncommittedNotIncluded: "项目中未提交的改动不会带入隔离会话。",
     reveal: "显示 worktree 文件夹",
@@ -246,6 +247,8 @@ export const zhCN = {
     sessionSelected: "已选中",
     sessionCompleted: "已完成",
     sessionFailed: "未完成",
+    projectRunningCount: "该项目有 {{count}} 个任务运行中",
+    projectWaitingCount: "{{count}} 个等待授权",
     sortSessions: "项目与对话排序",
     sortRecent: "最近更新",
     sortOldest: "最早创建",
@@ -271,6 +274,7 @@ export const zhCN = {
     batchDeleteConfirm: "确认删除 {{count}} 个会话？",
     copyConversationId: "复制对话 ID",
     copySessionLink: "复制会话链接",
+    copySessionPath: "复制会话路径",
     openSessionPath: "打开会话路径",
     timeGroupYesterday: "昨天",
     timeGroupThisWeek: "近 7 天",
@@ -281,6 +285,9 @@ export const zhCN = {
     hoverCardUpdatedAt: "更新于 {{when}}",
     hoverCardTemporarySpace: "临时对话",
     hoverCardBranchAria: "分支 {{name}}",
+    dangerZone: "危险操作",
+    batchSelectionHint: "已选择 {{count}} 个会话",
+    viewOptions: "显示",
   },
   sessionCollaboration: {
     statusIdle: "空闲",
@@ -788,6 +795,11 @@ export const zhCN = {
       operationError: "无法启动存储操作。{{error}}",
     },
     power: "电源",
+    sidebar: "侧边栏",
+    sidebarRunningIndicators: "在项目上显示运行状态",
+    sidebarRunningIndicatorsDesc: "在侧边栏标记有任务正在运行的项目，折叠项目时同样可见。关闭后将同时隐藏下面两个标识。",
+    sidebarRunningBadge: "数量徽标",
+    sidebarRunningRail: "活动流光",
     keepAwakeWhileRunning: "保持电脑唤醒",
     keepAwakeWhileRunningDesc: "PI-Desktop 运行期间阻止电脑因空闲自动休眠。屏幕仍可能关闭；手动睡眠和合盖休眠不受影响。",
     imageModel: "生图模型",
@@ -1750,6 +1762,8 @@ sklm: {
   project: {
     open: "打开项目",
     openFolder: "打开文件夹",
+    copyName: "复制项目名称",
+    copyPath: "复制项目路径",
     none: "无项目",
     clear: "关闭项目",
     title: "项目",

@@ -224,6 +224,24 @@ destination, chat as the home surface, tools and permissions inline.
   dense tree rather than detached cards. Hovering or focusing the project title
   reveals the full project path. Pressing the title and moving 8px reorders
   the group.
+- **Running activity**: a project group whose sessions have live work marks
+  that fact on its *header*, because a collapsed group folds its body to a
+  zero-height `inert` region and would otherwise hide every row-level status
+  dot exactly when the answer is most useful. Two independent affordances
+  share one amber `--ds-warning` vocabulary (a pending permission keeps the
+  purple `--ds-purple` used by the conversation row):
+  - a **count badge** after the project name, showing running and
+    permission-waiting counts as separate capsules so the two figures are
+    never read as one number;
+  - an **activity rail**: a 2px track down the group's left edge with a
+    travelling pulse, spanning the opened conversation list and shrinking to
+    the header while the group is collapsed, plus a matching count.
+  Remote host groups carry the same pair. Settings → General → Sidebar owns
+  one master switch (`AppSettings.sidebarRunningIndicators`) gating two
+  sub-switches (`sidebarRunningBadge`, `sidebarRunningRail`); absent values
+  mean on, so existing installs keep the affordances without a migration.
+  Motion is decoration only: `prefers-reduced-motion` keeps both static
+  shapes legible with the animation removed.
 - **Project actions**: open folder reveals the primary project directory; Edit
   project changes the host-owned logical group name and adjusts eligible
   non-primary roots (keeping renderer metadata in sync); pin/unpin changes

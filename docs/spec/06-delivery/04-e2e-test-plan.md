@@ -3127,32 +3127,47 @@ identify the platform validation still needed.
 - **Milestone**: M2
 - **Status**: Draft (run only in a capable environment when this surface changes)
 
-#### E2E-021b: Developer mode copies a conversation id and opens session scratch
+#### E2E-021b: Session context menus expose hover submenus
 
-- **Preconditions**: Developer mode is enabled. A session exists, including one
-  whose scratch directory has not been created yet.
-- **Steps**: 1) Open a conversation overflow menu. 2) Confirm Copy conversation
-  ID and Open session path appear after Create branch and before Delete, and
-  that Copy session path is absent. 3) Choose Copy conversation ID and paste
-  the clipboard. 4) Choose Open session path. 5) Disable developer mode and
-  reopen the menu.
-- **Expected**: The clipboard contains the exact session id. The system file
-  manager opens `<data_dir>/scratch/<sessionId>/`, creating that directory if
-  it was missing. The renderer does not send a filesystem path; Main opens
-  only a resolved scratch directory for that session id. With developer mode
-  off, both actions are absent.
+- **Preconditions**: A session exists, including one whose scratch directory
+  has not been created yet. The session can create a branch; worktree actions
+  are available when it belongs to a Git project.
+- **Steps**: 1) Open the session overflow menu or right-click its row. Hover Git
+  and verify its second-level actions appear; click/tap Git to open it without
+  hover. Use ArrowRight to enter, ArrowLeft to return, and Escape to close only
+  the child menu. 2) Open Copy and choose Copy conversation ID, Copy session
+  path, and Copy conversation link in turn; paste each clipboard value. 3) Enable
+  developer mode, reopen the menu, and choose Open session path. 4) Disable
+  developer mode and verify Open session path is absent while Copy remains.
+- **Expected**: Git and Copy are menuitem/haspopup triggers; hover and click
+  reveal their child menus without dismissing the root. ArrowRight enters a
+  child, ArrowLeft and the first Escape return to its trigger, and a second
+  Escape closes the root. Child actions remain keyboard reachable and execute
+  once. The ID equals the session id, the path equals the Host-resolved scratch
+  path for local sessions, and the link is the canonical conversation link.
+  Remote sessions omit Copy session path. The system file manager opens
+  `<data_dir>/scratch/<sessionId>/` when the developer-only Open session path
+  action is chosen. The renderer never sends a filesystem path to Main.
 - **Specs linked**: `03-runtime/01-ipc-protocol.md`,
-  `04-ux/08-component-spec.md`, `04-ux/06-settings-ia.md`
-- **Acceptance**: C (sessions), Quality (developer tools)
+  `04-ux/08-component-spec.md`, `04-ux/06-settings-ia.md`,
+  `04-ux/09-interaction-patterns.md`
+- **Acceptance**: C (sessions), Quality (nested menu interaction)
 - **Milestone**: M2
-- **Status**: Unit-covered (`session-scratch-path.test.mjs`); desktop journey
-  Draft (run only in a capable environment when this surface changes)
+- **Status**: Component interaction automated (`worktree-menu-user-path.test.mjs`,
+  `sidebar-menu-panel.test.mjs`, `sidebar-navigation.test.mjs`); full Sidebar
+  desktop journey remains Draft
 
 #### E2E-021c: Bottom-edge project menus stay beside their anchor
 
 - **Preconditions**: The expanded Sidebar shows a retained project in its lowest visible row, with insufficient room below it for the project menu.
-- **Steps**: 1) Right-click the project row and inspect the menu. 2) Close it, open the row's overflow button, and inspect the menu again. 3) Verify every action remains inside the viewport.
-- **Expected**: Both entry points place the menu immediately above the row when it cannot fit below, using the rendered menu height. When there is enough room, the menu opens below its anchor. No menu is displaced to a distant viewport edge or clipped.
+- **Steps**: 1) Open the project's Copy submenu; copy the project name and path
+  and verify each pasted value. 2) Right-click the bottom project row and
+  inspect the root menu. 3) Close it, open the row's overflow button, and hover
+  Copy and Git. Verify both child menus and all actions stay inside the viewport.
+- **Expected**: Both root-menu entry points place the menu immediately above
+  the row when it cannot fit below; otherwise they open below. Copy yields the
+  displayed project name and path. Child submenus remain attached to their
+  trigger, flip sides as needed, and are neither clipped nor displaced.
 - **Specs linked**: `04-ux/08-component-spec.md`, `04-ux/09-interaction-patterns.md`
 - **Acceptance**: Quality (sidebar interaction)
 - **Milestone**: M2
@@ -18050,3 +18065,40 @@ host-created files. The full app's file-preview viewer is covered separately.
   `apps/desktop/test/app-store-sidebar.test.mjs` and
   `apps/desktop/test/project-create-dialog.test.mjs`; full UI scenario remains
   Draft and is run only when explicitly requested in a capable environment.
+
+### E2E-266: Project headers show running activity while collapsed
+
+- **Preconditions**: At least two local project groups with sessions, one of
+  them with a running turn (and optionally a session waiting for a
+  permission prompt), plus a connected remote host group with a running
+  session. Settings → General → Sidebar switches are at their defaults.
+- **Steps**:
+  1. Start a turn in one project and collapse that project group.
+  2. Inspect the collapsed header, then expand it again.
+  3. Start a second concurrent turn in a different project and a turn in the
+     remote host's project.
+  4. Open Settings → General → Sidebar and turn off **Show running activity
+     on projects**, then re-check the sidebar.
+  5. Turn the master switch back on, turn off **Count badge** only, and
+     re-check. Repeat with **Activity rail** only.
+  6. Enable the OS "reduce motion" setting and re-check the rail.
+- **Expected**: A project with live work marks its header — the collapsed
+  header keeps showing the count badge and the activity rail, so the project
+  is identifiable without expanding it. Running and permission-waiting counts
+  are separate figures and never merge into one number. The remote host group
+  shows the same pair. The master switch removes both affordances at once and
+  leaves the two sub-switches disabled but retaining their stored value, so
+  re-enabling the master restores the previous choice. Each sub-switch hides
+  only its own affordance. Under reduced motion both affordances stay visible
+  with their animation removed. Settings persist across a renderer reload.
+- **Specs linked**: `04-ux/01-ui-ia.md` §3.2, `04-ux/06-settings-ia.md`
+  (General → Sidebar card).
+- **Acceptance**: The "is anything running under here?" answer is available
+  from a collapsed project group, and each affordance can be switched off
+  independently through a persisted setting.
+- **Status**: Draft. Unit coverage in
+  `apps/desktop/test/sidebar-project-runs.test.mjs` covers the count
+  classification, the master/sub-switch gating, both render call sites, and
+  the theme-token and reduced-motion guarantees; the interactive sidebar
+  scenario remains a manual validation scenario run in a capable
+  environment.

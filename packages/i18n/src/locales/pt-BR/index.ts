@@ -2,6 +2,7 @@ import { en, type EnglishCatalog } from "../en/index.js";
 
 export const ptBR = {
   worktree: {
+    menu: { group: "Git" },
     newIsolatedSession: "Nova sessão isolada",
     uncommittedNotIncluded: "Alterações não confirmadas do projeto não são incluídas na sessão isolada.",
     reveal: "Mostrar pasta do worktree",
@@ -243,6 +244,8 @@ export const ptBR = {
     sessionSelected: "Selecionada",
     sessionCompleted: "Concluída",
     sessionFailed: "Requer atenção",
+    projectRunningCount: "{{count}} em execução neste projeto",
+    projectWaitingCount: "{{count}} aguardando aprovação",
     sortSessions: "Ordenar projetos e conversas",
     sortRecent: "Atualizados recentemente",
     sortOldest: "Mais antigos primeiro",
@@ -268,6 +271,7 @@ export const ptBR = {
     batchDeleteConfirm: "Excluir {{count}} sessões?",
     copyConversationId: "Copiar ID da conversa",
     copySessionLink: "Copiar link da conversa",
+    copySessionPath: "Copiar caminho da sessão",
     openSessionPath: "Abrir caminho da sessão",
     timeGroupYesterday: "Ontem",
     timeGroupThisWeek: "Últimos 7 dias",
@@ -277,7 +281,10 @@ export const ptBR = {
     hoverCardSpace: "Espaço de trabalho",
     hoverCardUpdatedAt: "Atualizado {{when}}",
     hoverCardTemporarySpace: "Temporário",
-    hoverCardBranchAria: "Ramificação {{name}}"
+    hoverCardBranchAria: "Ramificação {{name}}",
+    dangerZone: "Zona de risco",
+    batchSelectionHint: "{{count}} sessões selecionadas",
+    viewOptions: "Visualização",
   },
   sessionCollaboration: {
     statusIdle: "Ocioso",
@@ -782,6 +789,11 @@ export const ptBR = {
       operationError: "Não foi possível iniciar a operação de armazenamento. {{error}}",
     },
     power: "Energia",
+    sidebar: "Barra lateral",
+    sidebarRunningIndicators: "Mostrar atividade em execução nos projetos",
+    sidebarRunningIndicatorsDesc: "Marca na barra lateral os projetos com trabalho em andamento, inclusive quando o projeto está recolhido. Desativar oculta os dois indicadores abaixo.",
+    sidebarRunningBadge: "Selo de contagem",
+    sidebarRunningRail: "Trilho de atividade",
     keepAwakeWhileRunning: "Manter o computador ativo",
     keepAwakeWhileRunningDesc: "Impede a suspensão por inatividade enquanto o PI-Desktop estiver aberto. A tela pode apagar; a suspensão manual e ao fechar a tampa continuam funcionando.",
     imageModel: "Modelo de imagens",
@@ -1725,6 +1737,8 @@ export const ptBR = {
   project: {
     open: "Abrir projeto",
     openFolder: "Abrir pasta",
+    copyName: "Copiar nome do projeto",
+    copyPath: "Copiar caminho do projeto",
     none: "Sem projeto",
     clear: "Limpar projeto",
     title: "Projetos",

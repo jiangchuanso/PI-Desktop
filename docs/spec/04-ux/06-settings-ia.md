@@ -174,6 +174,14 @@ Settings is a **full-window page** that replaces the app sidebar + main chrome (
   `AppSettings.keepAwakeWhileRunning` and `AppSettings.preventScreenSleep`,
   take effect immediately, restore on startup, and release their own blocker
   when disabled or during shutdown. Manual sleep and lid close follow the OS.
+- **Sidebar** card: one master switch for project running activity
+  (`AppSettings.sidebarRunningIndicators`) plus independently gated
+  **Count badge** and **Activity rail** switches
+  (`sidebarRunningBadge`, `sidebarRunningRail`). Absent values mean on. The
+  sub-switches are disabled while the master switch is off and keep their
+  stored value, so re-enabling the master restores the previous choice
+  instead of resetting it. The affordances themselves are described in
+  [01-ui-ia.md §3.2](01-ui-ia.md#32-sidebar-project-groups).
 - **Network** card:
   - **Proxy**: a segmented control — System, Direct, Custom. System is the
     default and lets Chromium follow the OS proxy; Direct disables the proxy;

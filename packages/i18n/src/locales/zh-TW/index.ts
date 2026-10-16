@@ -2,6 +2,7 @@ import { en, type EnglishCatalog } from "../en/index.js";
 
 export const zhTW = {
   worktree: {
+    menu: { group: "Git" },
     newIsolatedSession: "新增隔離工作階段",
     uncommittedNotIncluded: "專案中未提交的變更不會帶入隔離工作階段。",
     reveal: "顯示 worktree 資料夾",
@@ -246,6 +247,8 @@ export const zhTW = {
     sessionSelected: "已選中",
     sessionCompleted: "已完成",
     sessionFailed: "未完成",
+    projectRunningCount: "該專案有 {{count}} 個任務執行中",
+    projectWaitingCount: "{{count}} 個等待授權",
     sortSessions: "專案與對話排序",
     sortRecent: "最近更新",
     sortOldest: "最早建立",
@@ -271,6 +274,7 @@ export const zhTW = {
     batchDeleteConfirm: "確認刪除 {{count}} 個對話？",
     copyConversationId: "複製對話 ID",
     copySessionLink: "複製對話連結",
+    copySessionPath: "複製會話路徑",
     openSessionPath: "開啟會話路徑",
     timeGroupYesterday: "昨天",
     timeGroupThisWeek: "近 7 天",
@@ -281,6 +285,9 @@ export const zhTW = {
     hoverCardUpdatedAt: "更新於 {{when}}",
     hoverCardTemporarySpace: "臨時對話",
     hoverCardBranchAria: "分支 {{name}}",
+    dangerZone: "危險操作",
+    batchSelectionHint: "已選取 {{count}} 個工作階段",
+    viewOptions: "顯示",
   },
   sessionCollaboration: {
     statusIdle: "閒置",
@@ -788,6 +795,11 @@ export const zhTW = {
       operationError: "無法啟動儲存操作。{{error}}",
     },
     power: "電源",
+    sidebar: "側邊欄",
+    sidebarRunningIndicators: "在專案上顯示執行狀態",
+    sidebarRunningIndicatorsDesc: "在側邊欄標記有任務正在執行的專案，專案收合時同樣可見。關閉後會同時隱藏下面兩個標識。",
+    sidebarRunningBadge: "數量徽標",
+    sidebarRunningRail: "活動流光",
     keepAwakeWhileRunning: "保持電腦喚醒",
     keepAwakeWhileRunningDesc: "PI-Desktop 執行期間阻止電腦因閒置自動休眠。螢幕仍可能關閉；手動睡眠和闔蓋休眠不受影響。",
     imageModel: "生圖模型",
@@ -1750,6 +1762,8 @@ sklm: {
   project: {
     open: "開啟專案",
     openFolder: "開啟資料夾",
+    copyName: "複製專案名稱",
+    copyPath: "複製專案路徑",
     none: "無專案",
     clear: "關閉專案",
     title: "專案",

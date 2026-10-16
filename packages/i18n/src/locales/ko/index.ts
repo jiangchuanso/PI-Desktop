@@ -2,6 +2,7 @@ import { en, type EnglishCatalog } from "../en/index.js";
 
 export const ko = {
   worktree: {
+    menu: { group: "Git" },
     newIsolatedSession: "새 격리 세션",
     uncommittedNotIncluded: "프로젝트의 커밋되지 않은 변경 사항은 격리 세션에 포함되지 않습니다.",
     reveal: "worktree 폴더 보기",
@@ -253,6 +254,8 @@ export const ko = {
     sessionSelected: "선택됨",
     sessionCompleted: "완료",
     sessionFailed: "확인 필요",
+    projectRunningCount: "이 프로젝트에서 {{count}}개 실행 중",
+    projectWaitingCount: "{{count}}개 승인 대기 중",
     sortSessions: "프로젝트와 채팅 정렬",
     sortRecent: "최근 업데이트순",
     sortOldest: "오래된 순",
@@ -278,6 +281,7 @@ export const ko = {
     batchDeleteConfirm: "{{count}}개 세션을 삭제하시겠습니까?",
     copyConversationId: "대화 ID 복사",
     copySessionLink: "대화 링크 복사",
+    copySessionPath: "세션 경로 복사",
     openSessionPath: "세션 경로 열기",
     timeGroupYesterday: "어제",
     timeGroupThisWeek: "최근 7일",
@@ -288,6 +292,9 @@ export const ko = {
     hoverCardUpdatedAt: "{{when}} 업데이트됨",
     hoverCardTemporarySpace: "임시",
     hoverCardBranchAria: "브랜치 {{name}}",
+    dangerZone: "위험 구역",
+    batchSelectionHint: "{{count}}개 세션 선택됨",
+    viewOptions: "보기",
   },
   sessionCollaboration: {
     statusIdle: "대기",
@@ -792,6 +799,11 @@ export const ko = {
       operationError: "저장 작업을 시작할 수 없습니다. {{error}}",
     },
     power: "전원",
+    sidebar: "사이드바",
+    sidebarRunningIndicators: "프로젝트에 실행 상태 표시",
+    sidebarRunningIndicatorsDesc: "작업이 진행 중인 프로젝트를 사이드바에 표시하며, 프로젝트를 접었을 때도 보입니다. 끄면 아래 두 표시가 함께 숨겨집니다.",
+    sidebarRunningBadge: "개수 배지",
+    sidebarRunningRail: "활동 레일",
     keepAwakeWhileRunning: "컴퓨터 절전 방지",
     keepAwakeWhileRunningDesc: "PI-Desktop 실행 중 유휴 상태로 인한 시스템 절전을 방지합니다. 화면은 꺼질 수 있으며 수동 절전과 덮개 닫기는 그대로 작동합니다.",
     "imageModel": "이미지 생성 모델",
@@ -1771,6 +1783,8 @@ sklm: {
   project: {
     open: "프로젝트 열기",
     openFolder: "폴더 열기",
+    copyName: "프로젝트 이름 복사",
+    copyPath: "프로젝트 경로 복사",
     none: "프로젝트 없음",
     clear: "프로젝트 지우기",
     title: "프로젝트",

@@ -427,14 +427,19 @@ may be retained while exactly one workspace supplies the visible shell context.
   retain `aria-current`.
 - Toggling disclosure or a menu action keeps focus on its control. Selecting a
   project/session returns focus to the composer after loading.
-- Sort, archive, restore, pin, Create branch, and close actions remain
-  keyboard-reachable;
-  they cannot exist only as pointer-hover affordances.
-- Sidebar body-level menus opened from toolbar or row triggers remain
-  content-sized and use the same fixed rule as right-click menus: open 4px to
-  the anchor's right without flipping to the left. Their surface width is
-  capped for narrow viewports. This includes the Sessions sort menu,
-  session/project overflow menus, and section create menus.
+- Sort choices and all row actions remain keyboard-reachable; hover is never the
+  only way to reveal an action. Project and session overflow menus keep common
+  actions at the root and place related Git, Developer, and Danger actions in
+  menuitem/haspopup second-level menus.
+- A submenu opens on mouse hover or click/tap. ArrowRight or Enter opens the
+  focused submenu trigger; ArrowLeft or Escape closes the child first and
+  restores focus to its trigger. A second Escape closes the root menu. Moving
+  the pointer between the trigger and child does not dismiss the parent.
+- Sidebar body-level root menus remain content-sized and open 4px to the
+  trigger's right. A submenu opens flush beside its trigger, prefers the right,
+  flips left when needed, and clamps vertically inside the viewport. Neither
+  parent nor child may be clipped; the child does not resize or scroll the
+  sidebar.
 
 #### Floating dropdown surfaces
 

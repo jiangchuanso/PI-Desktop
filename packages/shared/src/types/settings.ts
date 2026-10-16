@@ -170,6 +170,16 @@ export type AppSettings = {
    * platforms. Absent and false mean the system manages sleep normally.
    */
   preventScreenSleep?: boolean;
+  /**
+   * Sidebar project "running" affordances. The master switch gates both
+   * sub-switches; absent means enabled, so existing installs keep the
+   * badges and the activity rail without a migration.
+   */
+  sidebarRunningIndicators?: boolean;
+  /** Count badge beside a project name. Absent means enabled. */
+  sidebarRunningBadge?: boolean;
+  /** Activity rail down the project group. Absent means enabled. */
+  sidebarRunningRail?: boolean;
   /** Voice input settings (D-voice-runtime). */
   voice?: VoiceInputSettings;
   onboardingDismissed: boolean;

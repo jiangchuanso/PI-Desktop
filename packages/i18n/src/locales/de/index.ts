@@ -2,6 +2,7 @@ import { en, type EnglishCatalog } from "../en/index.js";
 
 export const de = {
   "worktree": {
+    "menu": { "group": "Git" },
     "newIsolatedSession": "Neue isolierte Sitzung",
     "uncommittedNotIncluded": "Nicht committete Änderungen im Projekt werden nicht in die isolierte Sitzung übernommen.",
     "reveal": "Worktree-Ordner anzeigen",
@@ -244,6 +245,8 @@ export const de = {
     "sessionSelected": "Ausgewählt",
     "sessionCompleted": "Fertig",
     "sessionFailed": "Benötigt Aufmerksamkeit",
+    "projectRunningCount": "{{count}} laufen in diesem Projekt",
+    "projectWaitingCount": "{{count}} warten auf Freigabe",
     "sortSessions": "Projekte und Chats sortieren",
     "sortRecent": "Kürzlich aktualisiert",
     "sortOldest": "Älteste zuerst",
@@ -269,6 +272,7 @@ export const de = {
     batchDeleteConfirm: "{{count}} Sitzungen löschen?",
     "copyConversationId": "Gesprächs-ID kopieren",
     "copySessionLink": "Link zur Unterhaltung kopieren",
+    "copySessionPath": "Sitzungspfad kopieren",
     "openSessionPath": "Sitzungspfad öffnen",
     "timeGroupYesterday": "Gestern",
     "timeGroupThisWeek": "Vorherige 7 Tage",
@@ -278,7 +282,10 @@ export const de = {
     "hoverCardSpace": "Arbeitsbereich",
     "hoverCardUpdatedAt": "Aktualisiert {{when}}",
     "hoverCardTemporarySpace": "Temporär",
-    "hoverCardBranchAria": "Zweig {{name}}"
+    "hoverCardBranchAria": "Zweig {{name}}",
+    "dangerZone": "Gefahrenbereich",
+    "batchSelectionHint": "{{count}} Sitzungen ausgewählt",
+    "viewOptions": "Ansicht",
   },
   "sessionCollaboration": {
     "statusIdle": "Inaktiv",
@@ -783,6 +790,11 @@ export const de = {
       operationError: "Der Speichervorgang konnte nicht gestartet werden. {{error}}",
     },
     "power": "Energie",
+    "sidebar": "Seitenleiste",
+    "sidebarRunningIndicators": "Laufende Aktivität an Projekten zeigen",
+    "sidebarRunningIndicatorsDesc": "Markiert Projekte mit laufender Arbeit in der Seitenleiste, auch wenn das Projekt eingeklappt ist. Ausschalten blendet beide Markierungen unten aus.",
+    "sidebarRunningBadge": "Anzahl-Badge",
+    "sidebarRunningRail": "Aktivitätsschiene",
     "keepAwakeWhileRunning": "Computer wach halten",
     "keepAwakeWhileRunningDesc": "Verhindert den Ruhezustand bei Inaktivität, solange PI-Desktop läuft. Der Bildschirm kann sich ausschalten; manuelles Schlafen und Zuklappen bleiben möglich.",
     "imageModel": "Bildgenerierungsmodell",
@@ -1755,6 +1767,8 @@ sklm: {
   "project": {
     "open": "Projekt öffnen",
     "openFolder": "Ordner öffnen",
+    "copyName": "Projektnamen kopieren",
+    "copyPath": "Projektpfad kopieren",
     "none": "Kein Projekt",
     "clear": "Projekt löschen",
     "title": "Projekte",

@@ -463,6 +463,9 @@ export function validateSettingsWrite(settings: AppSettings): AppSettings {
     infiniteProviderRetry?: unknown;
     jevEnabled?: unknown;
     smoothStreaming?: unknown;
+    sidebarRunningIndicators?: unknown;
+    sidebarRunningBadge?: unknown;
+    sidebarRunningRail?: unknown;
     updatePreference?: unknown;
     lastNotifiedUpdateVersion?: unknown;
     networkProxy?: unknown;
@@ -524,6 +527,20 @@ export function validateSettingsWrite(settings: AppSettings): AppSettings {
     throw Object.assign(new Error("smoothStreaming is invalid"), {
       errorCode: "INVALID_PARAMS",
     });
+  }
+  for (const key of [
+    "sidebarRunningIndicators",
+    "sidebarRunningBadge",
+    "sidebarRunningRail",
+  ] as const) {
+    if (
+      Object.prototype.hasOwnProperty.call(value, key) &&
+      typeof value[key] !== "boolean"
+    ) {
+      throw Object.assign(new Error(`${key} is invalid`), {
+        errorCode: "INVALID_PARAMS",
+      });
+    }
   }
   if (
     Object.prototype.hasOwnProperty.call(value, "updatePreference") &&

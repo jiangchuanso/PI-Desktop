@@ -2,6 +2,7 @@ import { en, type EnglishCatalog } from "../en/index.js";
 
 export const tr = {
   worktree: {
+    menu: { group: "Git" },
     newIsolatedSession: "Yeni yalıtılmış oturum",
     uncommittedNotIncluded: "Projedeki commit edilmemiş değişiklikler yalıtılmış oturuma dahil edilmez.",
     reveal: "Worktree klasörünü göster",
@@ -253,6 +254,8 @@ export const tr = {
     sessionSelected: "Seçili",
     sessionCompleted: "Bitti",
     sessionFailed: "İlgi gerekiyor",
+    projectRunningCount: "Bu projede {{count}} çalışıyor",
+    projectWaitingCount: "{{count}} onay bekliyor",
     sortSessions: "Projeleri ve sohbetleri sırala",
     sortRecent: "Son güncellenenler",
     sortOldest: "Eskiden yeniye",
@@ -278,6 +281,7 @@ export const tr = {
     batchDeleteConfirm: "{{count}} oturum silinsin mi?",
     copyConversationId: "Konuşma kimliğini kopyala",
     copySessionLink: "Konuşma bağlantısını kopyala",
+    copySessionPath: "Oturum yolunu kopyala",
     openSessionPath: "Oturum yolunu aç",
     timeGroupYesterday: "Dün",
     timeGroupThisWeek: "Önceki 7 gün",
@@ -288,6 +292,9 @@ export const tr = {
     hoverCardUpdatedAt: "Güncellendi {{when}}",
     hoverCardTemporarySpace: "Geçici",
     hoverCardBranchAria: "Dal {{name}}",
+    dangerZone: "Tehlikeli bölge",
+    batchSelectionHint: "{{count}} oturum seçildi",
+    viewOptions: "Görünüm",
   },
   sessionCollaboration: {
     statusIdle: "Boşta",
@@ -792,6 +799,11 @@ export const tr = {
       operationError: "Depolama işlemi başlatılamadı. {{error}}",
     },
     power: "Güç",
+    sidebar: "Kenar çubuğu",
+    sidebarRunningIndicators: "Projelerde çalışan etkinliği göster",
+    sidebarRunningIndicatorsDesc: "Çalışması süren projeleri kenar çubuğunda işaretler; proje daraltılmışken de görünür. Kapatmak aşağıdaki iki işareti birlikte gizler.",
+    sidebarRunningBadge: "Sayı rozeti",
+    sidebarRunningRail: "Etkinlik şeridi",
     keepAwakeWhileRunning: "Bilgisayarı uyanık tut",
     keepAwakeWhileRunningDesc: "PI-Desktop çalışırken boşta kalma nedeniyle uykuya geçmeyi önler. Ekran kapanabilir; elle uyutma ve kapağı kapatma etkilenmez.",
     "imageModel": "Görsel oluşturma modeli",
@@ -1765,6 +1777,8 @@ sklm: {
   project: {
     open: "Proje aç",
     openFolder: "Klasörü aç",
+    copyName: "Proje adını kopyala",
+    copyPath: "Proje yolunu kopyala",
     none: "Proje yok",
     clear: "Projeyi temizle",
     title: "Projeler",

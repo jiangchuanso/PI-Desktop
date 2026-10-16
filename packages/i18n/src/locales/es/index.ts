@@ -2,6 +2,7 @@ import { en, type EnglishCatalog } from "../en/index.js";
 
 export const es = {
   "worktree": {
+    "menu": { "group": "Git" },
     "newIsolatedSession": "Nueva sesión aislada",
     "uncommittedNotIncluded": "Los cambios sin confirmar del proyecto no se incluyen en la sesión aislada.",
     "reveal": "Mostrar carpeta del worktree",
@@ -244,6 +245,8 @@ export const es = {
     "sessionSelected": "Seleccionado",
     "sessionCompleted": "Listo",
     "sessionFailed": "Necesita atención",
+    "projectRunningCount": "{{count}} en ejecución en este proyecto",
+    "projectWaitingCount": "{{count}} esperando aprobación",
     "sortSessions": "Ordenar proyectos y chats",
     "sortRecent": "Actualizado recientemente",
     "sortOldest": "Más antiguo primero",
@@ -269,6 +272,7 @@ export const es = {
     batchDeleteConfirm: "¿Eliminar {{count}} sesiones?",
     "copyConversationId": "Copiar ID de conversación",
     "copySessionLink": "Copiar enlace de la conversación",
+    "copySessionPath": "Copiar ruta de la sesión",
     "openSessionPath": "Abrir ruta de sesión",
     "timeGroupYesterday": "Ayer",
     "timeGroupThisWeek": "Anterior 7 días",
@@ -278,7 +282,10 @@ export const es = {
     "hoverCardSpace": "Espacio de trabajo",
     "hoverCardUpdatedAt": "Actualizado {{when}}",
     "hoverCardTemporarySpace": "Temporal",
-    "hoverCardBranchAria": "Rama {{name}}"
+    "hoverCardBranchAria": "Rama {{name}}",
+    "dangerZone": "Zona de riesgo",
+    "batchSelectionHint": "{{count}} sesiones seleccionadas",
+    "viewOptions": "Vista",
   },
   "sessionCollaboration": {
     "statusIdle": "Inactivo",
@@ -783,6 +790,11 @@ export const es = {
       operationError: "No se pudo iniciar la operación de almacenamiento. {{error}}",
     },
     "power": "Energía",
+    "sidebar": "Barra lateral",
+    "sidebarRunningIndicators": "Mostrar actividad en ejecución en los proyectos",
+    "sidebarRunningIndicatorsDesc": "Marca en la barra lateral los proyectos con trabajo en curso, incluso cuando el proyecto está contraído. Al desactivarlo se ocultan ambos indicadores.",
+    "sidebarRunningBadge": "Insignia de recuento",
+    "sidebarRunningRail": "Carril de actividad",
     "keepAwakeWhileRunning": "Mantener el equipo activo",
     "keepAwakeWhileRunningDesc": "Evita la suspensión por inactividad mientras PI-Desktop esté abierto. La pantalla puede apagarse; la suspensión manual y al cerrar la tapa siguen funcionando.",
     "imageModel": "Modelo de imágenes",
@@ -1755,6 +1767,8 @@ sklm: {
   "project": {
     "open": "Abrir proyecto",
     "openFolder": "Abrir carpeta",
+    "copyName": "Copiar nombre del proyecto",
+    "copyPath": "Copiar ruta del proyecto",
     "none": "Sin proyecto",
     "clear": "Borrar proyecto",
     "title": "Proyectos",

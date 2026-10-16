@@ -2,6 +2,7 @@ import { en, type EnglishCatalog } from "../en/index.js";
 
 export const fr = {
   "worktree": {
+    "menu": { "group": "Git" },
     "newIsolatedSession": "Nouvelle session isolée",
     "uncommittedNotIncluded": "Les modifications non validées du projet ne sont pas incluses dans la session isolée.",
     "reveal": "Afficher le dossier du worktree",
@@ -244,6 +245,8 @@ export const fr = {
     "sessionSelected": "Sélectionné",
     "sessionCompleted": "Terminé",
     "sessionFailed": "Nécessite une attention particulière",
+    "projectRunningCount": "{{count}} en cours dans ce projet",
+    "projectWaitingCount": "{{count}} en attente d'approbation",
     "sortSessions": "Trier les projets et les discussions",
     "sortRecent": "Récemment mis à jour",
     "sortOldest": "Le plus ancien en premier",
@@ -269,6 +272,7 @@ export const fr = {
     batchDeleteConfirm: "Supprimer {{count}} sessions ?",
     "copyConversationId": "Copier l'ID de conversation",
     "copySessionLink": "Copier le lien de la conversation",
+    "copySessionPath": "Copier le chemin de la session",
     "openSessionPath": "Ouvrir le chemin de la session",
     "timeGroupYesterday": "Hier",
     "timeGroupThisWeek": "7 jours précédents",
@@ -278,7 +282,10 @@ export const fr = {
     "hoverCardSpace": "Espace de travail",
     "hoverCardUpdatedAt": "{{when}} mis à jour",
     "hoverCardTemporarySpace": "Temporaire",
-    "hoverCardBranchAria": "Branche {{name}}"
+    "hoverCardBranchAria": "Branche {{name}}",
+    "dangerZone": "Zone sensible",
+    "batchSelectionHint": "{{count}} sessions sélectionnées",
+    "viewOptions": "Affichage",
   },
   "sessionCollaboration": {
     "statusIdle": "Inactif",
@@ -783,6 +790,11 @@ export const fr = {
       operationError: "Impossible de lancer l’opération de stockage. {{error}}",
     },
     "power": "Alimentation",
+    "sidebar": "Barre latérale",
+    "sidebarRunningIndicators": "Afficher l'activité en cours sur les projets",
+    "sidebarRunningIndicatorsDesc": "Signale dans la barre latérale les projets ayant du travail en cours, même lorsque le projet est replié. Désactiver cette option masque les deux repères ci-dessous.",
+    "sidebarRunningBadge": "Pastille de nombre",
+    "sidebarRunningRail": "Rail d'activité",
     "keepAwakeWhileRunning": "Garder l'ordinateur éveillé",
     "keepAwakeWhileRunningDesc": "Empêche la veille due à l'inactivité pendant l'exécution de PI-Desktop. L'écran peut s'éteindre ; la veille manuelle et la fermeture du capot restent possibles.",
     "imageModel": "Modèle de génération d’images",
@@ -1755,6 +1767,8 @@ sklm: {
   "project": {
     "open": "Ouvrir le projet",
     "openFolder": "Ouvrir le dossier",
+    "copyName": "Copier le nom du projet",
+    "copyPath": "Copier le chemin du projet",
     "none": "Aucun projet",
     "clear": "Effacer le projet",
     "title": "Projets",

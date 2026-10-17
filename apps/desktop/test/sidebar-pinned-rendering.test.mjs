@@ -60,6 +60,7 @@ test("sidebar renders global pins once, outside project folding and history limi
       activeSessionId: null,
       selectingSessionId: null,
       page: "chat",
+      settings: { sidebarSessionTime: true },
       projectCollapsed: {},
       sessionView: { sort: "recent", archived: false },
     };
@@ -154,8 +155,7 @@ test("sidebar renders global pins once, outside project folding and history limi
     const datedGroup =
       unpinned.match(/data-sidebar-project-group="\/dated"[\s\S]*?<\/section>/)?.[0] ?? "";
     assert.deepEqual(rows(datedGroup), ["date-row"]);
-    assert.match(datedGroup, /class="thread-item-date-separator" aria-hidden="true">\|<\/span>/);
-    assert.match(datedGroup, /class="thread-item-last-reply">Jan 1, 2020<\/span>/);
+    assert.match(datedGroup, /class="thread-item-meta(?: is-menu-open)?"[\s\S]*?class="thread-item-last-reply">Jan 1<\/span>/);
 
     // Without the setting the same row renders its title only.
     const sessionTimeOff = render({ sessionMeta: {}, settings: {} });

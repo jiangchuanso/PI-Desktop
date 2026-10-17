@@ -10048,9 +10048,10 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
 - **Steps**: Start a multi-step Agent turn that calls `TodoWrite` with ordered
   pending and `in_progress` items. Observe the TodoDock above the Composer;
   confirm its progress text is left-aligned, its separate arrow button is at
-  the right edge, and clicking the text does not expand it. Click the upward
-  arrow to expand, then confirm the arrow points down. Switch sessions and
-  confirm the checklist stays session-scoped.
+  the right edge, measures at least 36px square, and contains an independently
+  sized 18px arrow icon. Confirm clicking the text does not expand it. Click
+  the upward arrow to expand, then confirm the arrow points down. Switch
+  sessions and confirm the checklist stays session-scoped.
   Expand a checklist longer than the dock's height cap: every row must render
   and the list must scroll inside the dock without growing the Composer stack.
   Complete and cancel items, confirm the all-cancelled label, then clear the
@@ -11150,10 +11151,12 @@ This test plan spec is accepted when:
 
 ### US-UI-73 Composer mode selector has stable width
 - Open the empty home and a docked thread in both English and zh-CN.
-- Switch the Composer mode chip through Agent/Plan/Goal several times.
-- Expect the mode chip to keep one fixed width sized for the longest built-in
-  label (English "Agent" / zh-CN "智能体"); the adjacent Thinking and
-  permission controls, send button, and composer shell do not move or resize.
+- Open the Composer mode chip and switch between Agent/Plan/Goal several times.
+- Expect the chip to list the three modes as checked menu items, to name only
+  the committed mode, and to keep one fixed width sized for the longest built-in
+  label (English "Agent" / zh-CN "智能体") plus its caret; the adjacent Thinking
+  and permission controls, send button, and composer shell do not move or
+  resize.
 - In Goal, expect the permission chip to remain visible with the same geometry,
   show Full auto / 全自动, and stay disabled without opening a permission menu.
   The Plan/Goal approval card remains the separate execution-policy control.
@@ -16197,12 +16200,15 @@ plugin-form fixtures in an isolated temporary directory at runtime.
 #### E2E-LAYOUT-sidebar-row-states
 
 - **Preconditions**: Host-seeded project, pinned and standalone conversations;
-  a current workspace; built desktop with isolated data and profile directories.
+  the sidebar Session time preference enabled; a current workspace; built
+  desktop with isolated data and profile directories.
 - **Steps**: In dark and light themes, select a project conversation, hover its
   project title and an unselected conversation, then hover the selected row.
   Check that a project session date is visible at rest and replaced by its
-  action on hover and focus. Exercise the window-blur handler, drop-target
-  styling, project action hover and keyboard Tab/Shift+Tab focus. Fold and
+  action in the same trailing slot on hover and focus; verify no divider appears
+  before the date, dates through seven calendar days are relative, and older
+  dates show month and day without a year. Exercise the window-blur handler,
+  drop-target styling, project action hover and keyboard Tab/Shift+Tab focus. Fold and
   reopen its group. Select pinned and
   standalone conversations. Open Settings and return. Enable reduced motion and
   inspect both row transition durations. In a separate twelve-session project,
@@ -16217,7 +16223,10 @@ plugin-form fixtures in an isolated temporary directory at runtime.
   wins over hover, and blur releases hover without clearing selection. Settings
   replaces sidebar navigation, and returning restores conversation and workspace
   context without a second selected row. Project session rows show dates at rest
-  and reveal actions in their place on hover and focus. Loading more sessions
+  in the same trailing slot used for session actions, with no divider. Hover and
+  focus replace the date with the action in that slot. Dates through seven
+  calendar days are relative and older dates show month and day without a year.
+  Loading more sessions
   reveals all twelve; folding and reopening restores the initial ten and the
   two-session remainder control. Rendered component tests additionally cover no
   selected session, a pending destination and non-chat page state.

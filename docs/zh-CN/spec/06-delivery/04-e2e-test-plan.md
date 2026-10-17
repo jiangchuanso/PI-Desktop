@@ -4518,9 +4518,11 @@ eleven-tool-round desktop paths are verified by
   后代、输出事件、审核以及关闭宽限后的状态。
 - **预期**：进程 group/job 树终止，没有后代保留，
   没有后续输出到达，本轮返回 `TURN_ABORTED`，工作空间为
-  不会自动回滚。在 Windows 上，隐藏 runner 会先脱离任何父 Job Object，
-  再进入自己的 kill-on-close job；如果系统拒绝 breakaway，工具会安全失败，
-  不会让 Desktop 进程树成为终止范围。
+  不会自动回滚。在 Windows 上，隐藏 runner 仅当宿主所在的 job 授予
+  `JOB_OBJECT_LIMIT_BREAKAWAY_OK` 时才请求 `CREATE_BREAKAWAY_FROM_JOB`，
+  然后进入自己的 kill-on-close job；若宿主 job 未授予 breakaway，runner
+  改以嵌套 job 运行，而不是让工具安全失败；终止范围仍限定在该 job，
+  因此 Desktop 进程树不会成为终止范围。
 - **链接规格**：`03-runtime/03-tools-and-permissions.md`，
   `03-runtime/07-process-model.md`、`03-runtime/08-error-codes.md`、
   `03-runtime/16-tool-result-limits.md`、`05-security/01-security.md`、ADR 0054
@@ -5711,7 +5713,7 @@ eleven-tool-round desktop paths are verified by
 
 - **前提：** 隔离的本地 Electron 配置、确定性的 Agent/Host fixture、两个 Desktop 会话，不使用真实 Provider 或付费 API。
 - **步骤：** 启动调用 `TodoWrite` 的多步骤 Agent 回合，观察 Composer 上方的 TodoDock，展开后切换会话并确认清单隔离。展开一个超过 dock 高度上限的清单，确认渲染全部条目、列表在 dock 内滚动而不撑高 Composer 栈；完成和取消条目，确认全部取消状态；清空清单后重载/重启 Host。发送乱序旧 `todos.changed` 事件，确认它不能覆盖新快照；再覆盖非法参数、Plan/Goal、委托和远程会话路径。
-- **预期：** 切换会话时收起、收起状态只占标题行高度、列表渲染全部条目并以自身为滚动容器、拒绝旧事件。
+- **预期：** 切换会话时收起、收起状态只占标题行高度、列表渲染全部条目并以自身为滚动容器、拒绝旧事件。展开后是纯文本清单，状态用字形标记而非带边框的方块；进行中的那一步文字带一道扫光，且任一时刻只有一处文字带扫光（收起时在标题行，展开时在对应行）。
 - **链接规格：** `03-runtime/03-tools-and-permissions.md`、`03-runtime/04-data-storage.md`、`03-runtime/06-host-rpc-protocol.md`、`04-ux/08-component-spec.md`、ADR 0312。
 - **验收：** C / E / F / Quality / Security。
 - **里程碑：** M6+。

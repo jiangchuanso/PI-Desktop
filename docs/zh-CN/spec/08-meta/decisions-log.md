@@ -55,6 +55,7 @@
 | D657 | 让内置浏览器打开工作区外的本地文件 | **修订 ADR 0170：通过绝对路径或 `file:` URL 可打开任意已存在的本地普通文件，本地文件页面也可导航到其他已存在的本地文件。相对输入仍以工作区为根；HTTP(S) 页面只保留此前工作区内文件链接的权限。缺失文件、目录与远程文件 authority 仍被阻止。`BrowserPreview` 与 sidecar 继续使用工作区根解析。公开的 `pi.browser.navigate` API 在高风险 `browser.cdp` 权限下采用相同策略。见 ADR 0328、E2E-059、`04-ux/08-component-spec.md` 与 `05-security/01-security.md`。** | 用户需要检查项目外的本地 HTML，而工作区范围内的 Agent 文件工具和远程页面导航仍须保留原有边界（#1627）。 |
 | D659 | 重新打开归档项目后恢复侧栏显示 | **修订 D093 / D455：成功明确激活项目时，清除该规范化路径的渲染层归档标记并持久化，使用户从「项目归档」点击「打开」、通过「添加项目」再次选择同一目录，或打开项目会话后，都能在主页侧边栏看到该项目。仅选择归档详情行而未激活，以及普通会话刷新，都不改变归档状态。不更改 Host/项目/会话存储或协议。见 ADR 0294、E2E-264 与 issue #1653。** | 用户明确重新打开项目后，活动工作区虽已切换，但按路径存储的归档展示标记仍在，导致项目从侧栏隐藏。 |
 | D661 | 分段回合过程与独立的思考偏好 | **取代 D633 / D651 与 `turn-process-and-thinking-display` ADR 中记录的 `Detailed` / `Compact` 显示模式行为与单一整体过程披露：回合渲染为按时间顺序排列的可折叠过程片段，Bash 与 run 别名位于所有折叠容器之外（回合级过程披露与任何普通活动组），即使所有组都收起也保持可见，且过程／组折叠默认值不依赖思考偏好。偏好为可选的布尔值 `AppSettings.showThinking`；缺失或非布尔值回退到旧版 `thinkingDisplayMode` 字段（`compact` 隐藏，`detailed`／未知／缺失显示），该旧字段仅为持久化设置兼容性保留。`showThinking` 加入可移植应用字段，因此会像旧字段一样同步；其余 Host 协议、持久化 schema、权限或插件契约不变。见修订后的 ADR、`04-ux/06-settings-ia.md`、`04-ux/08-component-spec.md`、`04-ux/09-interaction-patterns.md` 与 E2E-CHAT-turn-process-and-thinking-display。** | 单一扁平容器让较长的工具／搜索序列难以浏览，并把推理可见性与过程折叠挤进同一个二值开关；独立布尔值加上始终可见的 Bash 行，让命令密集的回合保持可读又不遮挡回答。 |
+| D662 | 插件在工作面板 Browser 中打开受范围限制的 HTML | **在 `fs.read` 下新增 `pi.fs.openInBrowser(pathFromRoot)`。宿主执行插件常规的读取路径包含、受保护路径、凭据拒绝名单、声明范围与项目注册文件夹检查；仅接受已存在的 `.html`、`.htm`、`.xhtml` 文件。验证后，Main 请求渲染进程为当前本地会话创建 Browser 资源标签页。Browser 插件必须启用。此操作不授予 `browser.cdp`，不改变 BrowserPreview 或本地文件导航策略，也不新增 host-core 协议或持久化状态。见 ADR 0330、`07-plugins/03-plugin-api.md`、`07-plugins/13-plugin-permissions-matrix.md`、`04-ux/08-component-spec.md` 与 E2E-153。** | 文件管理器需要在应用内预览 HTML；如果授予插件 `browser.cdp`，也会暴露无关的页面检查与控制能力。 |
 
 ## B. 辅助实现默认值
 
@@ -5456,3 +5457,14 @@ Markdown 源码，不是 `text/html` 负载；对禁用行内 HTML 的外部编�
   i18n 目录测试覆盖。见修订后的 ADR、`04-ux/06-settings-ia.md`、
   `04-ux/08-component-spec.md`、`04-ux/09-interaction-patterns.md` 与
   E2E-CHAT-turn-process-and-thinking-display。
+
+## 2026-10-16 —— 插件在工作面板 Browser 中打开受范围限制的 HTML 文件（D662）
+
+- 在 `fs.read` 下新增 `pi.fs.openInBrowser(pathFromRoot)`。宿主沿用插件常规的
+  读取路径包含检查、受保护路径检查、凭据拒绝名单、声明范围与项目注册文件夹检查；
+  只接受已存在的 `.html`、`.htm` 与 `.xhtml` 文件，并审计每次调用。
+- 验证通过后，Main 发送专用事件；渲染进程为当前本地会话打开 Browser 资源标签页。
+  Browser 插件必须启用。此操作不授予 `browser.cdp`，也不暴露 Browser 控制能力。
+- 由 `apps/desktop/test/plugin-fs-scope.test.mjs` 与
+  `apps/desktop/test/browser-preview-tool.test.mjs` 覆盖。E2E-153 的已打包文件管理器
+  场景覆盖完整用户流程。见 ADR 0330 以及插件 API、权限、安全与组件规格。

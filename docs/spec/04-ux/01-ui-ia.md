@@ -283,10 +283,12 @@ destination, chat as the home surface, tools and permissions inline.
   first, and Name. Pinned rows precede unpinned rows. Project groups switch
   to `manual` by dragging a title or using ArrowUp/ArrowDown on that
   title. Session `manual` remains a compatibility value.
-- **Conversation list**: each group shows the ten most-recent sessions in the
-  active sort order by default; the remainder folds behind a **Load N more…**
-  row that expands the full time-grouped list on click. Pinned rows precede
-  unpinned rows and are never pushed behind the fold; the expansion state is
+- **Conversation list**: each project group shows the ten most-recent sessions
+  in the active sort order by default; the remainder folds behind a **Load N
+  more…** row. The list has no time-group headings. Rows show the title and a
+  localized last-reply age through seven calendar days, then a concrete date;
+  hovering or focusing a row replaces the date with its session actions. Pinned
+  rows precede unpinned rows and are never pushed behind the fold; expansion is
   not persisted.
 - **Standalone sessions**: path-less sessions remain in the separate Sessions
   section and never inherit the last active project's workspace.
@@ -370,13 +372,17 @@ schedule. Renaming an Hourly task does not restart its interval.
 ### 3.4 Extensions
 
 The Extensions destination is a focused plugin surface with a compact header and
-only two tabs: **Installed** and **Marketplace**. Installed groups plugin rows
+only two tabs: **Installed** and **Marketplace**. Installed groups plugin cards
 by state — Needs attention / Updates available / Active / Turned off — as soft
-tiles stacked under a group label (D296). Marketplace remains the browse/install
-card grid and always uses the official catalog. The page draws no dividers:
-header, toolbar, rows, cards and the detail sheet's sections are set apart by
-tone and spacing, and hairlines are reserved for floating layers (menus, sheet,
-dialogs). MCP, Skills, and Subagents are not tabs or sections of Extensions.
+tiles in an auto-filling card grid under a group label (D296). Marketplace
+remains the browse/install card grid and always uses the official catalog.
+Public ratings and reviews are read-only here: cards carry a rating chip, the
+detail sheet carries a ratings summary, and a review drawer opens over the
+sheet; writing a review is a link out to the plugin centre's own page. The page
+draws no dividers: header, toolbar, cards and the detail sheet's sections are
+set apart by tone and spacing, and hairlines are reserved for floating layers
+(menus, sheet, dialogs). MCP, Skills, and Subagents are not tabs or sections of
+Extensions.
 
 ### 3.5 Settings (full-page takeover)
 ### 3.5 Settings (full-page takeover)

@@ -25,12 +25,12 @@ import {
 } from "../lib/sidebar-floating-menu";
 import { useTranslation } from "react-i18next";
 import { api } from "../lib/api";
+import { formatSessionLastReplyDate } from "../lib/sidebar-session-date";
 import { SessionHoverCard } from "../features/sessions/SessionHoverCard";
 import { useSessionHoverCard } from "../features/sessions/useSessionHoverCard";
 import { isDefaultSessionTitle, useAppStore } from "../stores/app-store";
 import {
   getGlobalPinnedSessions,
-  groupSidebarSessionsByTime,
   normalizeProjectPath,
   sessionArchived,
   sessionPinned,
@@ -259,7 +259,7 @@ export function Sidebar({
   className?: string;
   onAnimationEnd?: ReactAnimationEventHandler<HTMLElement>;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const sessions = useAppStore((s) => s.sessions);
   const activeSessionId = useAppStore((s) => s.activeSessionId);
   const selectingSessionId = useAppStore((s) => s.selectingSessionId);
@@ -2113,7 +2113,12 @@ export function Sidebar({
 
   const renderSessionRows = (
     items: SessionSummary[],
-    options?: { temporary?: boolean; projectPath?: string; global?: boolean },
+    options?: {
+      temporary?: boolean;
+      projectPath?: string;
+      global?: boolean;
+      showLastReplyDate?: boolean;
+    },
   ) => items.map((session) => {
     const meta = sessionMeta[session.id] ?? {};
     const normalizedProjectPath = normalizeProjectPath(session.projectPath);
@@ -2132,6 +2137,13 @@ export function Sidebar({
       outcome: sessionOutcomes[session.id],
       hasPendingPermission,
     });
+    const lastReplyDate = options?.showLastReplyDate
+      ? formatSessionLastReplyDate(
+          session.updatedAt,
+          new Date(),
+          i18n.resolvedLanguage ?? i18n.language,
+        )
+      : "";
     return (
       <div
         key={session.id}
@@ -2208,6 +2220,14 @@ export function Sidebar({
           {isRemoteSession(session) && <span className="thread-item-source" title={session.remoteHostLabel}>{t("remote:remote")}</span>}
           <WorktreeBadge worktree={session.worktree} sessionId={session.id} />
           <span className="thread-item-title">{taskTitle(session.title)}</span>
+          {lastReplyDate ? (
+            <>
+              <span className="thread-item-date-separator" aria-hidden="true">
+                |
+              </span>
+              <span className="thread-item-last-reply">{lastReplyDate}</span>
+            </>
+          ) : null}
           {options?.global ? (
             <span className="thread-item-project">
               {owningProject}
@@ -2246,7 +2266,7 @@ export function Sidebar({
     const isMenuOpen = projectMenu === entry.key;
 
     // Show the initial page by default; the remaining sessions stay folded
-    // behind the same load-more affordance used for time-group overflow.
+    // behind the Load more affordance.
     const sessionsExpanded = expandedProjectSessions[entry.key] ?? false;
     const history = entry.sessions.filter((session) => !pinnedSessionIds.has(session.id));
     const { visibleSessions, hiddenCount } = getVisibleProjectSessions(
@@ -2265,24 +2285,13 @@ export function Sidebar({
     const showRunBadge = runningAffordances.badge && runIsLive;
     const showRunRail = runningAffordances.rail && runIsLive;
 
-    const renderTimeGroupedSessions = (sessions: SessionSummary[]) => {
-      const result: React.ReactNode[] = [];
-      for (const { group, sessions: groupSessions } of groupSidebarSessionsByTime(sessions)) {
-        // For today, don't show header (as per requirement)
-        if (group !== "today") {
-          const i18nKey =
-            group === "yesterday" ? "nav.timeGroupYesterday" :
-            group === "thisWeek" ? "nav.timeGroupThisWeek" :
-            group === "older14d" ? "nav.timeGroupOlder14d" :
-            "nav.timeGroupArchived";
-          result.push(
-            <div key={`group-header-${group}`} className="sidebar-time-group-header">
-              {t(i18nKey)}
-            </div>
-          );
-        }
-        result.push(...renderSessionRows(groupSessions, { projectPath: entry.path }));
-      }
+    const renderProjectSessions = (sessions: SessionSummary[]) => {
+      const result: React.ReactNode[] = [
+        ...renderSessionRows(sessions, {
+          projectPath: entry.path,
+      showLastReplyDate: settings?.sidebarSessionTime === true,
+        }),
+      ];
       // Add "load more" button if there are hidden sessions
       if (hiddenCount > 0) {
         result.push(
@@ -2443,7 +2452,7 @@ export function Sidebar({
         >
           <div className="sidebar-session-group-clip">
             <div className="sidebar-session-group-list">
-              {entry.sessions.length > 0 ? renderTimeGroupedSessions(visibleSessions) : (
+              {entry.sessions.length > 0 ? renderProjectSessions(visibleSessions) : (
                 <div className="sidebar-session-empty">{t("nav.noProjectSessions")}</div>
               )}
             </div>
@@ -2734,7 +2743,10 @@ export function Sidebar({
             </section>
           )}
           <RemoteProjectGroups groups={remoteProjectGroups}
-            renderSessions={(sessions) => renderSessionRows(sessions, { temporary: false })} />
+            renderSessions={(sessions) => renderSessionRows(sessions, {
+              temporary: false,
+              showLastReplyDate: settings?.sidebarSessionTime === true,
+            })} />
         </div>
 
         <div className="sidebar-footer no-drag">

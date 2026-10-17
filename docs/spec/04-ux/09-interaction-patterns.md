@@ -296,10 +296,11 @@ may be retained while exactly one workspace supplies the visible shell context.
   ahead of the manual order; projects without an assigned order fall back to
   a stable path order until they are moved.
 - Each project group shows the ten most-recent rows in the active sort order
-  by default; the remaining sessions fold behind a **Load N more…** control
-  (the same affordance used for time-grouped overflow). Selecting it expands
-  the full time-grouped list, and the expanded state is per-group, for the
-  current session only, and not persisted.
+  by default; the remaining sessions fold behind a **Load N more…** control.
+  The expanded list remains flat. Each project session row shows its title and
+  localized last-reply age through seven calendar days, then a concrete date;
+  hover or keyboard focus replaces the date with the session actions. Expanded
+  state is per-group, for the current session only, and not persisted.
 - Presentation changes are saved best-effort. Storage failure must not block
   project activation, session selection, or agent execution.
 
@@ -1389,16 +1390,14 @@ Project drag/drop follows these patterns:
   the work panel follows the folder that answered: a file of the primary folder
   travels as a project-relative path, a file of a sibling folder of the same
   project as an absolute one, exactly as a scratch or attachment file does. A
-  chip whose reference matches nothing opens nothing and reports itself, and so
-  does a right-click on it: the file-reference menu — offered on every
-  reference the transcript renders, a sent `@path` chip, an inline code span, a
-  local link, a local image, a tool row's own file path, a path in a tool
-  result's file or match list, and an image attachment's thumbnail — shows the
-  file in the system file manager through that same completion and that same
-  address, and copies that file's full path or its project-relative path. A file
-  outside the project has no relative path to copy and says so. The OS default
-  application is no longer what this click does, though that action stays
-  reachable from the file view's own context menu.
+  chip whose reference matches nothing opens nothing and reports itself. Right-
+  clicking a transcript file reference offers Copy full path and Copy relative
+  path on every surface that names it. Unpositioned `.html` and `.htm`
+  references also offer an **Open with** submenu containing File Manager,
+  built-in browser, and default browser. Each choice completes the reference
+  first and opens that exact resolved file. Other file types keep the copy
+  actions only; the transcript menu has no **Show in folder** action. A file
+  outside the project has no relative path to copy and reports that fact.
 - In the host `file:` tab, a conversation MP4 that cannot be previewed because
   it is binary or exceeds the text preview limit offers **Open with default
   application**. This applies to named `.mp4` files and extensionless

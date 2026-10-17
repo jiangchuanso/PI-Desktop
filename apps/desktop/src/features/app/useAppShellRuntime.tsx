@@ -624,6 +624,12 @@ export function useAppShellRuntime() {
         ...browserPluginTab(event.path ?? event.url),
       });
     });
+    const offBrowserOpenFile = api.onBrowserOpenFile(({ path }) => {
+      const state = useAppStore.getState();
+      if (state.activeSessionId) {
+        state.openWorkPanelTabForSession(state.activeSessionId, browserPluginTab(path));
+      }
+    });
     const offHostStatus = api.onHostStatus((status) => {
       if (status.archMismatch) setArchMismatch(status.archMismatch);
       if (status.ok) {
@@ -829,6 +835,7 @@ export function useAppShellRuntime() {
       offNotificationSound();
       offInsecureEndpoint();
       offBrowserPreview();
+      offBrowserOpenFile();
       offBrowserState();
       offHostStatus();
       offNotificationChanged();

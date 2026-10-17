@@ -112,7 +112,9 @@ test("sidebar renders global pins once, outside project folding and history limi
     assert.ok(!rows(html).includes("archived-pin"));
     assert.ok(!rows(html).includes("archived-project-pin"));
 
-    const unpinned = render({ sessionMeta: {} });
+    // The last-reply date is opt-in, so the dated-group assertions below need
+    // the setting seeded; a fresh install leaves it absent.
+    const unpinned = render({ sessionMeta: {}, settings: { sidebarSessionTime: true } });
     assert.equal(pinnedSection(unpinned), "");
     assert.ok(rows(unpinned).includes("temporary-pin"));
     assert.ok(!rows(unpinned).includes("closed-pin"), "unpin respects closed project tabs");
@@ -154,6 +156,13 @@ test("sidebar renders global pins once, outside project folding and history limi
     assert.deepEqual(rows(datedGroup), ["date-row"]);
     assert.match(datedGroup, /class="thread-item-date-separator" aria-hidden="true">\|<\/span>/);
     assert.match(datedGroup, /class="thread-item-last-reply">Jan 1, 2020<\/span>/);
+
+    // Without the setting the same row renders its title only.
+    const sessionTimeOff = render({ sessionMeta: {}, settings: {} });
+    const datedGroupOff =
+      sessionTimeOff.match(/data-sidebar-project-group="\/dated"[\s\S]*?<\/section>/)?.[0] ?? "";
+    assert.deepEqual(rows(datedGroupOff), ["date-row"]);
+    assert.doesNotMatch(datedGroupOff, /thread-item-date-separator|thread-item-last-reply/);
 
     // A retained project with no sessions is the empty state, and it has to sit
     // in the same list layer so the fold animates it away too.

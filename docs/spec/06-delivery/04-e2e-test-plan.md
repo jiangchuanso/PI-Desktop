@@ -16017,7 +16017,9 @@ plugin-form fixtures in an isolated temporary directory at runtime.
   1. Open the work panel and request the user's preferred width.
   2. Drag the inner divider toward MainChat's left edge, including during
      pointer preview, then release.
-  3. Manually reopen the sidebar after the layout collapsed it.
+  3. Manually reopen the sidebar after the layout collapsed it. Repeat in an
+     866px viewport, where the reopen narrows the panel below 244px, then
+     collapse the sidebar again and drag the divider toward the panel.
   4. Close the work panel and confirm the sidebar returns; repeat after
      manually collapsing the sidebar.
   5. Repeat divider changes with `ArrowLeft`, `ArrowRight`, `Home`, and `End`.
@@ -16037,7 +16039,9 @@ plugin-form fixtures in an isolated temporary directory at runtime.
   budget is exhausted the expanded sidebar collapses immediately, and the panel
   may keep growing afterwards. A manual reopen spends panel width first;
   MainChat is preserved where possible and otherwise lands on the 460px reopen
-  target. Closing the panel restores only a sidebar the layout collapsed. The
+  target. That width is lent, not stored: the stored preferred width is
+  unchanged, collapsing the sidebar again restores it, and divider drags still
+  stop at 244px. Closing the panel restores only a sidebar the layout collapsed. The
   separator's ARIA minimum/maximum follow the same dynamic budget. The panel
   header's `+`, maximize, and viewport-fixed collapse toggle resolve to a single
   control gap (`--ds-work-panel-control-gap`) with no divider, inset, or margin

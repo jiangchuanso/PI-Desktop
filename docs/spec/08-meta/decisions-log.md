@@ -7780,3 +7780,72 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   default. Settings reads apply these defaults through renderer API
   normalization; no persisted schema or migration change is required. See
   `04-ux/01-ui-ia.md`, `04-ux/06-settings-ia.md`, and E2E-266.
+
+## 2026-10-16 — macOS paints an opaque native window surface (D665)
+
+- D665 supersedes the macOS `vibrancy: "sidebar"` + `transparent: true` window
+  backing from D348. A vibrancy material behind a transparent surface is
+  recomposited by WindowServer every frame the window stays dirty, which held an
+  idle focused window near 40% GPU on Apple Silicon (issue #1064). macOS now
+  paints the opaque background the other platforms already use, keeping the
+  `hiddenInset` titlebar, the inset traffic-light position, and the renderer's
+  sidebar tint and sheen.
+- The `window.setBackgroundColor` IPC no longer returns early on darwin, so a
+  granted `windowAppearance.backgroundColor` plugin theme is applied on macOS
+  like every other platform (ADR 0248): a theme change repaints the native
+  surface instead of being skipped. Native corner behavior is unchanged.
+- The bounded-animation contract that bounded idle indicators under #1064 stays
+  in force; only its stated rationale changes, because a dirty window is
+  recomposited on every platform. See ADR 0332, ADR 0248, ADR 0260,
+  `04-ux/08-component-spec.md`, `04-ux/07-ui-design-system.md`, and
+  `07-plugins/13-plugin-permissions-matrix.md`.
+- Covered by `apps/desktop/test/macos-opaque-window-surface.test.mjs`,
+  `apps/desktop/test/window-background.test.mjs`,
+  `apps/desktop/test/window-background-theme.test.mjs`, and
+  `apps/desktop/test/idle-status-animations.test.mjs`.
+
+## 2026-10-20 — macOS translucency is a window setting (D666, amended by D667)
+
+- D666 amends D665 / ADR 0332: the macOS main window still paints an opaque
+  native surface by default, and `AppSettings.macosWindowTranslucency` lets a
+  user opt back into the `sidebar` vibrancy material behind a transparent
+  backing. `macosWindowSurfaceOptions(translucent, color)` is the single surface
+  declaration; `mainWindowBackgroundOptions("darwin", color)` keeps the opaque
+  result so a platform-only caller never gets the material.
+- Electron fixes `transparent` when a window is created, so the preference is
+  read before `new BrowserWindow` and a change applies on the next launch. The
+  darwin-only Settings → General → Appearance row persists the choice and shows
+  a restart hint while it differs from the surface this process was created
+  with; no runtime window mutation, renderer reload, or relaunch is performed.
+- While the window is translucent, `window.setBackgroundColor` leaves the
+  surface to the material, so a plugin theme's
+  `windowAppearance.backgroundColor` is applied only on the opaque surface. The
+  renderer tint and sheen are unchanged in both modes, and no persisted-format
+  migration is required (D667 changed the absent-value meaning to translucent).
+- Covered by `apps/desktop/test/macos-window-translucency.test.mjs`,
+  `apps/desktop/test/macos-opaque-window-surface.test.mjs`, and
+  `apps/desktop/test/window-background.test.mjs`. See ADR 0332,
+  `04-ux/08-component-spec.md`, and `04-ux/07-ui-design-system.md`.
+
+## 2026-10-20 — macOS translucency stays the default (D667)
+
+- D667 amends D665 / D666 and ADR 0332: the macOS main window ships
+  **translucent** again — `vibrancy: "sidebar"`, `visualEffectState:
+  "followWindow"`, and a transparent `#00000000` backing — and
+  `AppSettings.macosWindowTranslucency` is the opt-out. Absent and `true` mean
+  the shipped material; only `false` paints the opaque surface that leaves
+  WindowServer's per-frame recomposition path (#1064). The store itself defaults
+  to translucent, so a boot that cannot read settings still paints the expected
+  window.
+- A translucent window owns its pixels: the post-creation
+  `applyMainWindowBackground` call now skips macOS windows created translucent,
+  in addition to the already-guarded `window.setBackgroundColor` and theme paths.
+  Without that guard the window was created with the material and then had an
+  opaque host colour painted over it, so the switch looked inert after a restart.
+  `window/control` `getState` keeps reporting the surface the process actually
+  created, which keeps the Settings restart hint honest.
+- No persisted migration: an absent value now means translucent, which restores
+  the pre-D665 appearance for every existing install, and an explicit `false`
+  keeps the opaque choice a user already made. See ADR 0332, ADR 0248,
+  `04-ux/06-settings-ia.md`, `04-ux/08-component-spec.md`, and
+  `apps/desktop/test/macos-window-translucency.test.mjs`.

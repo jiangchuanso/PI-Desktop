@@ -41,6 +41,7 @@ import { FontSizeRow } from "../../components/settings/FontSizeRow";
 import { LanguageRow } from "../../components/settings/LanguageRow";
 import { SettingsMenuSelect } from "../../components/settings/SettingsMenuSelect";
 import { ThemeRow } from "../../components/settings/ThemeRow";
+import { MacosWindowTranslucencyRow } from "../../components/settings/MacosWindowTranslucencyRow";
 import { NetworkProxySection } from "../../components/settings/NetworkProxySection";
 import { ProjectsPage } from "../../pages/ProjectsPage";
 import { AgentSkillsPage } from "../../components/settings/AgentSkillsPage";
@@ -413,6 +414,9 @@ export function SettingsPage() {
                 <LanguageRow settings={settings} saveSettings={saveSettings} />
                 <FontFamilyRow settings={settings} saveSettings={saveSettings} />
                 <FontSizeRow settings={settings} saveSettings={saveSettings} />
+                {platform === "darwin" && (
+                  <MacosWindowTranslucencyRow settings={settings} saveSettings={saveSettings} />
+                )}
               </SettingsCard>
 
               <SettingsCard title={t("settings.sidebar")}>

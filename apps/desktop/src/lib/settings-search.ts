@@ -84,7 +84,6 @@ export const SETTINGS_NAV: SettingsNavEntry[] = [
       "settings.proxyDirect",
       "settings.proxyCustom",
       "settings.proxyUrl",
-      "settings.networkRelaxedMode",
       "settings.networkRelaxedModeDesc",
       "settings.networkRelaxedModeStrictDesc",
       "settings.preventScreenSleep",
@@ -94,6 +93,8 @@ export const SETTINGS_NAV: SettingsNavEntry[] = [
       "settings.sidebarRunningIndicatorsDesc",
       "settings.sidebarRunningBadge",
       "settings.sidebarSessionTime",
+      "settings.windowTranslucency",
+      "settings.windowTranslucencyDesc",
     ],
   },
   {

@@ -752,12 +752,14 @@ plain status text:
 - Exit: 280ms opacity fade (`startup-splash-out`) once `ready` is true, revealing
   the already-mounted shell underneath
 - Reduced motion: near-zero enter/exit and a static full-width bar
-- macOS: the splash is the same glass as the sidebar (D304 / D348) — the
-  `--ds-sidebar-glass-tint` fill plus top/bottom sheen over the native
-  `sidebar` vibrancy, so the boot surface never flashes an opaque panel
-  ahead of the translucent sidebar. The mounted shell stays hidden under
-  the glass until the exit fade, then cross-fades in. Other platforms keep
-  the opaque `--ds-bg-primary` fill
+- macOS: the splash uses the same sidebar treatment as the app shell (D304 /
+  D348) — the `--ds-sidebar-glass-tint` fill plus top/bottom sheen over the
+  native `sidebar` vibrancy material, so the boot surface never flashes a
+  mismatched panel ahead of the sidebar. Turning off the macOS `Translucent
+  window` switch paints an opaque native surface (ADR 0332) under the same tint
+  and sheen, and the splash keeps following whichever surface the window has. The
+  mounted shell stays hidden under the splash until the exit fade, then
+  cross-fades in. Other platforms keep the opaque `--ds-bg-primary` fill
 
 This is boot-state feedback, not decorative chrome.
 

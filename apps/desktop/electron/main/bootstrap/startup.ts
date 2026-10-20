@@ -100,6 +100,9 @@ export type StartupDependencies = {
     developerMode?: unknown;
   } | null) => void;
   applyDeveloperMode: (settings?: { developerMode?: unknown } | null) => void;
+  applyMacosWindowTranslucency: (
+    settings?: { macosWindowTranslucency?: unknown } | null,
+  ) => void;
   applyPreventScreenSleep: (settings?: { preventScreenSleep?: unknown } | null) => void;
   applyKeepAwakeWhileRunning: (settings?: { keepAwakeWhileRunning?: unknown } | null) => void;
   applyPluginLauncherShortcut: (keybindings?: KeybindingOverrides) => void;
@@ -160,6 +163,7 @@ export function registerApplicationStartup(deps: StartupDependencies): void {
       planUiProbe,
       applyApplicationMenuSettings,
       applyDeveloperMode,
+      applyMacosWindowTranslucency,
       applyPreventScreenSleep,
       applyKeepAwakeWhileRunning,
       applyPluginLauncherShortcut,
@@ -319,11 +323,13 @@ export function registerApplicationStartup(deps: StartupDependencies): void {
           theme?: unknown;
           keybindings?: unknown;
           developerMode?: unknown;
+          macosWindowTranslucency?: unknown;
           preventScreenSleep?: unknown;
           keepAwakeWhileRunning?: unknown;
         } | null;
         applyApplicationMenuSettings(stored);
         applyDeveloperMode(stored);
+        applyMacosWindowTranslucency(stored);
         applyPreventScreenSleep(stored);
         applyKeepAwakeWhileRunning(stored);
         await applyNetworkProxyFromAppSettings(stored);

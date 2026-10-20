@@ -544,6 +544,7 @@ export function validateSettingsWrite(settings: AppSettings): AppSettings {
     "sidebarRunningBadge",
     "sidebarRunningRail",
     "sidebarSessionTime",
+    "macosWindowTranslucency",
   ] as const) {
     if (
       Object.prototype.hasOwnProperty.call(value, key) &&
@@ -1624,7 +1625,10 @@ export const api = {
       { theme, color, cornerRadius },
     ),
   windowControl: (action: WindowControlAction) =>
-    invoke<{ maximized: boolean }>(IPC.invoke.windowControl, { action }),
+    invoke<{ maximized: boolean; macosWindowTranslucency: boolean }>(
+      IPC.invoke.windowControl,
+      { action },
+    ),
   getCloseBehavior: () =>
     invoke<{ behavior: CloseBehavior; supported: boolean }>(
       IPC.invoke.closeBehaviorGet,

@@ -160,6 +160,14 @@ Settings is a **full-window page** that replaces the app sidebar + main chrome (
     shared Lucide icon scales in proportion without a reload. Window Zoom
     In/Out/Reset stays independent. The UI never asks for a px value
     (D343 / ADR 0180)
+  - **Translucent window** (macOS only): one switch for the native window
+    surface (ADR 0332). On — and absent — keeps the shipped `sidebar` vibrancy
+    material behind a transparent backing; off paints the opaque surface that
+    frees the window from WindowServer's per-frame recomposition. It persists as
+    `AppSettings.macosWindowTranslucency` and is applied when the main window is
+    created, so the row shows a restart hint while the stored value differs from
+    the surface this process launched with instead of pretending to change the
+    live window. Other platforms do not render the row.
   - **Auto language detection** resolves the OS locale through the main process
     (`app.getLocale()`) rather than the renderer's `navigator.language`, and the
     Auto option shows the detected language inline (e.g. "Currently 简体中文")

@@ -150,23 +150,34 @@ Outer frame that positions Topbar, Sidebar, MainChat, and WorkPanel. Owns resize
 | Windows | Frameless 46px titlebar; sidebar actions at left; work-panel toggle then minimize/maximize/close stay viewport-fixed at the window's top-right | None inside the window |
 | Linux | Frameless 46px titlebar; sidebar actions at left; work-panel toggle then minimize/maximize/close stay viewport-fixed at the window's top-right | None inside the window |
 
-- macOS enables the native Electron `vibrancy: "sidebar"` source-list material
-  with `visualEffectState: "followWindow"` and a transparent window backing
-  (D348). `nativeTheme.themeSource` follows the app theme preference (`system` /
-  `light` / `dark` / plugin base) so the material's light or dark plate matches
-  the renderer. Vibrancy is re-applied only when that source changes; a missing
-  plugin theme falls back to `system`. Main and settings navigation share the
+- macOS paints a **translucent** native window surface (ADR 0332): the native
+  `vibrancy: "sidebar"` material with `visualEffectState: "followWindow"` behind
+  a transparent Electron backing. A material behind a transparent surface is
+  recomposited by WindowServer on every frame the window stays dirty, which held
+  an idle focused window near 40% GPU on Apple Silicon (issue #1064); the
+  `Translucent window` switch is the opt-out for that cost, not the way back to
+  the shipped look. `nativeTheme.themeSource` still follows the app theme
+  preference (`system` / `light` / `dark` / plugin base), and a missing plugin
+  theme falls back to `system`. Main and settings navigation share the
   `.sidebar-surface` material, alongside any rendered `.sidebar-rail`; the
   settings shell ancestry is transparent but its content pane and titlebar stay
   opaque. The renderer adds a thin theme tint
   (`--ds-sidebar-glass-tint`, 40% dark / 55% light) plus a top/bottom sheen.
-  The dock carries no seam or hairline: the glass meets the opaque main pane
+  The dock carries no seam or hairline: the sidebar meets the opaque main pane
   flush, so the only edge cue is the tint's natural change against the pane.
   The material carries the blur, so the tint must stay thin — the sheen is what
   keeps the surface reading as glass rather than a painted panel.
   `.main-pane`, `.main-titlebar`, and `.conversation-topbar` remain opaque
   `bg-primary` surfaces, so vibrancy does not spread across the whole window.
   Windows/Linux retain their existing opaque background and frameless behavior.
+- Settings → General → Appearance → **Translucent window** (macOS only) is on
+  by default and turns the material off: an opaque window paints the host or
+  plugin palette and leaves WindowServer's per-frame recomposition path, while
+  the renderer keeps the same tint and sheen. The choice is read when the main
+  window is created, so the row shows a restart hint until the app is
+  relaunched. A translucent window owns its pixels — neither the
+  `window.setBackgroundColor` IPC nor the post-creation background paint touches
+  it, because a colour over the transparent backing flattens the material.
 - The macOS system menu exposes New Task, Open Project, Settings, Command
   Palette, Sidebar, standard editing, zoom/fullscreen, window, Help, Logs, and
   Check for Updates actions. Windows/Linux expose equivalent product actions

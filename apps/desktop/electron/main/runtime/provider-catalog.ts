@@ -192,6 +192,7 @@ export function createProviderCatalogRuntime({
       updatePreference?: unknown;
       lastNotifiedUpdateVersion?: unknown;
       networkProxy?: unknown;
+      macosWindowTranslucency?: unknown;
     };
     if (
       Object.prototype.hasOwnProperty.call(value, "defaultCommandShell") &&
@@ -222,6 +223,14 @@ export function createProviderCatalogRuntime({
       typeof value.jevEnabled !== "boolean"
     ) {
       throw Object.assign(new Error("jevEnabled is invalid"), {
+        errorCode: ErrorCodes.INVALID_PARAMS,
+      });
+    }
+    if (
+      Object.prototype.hasOwnProperty.call(value, "macosWindowTranslucency") &&
+      typeof value.macosWindowTranslucency !== "boolean"
+    ) {
+      throw Object.assign(new Error("macosWindowTranslucency is invalid"), {
         errorCode: ErrorCodes.INVALID_PARAMS,
       });
     }

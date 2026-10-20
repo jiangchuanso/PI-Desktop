@@ -74,6 +74,9 @@ export function useAppShellRuntime() {
   const projectPath = useAppStore((s) => s.workspace?.path ?? null);
   /** Monotonic counter for the plugin active-session push. */
   const activeSessionSeq = useRef(0);
+  /** Identifies this renderer load: a reload restarts the counter, and the
+   * main-side high-water mark must restart with it (#1753). */
+  const sessionPushBootId = useRef(crypto.randomUUID());
   /** The project of the session on screen, for the plugin session snapshot. */
   const activeSessionProjectPath = useAppStore((s) =>
     s.activeSessionId
@@ -476,6 +479,7 @@ export function useAppShellRuntime() {
         sessionId: activeSessionId ?? null,
         projectPath: activeSessionProjectPath,
         seq: activeSessionSeq.current,
+        bootId: sessionPushBootId.current,
       })
       .catch(() => undefined);
   }, [activeSessionId, activeSessionProjectPath]);

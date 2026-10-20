@@ -8,6 +8,41 @@
 
 ## 1. Goals
 
+### E2E-PI-130-kernel-upgrade
+
+- **Preconditions:** Exact Pi 1.3.0 pins and migrated patches in a dedicated
+  worktree, isolated fixture state, and no real provider credentials.
+- **Steps:** Submit a Desktop turn that receives malformed final tool JSON,
+  then a corrected Write call and a final answer. Repeat with a literal invalid
+  Unicode escape in the tool input. Resume DeepSeek history using the same and
+  a different provider/model identity. Run two turns with extensions that guard
+  `before_agent_start` by `messageType === "user"`. Exercise hosted search,
+  native Pi continuation, and MCP with existing offline suites.
+  Expand a slash template with an empty quoted argument followed by two values;
+  exercise strict-tool downgrade, thinking-off, error images, mixed reasoning/text
+  stream chunks, and native tool restoration under `noTools: "all"`.
+- **Expected:** Malformed calls never reach Host execution; raw input reaches
+  the next model request as a tool error, and only the corrected call executes.
+  Unicode escapes retain all fields. Same-model thinking replays as reasoning;
+  foreign thinking is omitted without altering visible history. Prompt additions
+  remain ordered and do not accumulate. Host permissions, persistence, native
+  tool restrictions, search replay, and cancellation remain unchanged.
+  Empty quoted template arguments retain their positions and activate defaults;
+  strict `require` remains strict, hosted search survives downgrade, and native
+  historical tool activation cannot bypass Desktop's explicit no-tools setting.
+- **Coverage:** `pi-upstream-1.3-contract.test.ts`, `flash-transcript.test.ts`,
+  `hosted-search-consumers.test.ts`, `provider-stream-frame-fields.test.ts`,
+  `extensions/prompt-chain.test.ts`, `native-pi-session.test.ts`,
+  `pi-anthropic-strict-fallback.test.ts`, `pi-1.3-adapter-features.test.ts`,
+  `prompt-templates.test.ts`, and the
+  existing `test:e2e`, `test:e2e:hosted-search`, `test:e2e:provider-api-style`,
+  and `test:e2e:trusted-extensions` commands.
+- **Specs:** [Pi dependency boundary](../02-architecture/06-pi-runtime-dependency-boundary.md),
+  [trusted extensions](../07-plugins/16-trusted-extensions.md).
+- **Acceptance:** Offline runtime/contract and isolated process validation.
+- **Milestone:** Maintenance.
+- **Status:** Candidate validation recorded in `docs/project/pi-130-adoption.md`.
+
 ### E2E-QUEUE-send-now-wakes-subagents
 
 - **Preconditions:** Dedicated request worktree with built workspace packages,
@@ -1358,6 +1393,27 @@ identify the platform validation still needed.
 - **Acceptance**: F (runtime provider requests)
 - **Milestone**: M2
 - **Status**: Unit-covered (binding resolution and endpoint assertion)
+
+#### E2E-005K: OpenCode Go Claude models use the published Anthropic route
+
+- **Preconditions**: An OpenCode Go provider uses the built-in preset. The
+  deterministic catalog fixture contains `claude-haiku-5-5` with
+  `api: "anthropic_messages"` and an OpenCode Anthropic root `baseUrl`, plus a
+  DeepSeek Chat Completions control model.
+- **Steps**: 1) Select Claude Haiku and send a text turn through a capture
+  fixture. 2) Capture the request URL and adapter payload. 3) Repeat with the
+  DeepSeek control model. 4) Repeat with the same catalog metadata on a custom
+  OpenAI-compatible provider.
+- **Expected**: OpenCode Claude uses the Anthropic adapter and posts to
+  `/zen/go/v1/messages`; it does not post Chat Completions and does not return
+  `ModelProtocolUnsupported`. DeepSeek keeps `/chat/completions`. The custom
+  provider keeps its saved wire style and base URL despite the foreign catalog
+  API. Unit coverage lives in `packages/agent-runtime/src/provider-binding.test.ts`.
+- **Specs linked**: `03-runtime/11-provider-model-system.md`,
+  `03-runtime/13-model-catalog-and-selection.md`, issue #1728
+- **Acceptance**: F (runtime provider requests)
+- **Milestone**: M2
+- **Status**: Unit-covered; live endpoint scenario Draft
 
 #### E2E-005C: OpenAI-compatible system role fallback
 
@@ -6928,6 +6984,10 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
     loop on a second overflow. A recoverable first overflow emits no terminal
     error message or `error` event; only a failed retry (or failed compaction)
     closes the bubble with `CONTEXT_TOO_LARGE` / the actual terminal error.
+  - If a retryable provider stream failure arrives after compaction has already
+    replaced the failed assistant with a summary or retained user message, the
+    retry keeps that current compacted transcript and calls `continue()`; it
+    does not surface the missing-assistant guard error (issue #1768).
   - If automatic summary generation fails, a durable retained-tail fallback
     checkpoint is appended, the run stays active, and one warning explains
     that older model context was reduced; the transcript row for that
@@ -10100,6 +10160,7 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
 
 | Acceptance | Scenarios |
 |---|---|
+| B / Security / Quality — Optional provider client certificate requests | E2E-PROVIDER-optional-client-certificate |
 | C / E / F / Quality / Security — Session Todo checklist | E2E-CHAT-session-todo-checklist |
 | C / E / Security / Quality — Live Voice four-stage interaction | E2E-LIVE-VOICE-four-stage-ui |
 | C / F — Hourly task updates | E2E-SCHEDULED-manual-to-hourly |
@@ -10136,6 +10197,8 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
 | Quality | E2E-SETTINGS-inline-capability-imports, E2E-CHAT-long-history-stream-keeps-responsive, E2E-CHAT-running-status-survives-output-pauses, E2E-032, E2E-033, E2E-039, E2E-043, E2E-044, E2E-045, E2E-046, E2E-047, E2E-048, E2E-048A, E2E-049, E2E-050, E2E-053, E2E-055, E2E-056, E2E-057, E2E-058, E2E-059, E2E-060, E2E-061, E2E-062, E2E-063, E2E-064, E2E-065, E2E-066, E2E-067, E2E-068, E2E-069, E2E-070, E2E-071, E2E-072, E2E-073, E2E-074, E2E-075, E2E-076, E2E-077, E2E-078, E2E-079, E2E-080, E2E-081, E2E-082, E2E-083, E2E-084, E2E-085, E2E-086, E2E-092, E2E-093, E2E-094, E2E-095, E2E-096, E2E-097, E2E-098, E2E-099, E2E-100, E2E-101, E2E-102, E2E-102a, E2E-102b, E2E-102c, E2E-102d, E2E-102e, E2E-103, E2E-AGENTS-001, E2E-021a, E2E-024N, E2E-059a, E2E-060b, E2E-060c, E2E-061a, E2E-073a, E2E-111, E2E-114, E2E-117, E2E-118, E2E-119, E2E-120, E2E-122, E2E-123, E2E-142, E2E-143, E2E-144, E2E-145, E2E-146, E2E-147, E2E-148, E2E-150, E2E-151, E2E-153, E2E-155, E2E-158, E2E-159, E2E-160, E2E-161, E2E-162, E2E-163, E2E-168, E2E-172, E2E-173, E2E-174, E2E-011g, E2E-176, E2E-177, E2E-178, E2E-179, E2E-180, E2E-181, E2E-182, E2E-183, E2E-186, E2E-187, E2E-194, E2E-195, E2E-196a, E2E-196b, E2E-196c, E2E-198, E2E-199, E2E-200, E2E-196, E2E-201, E2E-204, E2E-202, E2E-203, E2E-205, E2E-206, E2E-207, E2E-208, E2E-209, E2E-210, E2E-UPDATE-preference-and-once-only-reminder, E2E-218, E2E-259, E2E-219, E2E-250, E2E-252, E2E-102i, E2E-SUBAGENT-settlement-updates-before-parent-poll, E2E-PLUGIN-imported-pi-package-skills, E2E-PLUGIN-fs-root-follows-the-calling-session, E2E-SUBAGENT-resume-a-settled-delegation, E2E-PLUGIN-provider-catalog-add-service |
 | Quality (sidebar menu placement) | E2E-021c |
 | Quality (project ordering) | E2E-253 |
+| Quality (work-panel tab close visibility) | E2E-WORK-PANEL-active-tab-close-visibility |
+| C / E / G / Quality — Pi kernel upgrade | E2E-PI-130-kernel-upgrade |
 | C — Conversation & stream (IME slash alias) | E2E-255 |
 | E — Tools & permissions (Skill residency) | E2E-254 |
 | Quality (Skill residency and IME slash alias) | E2E-254, E2E-255 |
@@ -13845,17 +13908,21 @@ are withdrawn with ADR 0165.
 
 - **Preconditions**: At least one supported local config exists among
   `~/.claude/settings.json`, `~/.codex/config.toml` `[model_providers.*]`,
-  `~/.config/opencode/opencode.json`, `~/.pi/agent/models.json`, or
+  `~/.config/opencode/opencode.json`, `~/.pi/agent/models.json`,
+  `~/.pi/agent/auth.json` plus `~/.pi/agent/models-store.json`, or
   `~/.cc-switch/cc-switch.db`, including two API-key profiles with the same
-  endpoint and different keys, and optionally one OAuth-only vendor.
-  PI-Desktop may already have an equivalent provider.
+  endpoint and different keys, one auth-only Pi API-key provider, and
+  optionally one OAuth-only vendor. PI-Desktop may already have an equivalent
+  provider.
 - **Steps**:
   1. Open Settings → Models and expand **Import from other tools**. Confirm
      its scan explanation appears as inline text without a help icon, and the
      workbench remains idle until Scan is activated.
   2. Scan model configuration. Confirm source groups start expanded, rows
      show name, model count, host, and an API key / No API key badge, and no
-     secret value appears in the UI or scan IPC payload.
+     secret value appears in the UI or scan IPC payload. Confirm the
+     auth-only Pi provider appears in the Pi group with its cached model
+     count and an API key badge.
   3. Import the selected providers. Confirm both same-endpoint profiles appear
      as separate rows under Settings → Models and remain selectable in the
      Composer model menu. Re-import the same selection and confirm those
@@ -13866,10 +13933,12 @@ are withdrawn with ADR 0165.
   5. Confirm an OAuth-only source account is absent from the candidate
      list.
 - **Expected**: Explicit scan only (D007). Stored API keys land in the host
-  secret store. Only equivalent providers (normalized URL + API style + same
-  credential) skip; different credentials at one endpoint remain separate.
-  The expanded importer shows its scan explanation directly without a
-  question-mark control. No protocol or schema version bump.
+  secret store. Pi providers connected through `auth.json` are paired with
+  the cached `models-store.json` catalog; OAuth grants and `!command` keys
+  are not imported. Only equivalent providers (normalized URL + API style +
+  same credential) skip; different credentials at one endpoint remain
+  separate. The expanded importer shows its scan explanation directly
+  without a question-mark control. No protocol or schema version bump.
 - **Specs linked**: `04-ux/06-settings-ia.md`,
   `04-ux/08-component-spec.md` §18.5, `03-runtime/01-ipc-protocol.md`,
   `03-runtime/11-provider-model-system.md`, ADR 0179, D342
@@ -16151,6 +16220,27 @@ plugin-form fixtures in an isolated temporary directory at runtime.
   `scripts/e2e-work-panel-drag.mjs` (`pnpm test:e2e:work-panel-drag`). macOS/Linux
   native dragging remains unqualified.
 
+### E2E-WORK-PANEL-active-tab-close-visibility
+
+- **Preconditions**: Open a desktop session on Windows with the work panel at
+  its narrow supported width and create a long-named file or plugin tab so the
+  tab wrapper is wider than the visible horizontal strip.
+- **Steps**: Activate the overflowing tab, then inspect the tab wrapper and
+  its `.work-panel-tab-close` rectangle against the strip's client viewport.
+  Repeat after switching between two overflowing tabs and after scrolling the
+  strip toward either end.
+- **Expected**: Activating a tab scrolls the whole tab wrapper and then its
+  close button into the visible strip. The close button is visible and hit
+  testable without requiring a middle click, keyboard shortcut, or widening
+  the panel.
+- **Specs linked**: `04-ux/07-ui-design-system.md` §10, issue #1762
+- **Acceptance**: Quality
+- **Milestone**: Post-M6 desktop shell maintenance
+- **Status**: Renderer source-contract regression covered by
+  `apps/desktop/test/work-panel.test.mjs`; the Windows probe in
+  `scripts/e2e-work-panel-drag.mjs` also checks the active close-button
+  rectangle before its native hit-test stages.
+
 #### E2E-LAYOUT-sidebar-project-group-fold
 
 - **Preconditions**: Five retained sidebar project groups, seeded through the
@@ -16696,6 +16786,30 @@ plugin-form fixtures in an isolated temporary directory at runtime.
 - **Specs:** runtime §12; storage §12; ADR 0254.
 - **Status:** Source-regression covered; full Desktop journey Draft.
 
+### E2E-SESSION-native-pi-project-session-dir
+
+- **Preconditions:** A local project has `.pi/settings.json` with
+  `"sessionDir": ".pi/sessions"` and a valid native v3 JSONL in that directory.
+  The default Pi agent session root also contains a valid session. A nested
+  JSONL and a symlink that leaves `.pi/sessions` are present. A second fixture
+  sets an absolute global `sessionDir` and no project path. A third sets a
+  relative global `sessionDir`.
+- **Steps:** Refresh the session list, open the project-local session, and fork
+  it. Repeat list and open for the absolute global directory. Refresh the
+  relative global fixture once with no known project and once after that
+  project is known, including a remote project id in the known set.
+- **Expected:** The project-local session and the default-root session both
+  appear. The nested file and the escaping symlink do not. Opening the
+  project-local session returns its transcript. Fork publishes one new JSONL
+  beside the parent and does not rewrite the parent. The absolute global
+  directory is listed without a project path. The relative global directory is
+  listed only for the known local project. Remote project ids are ignored.
+  Untrusted project resources stay browseable and read-only.
+- **Specs:** runtime §12; storage §12; security §12; ADR 0254.
+- **Status:** Source-regression covered by
+  `packages/agent-runtime/src/native-pi-session.test.ts` (the project fixture
+  asserts `readOnlyReason: project-untrusted` and `canPrompt: false`) and
+  `apps/desktop/test/native-pi-sessions.test.mjs`; full Desktop journey Draft.
 
 ### E2E-SUBAGENT-ordered-model-fallback-preserves-work
 
@@ -18217,3 +18331,28 @@ host-created files. The full app's file-preview viewer is covered separately.
   `ui.view` gating, panel-bridge channel) and the wiring contract in
   `apps/desktop/test/main-wiring-contract.test.mjs`; the interactive Electron
   scenario remains a manual validation run.
+
+### E2E-PROVIDER-optional-client-certificate
+
+- **Preconditions:** The locked Electron 43 runtime, built workspace packages,
+  and an isolated profile. Only a local HTTPS fixture and local proxy are used;
+  trust is confined to the test process/session and fixture certificate.
+- **Steps:** Run `node scripts/e2e-provider-client-certificate.mjs`. Confirm the
+  original `net.fetch` aborts before HTTP. Probe the model list and connection
+  through the real metadata service; repeat with an invalid fixture key and an
+  authenticated custom HTTP proxy. Return a cross-origin redirect, then cancel
+  a pending response.
+- **Expected:** Valid credentials return the fixture model; invalid credentials
+  reach HTTP 401. The retry follows the proxy route, sends no client identity,
+  refuses cross-origin redirects and aborts with the original signal.
+- **Security coverage:** `provider-https-metadata.test.mjs` additionally checks
+  mandatory client authentication, untrusted server certificates, hostname
+  mismatch, compressed responses, and late-tunnel cleanup. The metadata policy
+  tests reject fallback on other TLS/network errors or HTTP failures.
+- **Specs linked:** `03-runtime/07-process-model.md`,
+  ADR `provider-metadata-client-certificate-retry`, issue #1676.
+- **Acceptance:** Recovery without an Electron major upgrade, TLS verification
+  bypass, direct proxy bypass, or change to persisted provider bindings.
+- **Milestone:** Maintenance.
+- **Status:** Automated fixture; record the tested head/base and execution
+  result in the delivery report.

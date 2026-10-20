@@ -684,6 +684,9 @@ export const api = {
     projectPath?: string | null;
     /** Renderer-side counter: a slower push must never undo a newer one. */
     seq?: number;
+    /** Identifies the renderer load: a reload restarts the counter, and the
+     * main-side high-water mark restarts with it (#1753). */
+    bootId?: string;
   }) => invoke<{ ok: boolean }>(IPC.invoke.pluginSessionActive, input),
   listSessions: () =>
     invoke<{ sessions: SessionSummary[] }>(IPC.invoke.sessionList).then((result) => ({

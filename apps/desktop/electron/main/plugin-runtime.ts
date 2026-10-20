@@ -1994,8 +1994,9 @@ export class PluginRuntime {
    * receive the same names through `pluginBridge.on`; this is the process
    * half (spec 07 §5).
    */
-  broadcastEvent(event: string, args: unknown[] = []): void {
+  broadcastEvent(event: string, args: unknown[] = [], filter?: (pluginId: string) => boolean): void {
     for (const loaded of this.loaded.values()) {
+      if (filter && !filter(loaded.manifest.id)) continue;
       try {
         loaded.child?.postMessage({ t: "event", event, args });
       } catch (error) {

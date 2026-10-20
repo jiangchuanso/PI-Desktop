@@ -9,6 +9,19 @@
 
 ---
 
+### E2E-PI-130-kernel-upgrade
+
+- **Preconditions:** Pi 1.3.0 with migrated patches, isolated fixture state, and
+  no real credentials. Submit malformed tool JSON followed by a corrected call,
+  test literal Unicode escapes, resume same/foreign-model thinking, and run two
+  turns with extensions that guard `messageType === "user"`.
+- **Expected:** No malformed call reaches Host execution; raw errors reach the
+  model, corrected calls succeed, foreign thinking is omitted, same-model
+  reasoning survives, and prompt additions remain ordered without accumulating.
+  Existing hosted-search, native-session, MCP, and cancellation suites remain
+  authoritative. See the English source and `docs/project/pi-130-adoption.md`
+  for exact coverage and candidate validation.
+
 ### E2E-LEGACY-DICTATION-idle-model-release
 
 - **前提：** 通过 `VoiceService` 接口测试保留的本地 Dictation 服务，使用确定性的
@@ -492,6 +505,24 @@ task-candidate E2E 从请求工作树运行，但使用主工作区已经准备�
 - **验收**：B（模型配置）、F（运行时提供商请求）
 - **里程碑**：M2
 - **状态**：单元覆盖（行级模型标头、请求上下文标头、Anthropic Messages Bearer 认证与令牌轮换）；真实 Copilot 账户旅程待验证
+
+#### E2E-005K：OpenCode Go Claude 模型使用目录发布的 Anthropic 线路
+
+- **前提条件**：使用内置预设配置 OpenCode Go；确定性目录 fixture 包含
+  `claude-haiku-5-5`，其声明 `api: "anthropic_messages"` 和 OpenCode Anthropic
+  根 `baseUrl`，另有一个 DeepSeek Chat Completions 对照模型。
+- **步骤**：1）选择 Claude Haiku，通过捕获 fixture 发送文本回合。2）记录请求 URL
+  和适配器请求体。3）换成 DeepSeek 对照模型重复。4）将相同目录元数据放到自定义
+  OpenAI 兼容提供商上重复。
+- **预期**：OpenCode Claude 使用 Anthropic 适配器并访问 `/zen/go/v1/messages`，不再
+  发往 Chat Completions，也不返回 `ModelProtocolUnsupported`。DeepSeek 保持
+  `/chat/completions`。自定义提供商即使匹配到外部目录 API，仍使用保存的 wire 格式与
+  Base URL。单元覆盖位于 `packages/agent-runtime/src/provider-binding.test.ts`。
+- **链接规格**：`03-runtime/11-provider-model-system.md`、
+  `03-runtime/13-model-catalog-and-selection.md`、issue #1728
+- **验收**：F（运行时提供商请求）
+- **里程碑**：M2
+- **状态**：单元覆盖；真实端点场景草稿
 
 #### E2E-MODELS-list-layout：受限窗口中的模型列表可完整浏览
 
@@ -3786,6 +3817,8 @@ IPC 请求无法关闭。
     上下文；压缩／重试等待期间，界面保留同一个助手气泡并保持运行态；
     压缩后只重试一次，第二次溢出不循环。第一次可恢复溢出不发终态错误消息或
     `error` 事件；只有重试／压缩失败时才以 `CONTEXT_TOO_LARGE` 或真实终态错误收口。
+  - 如果压缩已经用摘要或保留的用户消息替换了失败的助手，而之后发生可重试的提供程序流失败，
+    重试会保留当前压缩后的转录本并调用 `continue()`；不会因为缺少失败助手而触发守卫错误（issue #1768）。
   - 如果自动摘要生成失败，则持久保留尾部回退
     附加检查点，运行保持活动状态，并有一个警告解释
     旧模型上下文被减少；该检查点的转录行显示
@@ -5723,6 +5756,7 @@ eleven-tool-round desktop paths are verified by
 ## 8. 可追溯性矩阵
 | 验收 | 应用场景 |
 |---|---|
+| B / Security / Quality — Optional provider client certificate requests | E2E-PROVIDER-optional-client-certificate |
 | C / E / F / Quality / Security — Session Todo checklist | E2E-CHAT-session-todo-checklist |
 | C / E / Security / Quality — Live Voice 四阶段交互 | E2E-LIVE-VOICE-four-stage-ui |
 | C / F — Hourly task updates | E2E-SCHEDULED-manual-to-hourly |
@@ -5759,6 +5793,8 @@ eleven-tool-round desktop paths are verified by
 | 品质 | E2E-SETTINGS-inline-capability-imports、E2E-CHAT-running-status-survives-output-pauses、E2E-032、E2E-033、E2E-039、E2E-043、E2E-044、E2E-045、E2E-046、E2E-047、E2E-048、E2E-048c、E2E-048A、E2E-049、E2E-050、E2E-053、E2E-055、 E2E-056、E2E-057、E2E-058、E2E-059、E2E-060、E2E-061、E2E-062、E2E-063、E2E-064、E2E-065、E2E-066、E2E-067、E2E-068、E2E-069、 E2E-070、E2E-071、E2E-072、E2E-073、E2E-074、E2E-075、E2E-076、E2E-077、E2E-078、E2E-079、E2E-080、E2E-081、E2E-082、E2E-083、 E2E-084、E2E-085、E2E-086、E2E-092、E2E-093、E2E-094、E2E-095、E2E-096、E2E-097、E2E-098、E2E-099、E2E-100、E2E-101、E2E-102、 E2E-102a、E2E-102b、E2E-103、E2E-AGENTS-001、E2E-024N、E2E-024O、E2E-059a、E2E-060b、E2E-060c、E2E-060d、E2E-061a、E2E-073a、E2E-111、 E2E-114、E2E-117、E2E-118、E2E-119、E2E-120、E2E-122、E2E-123、E2E-142、E2E-143、E2E-144、E2E-145、E2E-146、E2E-147、E2E-148、E2E-150、E2E-151、E2E-153、E2E-194、E2E-195、E2E-199、E2E-200、E2E-201、E2E-202、E2E-203、E2E-204、E2E-209、E2E-210、E2E-UPDATE-preference-and-once-only-reminder、E2E-250、E2E-PLUGIN-imported-pi-package-skills、E2E-SUBAGENT-resume-a-settled-delegation |
 | 品质（侧边栏菜单定位） | E2E-021c |
 | 品质（项目排序） | E2E-253 |
+| 品质（工作面板标签关闭按钮可见性） | E2E-WORK-PANEL-active-tab-close-visibility |
+| C / E / G / Quality — Pi kernel upgrade | E2E-PI-130-kernel-upgrade |
 | C — 对话和直播（输入法斜杠别名） | E2E-255 |
 | E——工具和权限（Skill 常驻） | E2E-254 |
 | 品质（Skill 常驻与输入法斜杠别名） | E2E-254、E2E-255 |
@@ -8459,6 +8495,16 @@ runner 会在运行时的隔离临时目录中生成六个插件形态 fixture�
 - **链接规格**：`04-ux/07-ui-design-system.md` §10
 - **验收**：品质
 - **状态**：Windows 原生回归由 `scripts/e2e-work-panel-drag.mjs`（`pnpm test:e2e:work-panel-drag`）覆盖；macOS/Linux 原生拖动尚未验证。
+
+### E2E-WORK-PANEL-active-tab-close-visibility
+
+- **前提条件**：在 Windows 上打开桌面会话，将工作面板调整到支持的窄宽度，并创建一个名称较长的文件或插件标签，使标签容器宽于可见的横向标签栏。
+- **步骤**：激活发生溢出的标签，读取标签容器及其 `.work-panel-tab-close` 矩形与标签栏 client 视口的关系。在两个溢出标签之间切换，并分别将标签栏滚向两端后重复检查。
+- **预期**：激活标签时，整个标签容器及其关闭按钮都会滚动到可见标签栏内。关闭按钮无需中键、键盘快捷键或扩大面板即可看见并命中。
+- **链接规格**：`04-ux/07-ui-design-system.md` §10，issue #1762
+- **验收**：品质
+- **里程碑**：M6 之后桌面壳维护
+- **状态**：渲染器源契约回归由 `apps/desktop/test/work-panel.test.mjs` 覆盖；`scripts/e2e-work-panel-drag.mjs` 的 Windows 探针也会在原生命中测试阶段前检查激活标签关闭按钮的矩形。
 
 #### E2E-LAYOUT-sidebar-project-group-fold
 

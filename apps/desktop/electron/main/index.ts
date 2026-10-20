@@ -304,6 +304,7 @@ let sessionLaunchRuntime: ReturnType<typeof createSessionLaunchRuntime> | null =
 const pluginServices = createPluginServices({
   dataDir,
   logger,
+  pluginActiveInProject,
   getMainWindow,
   getHost,
   sendToRenderer,

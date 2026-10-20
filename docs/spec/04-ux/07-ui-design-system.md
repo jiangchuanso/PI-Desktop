@@ -547,7 +547,8 @@ pixel remains clickable. Termination is geometric: a region ends where the
 element's border box ends, so an element that only pads its content clear of
 the band still covers the controls with its rectangle. The open work-panel
 header uses a horizontally scrollable tab strip with a fixed `+` add trigger;
-each tab owns its close action and the header does not add a second `×` beside
+each tab owns its close action, and activating a tab scrolls its tab and close
+action into the visible strip. The header does not add a second `×` beside
 the native Windows close control. The band
 floats over the destination pages, so on Windows/Linux a page frame and any
 right-edge detail sheet start below it instead of placing their own header

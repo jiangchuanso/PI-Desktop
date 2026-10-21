@@ -3506,9 +3506,13 @@ Anatomy:
   at the caret — the same sentinel-backed chip as a pasted file — whose
   canonical value is the original `entry.path`; the menu closes and that Enter
   does not send. Accepting a directory keeps the literal path in the draft so
-  completion can continue. Entries come from `fs/index` (D124, D209, D362). A
-  truncation footnote appears when the index is capped; without a workspace the
-  menu shows an "open a project" empty state.
+  completion can continue. Entries come from `fs/index` (D124, D209, D362).
+  When that index is capped, a typed query is also searched over the whole
+  listing through `fs/search` once typing pauses, and the found rows merge
+  with the local matches (D669). A truncation footnote appears while the list
+  may be incomplete — the bare `@`, until the first search for the token
+  answers, and when a search is itself capped or unavailable, as in remote
+  sessions; without a workspace the menu shows an "open a project" empty state.
 - Accepting commands and directories inserts text (`/name ` / `@dir/`);
   accepting a completed file inserts the inline chip rather than deleting the
   trigger. Immediately

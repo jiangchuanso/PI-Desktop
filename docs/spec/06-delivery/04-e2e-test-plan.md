@@ -8512,6 +8512,7 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   6. Settings UI updates status to `Ready` with discovered tools, shows localized success toast, and displays `OAuth` badge.
   7. When access token expires, `UserMcpRuntime` transparently uses refresh token to obtain a fresh access token without user prompt.
   8. Moving the server via `mcp.transfer` preserves and re-keys the OAuth token secret under the destination ID.
+- **No-DCR case**: When authorization-server metadata omits `registration_endpoint` and there is no reusable client, Authorize does not open a browser. The error event contains `MCP_OAUTH_DCR_UNAVAILABLE` and Settings shows localized recovery guidance to request a client ID from the server operator or use a DCR-capable server.
 - **Specs linked**: `03-runtime/01-ipc-protocol.md`, ADR 0283, ADR 0142
 - **Acceptance**: E (tools & permissions), Security
 - **Milestone**: M5
@@ -8777,6 +8778,40 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   (`apps/desktop/test/composer-file-reference-display.test.mjs`); file-mode row
   layout covered by `scripts/e2e-composer-autocomplete.mjs`; full UI journey
   Draft (run only in a capable environment when this surface changes)
+
+#### E2E-COMPOSER-deep-file-mentions: `@` reaches deep files in a large workspace
+
+- **Preconditions**: The app is running with an Agent session in a workspace
+  whose index is truncated (more than 8000 files and directories), with a
+  script several folders below thousands of shallow assets — for example a
+  Unity project's `Assets/_Game/Scripts/Gameplay/Player/FeatureController.cs`.
+  Run once with the workspace under git and once without.
+- **Steps**: 1) Type `@` and inspect the footnote. 2) Type the script's name
+  and pause. 3) Accept the script's row with Enter. 4) Edit the query quickly
+  through several prefixes. 5) Repeat in a small workspace and in a remote
+  session.
+- **Expected**:
+  - The bare `@` lists the index and shows the truncation footnote.
+  - After the pause the deep script appears as a row, ranked like any other
+    match, and the footnote disappears once that search has answered; files
+    excluded by `.gitignore` or the ignore set never appear.
+  - Accepting it inserts the same file chip as any other reference.
+  - Rows never belong to an earlier query. The menu keeps the local matches
+    while a search is pending.
+  - A small workspace issues no search request; a remote session keeps its
+    snapshot and footnote.
+- **Specs linked**: `04-ux/08-component-spec.md` §11.8,
+  `03-runtime/01-ipc-protocol.md` §13c, `08-meta/decisions-log.md` (D124,
+  D669), ADR 0024
+- **Acceptance**: C (conversation & stream), Quality
+- **Milestone**: M5
+- **Status**: Unit-covered (`packages/host-runtime/src/fs-index.test.ts`
+  covers the git and walk listings, ignore rules, directories, and the result
+  limit); the renderer journey — search after the pause, merge, accept, stale
+  answers, the footnote, and the complete-index path — is covered by
+  `apps/desktop/test/composer-deep-file-search-user-path.test.mjs` in a real
+  Electron renderer. The full desktop journey against a large real tree is
+  Draft (run only in a capable environment when this surface changes).
 
 #### E2E-102b: Unanswered Stop restores compact file-reference drafts
 
@@ -10241,6 +10276,7 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
 | C / Quality / Security (Conversation MP4 attachments) | E2E-CHAT-mp4-attachment-opens-in-system-player |
 | G — Plugins (Chat file references) | E2E-CHAT-file-ref-opens-the-surface-that-owns-it, E2E-PLUGIN-file-view-collapse-persists |
 | Quality (Chat file references) | E2E-CHAT-shorthand-file-ref-opens-the-matching-file, E2E-CHAT-file-ref-opens-the-surface-that-owns-it, E2E-PLUGIN-file-view-collapse-persists |
+| C / Quality (Composer deep file mentions) | E2E-COMPOSER-deep-file-mentions |
 | G — Plugins (project folder roots) | E2E-PLUGIN-file-view-switches-folder-per-project |
 | Security (project folder roots) | E2E-PLUGIN-file-view-switches-folder-per-project |
 | Quality (project folder roots) | E2E-PLUGIN-file-view-switches-folder-per-project |
@@ -10278,6 +10314,7 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
 | M6+ (Windows updater cache) | E2E-260 |
 | M6+ (Independent session communication) | E2E-SESSION-independent-top-level-communication, E2E-SESSION-hover-card-model-and-links |
 | M5 (Chat file references) | E2E-CHAT-shorthand-file-ref-opens-the-matching-file, E2E-CHAT-file-ref-opens-the-surface-that-owns-it |
+| M5 (Composer deep file mentions) | E2E-COMPOSER-deep-file-mentions |
 | M5 (Conversation MP4 attachments) | E2E-CHAT-mp4-attachment-opens-in-system-player |
 | M6+ (Chat file references) | E2E-PLUGIN-file-view-collapse-persists |
 | M6+ (project folder roots) | E2E-PLUGIN-file-view-switches-folder-per-project |

@@ -5146,6 +5146,7 @@ eleven-tool-round desktop paths are verified by
   6. 设置界面状态更新为已连接及工具数量，弹出成功提示，并显示 OAuth 徽标。
   7. 访问令牌过期时，`UserMcpRuntime` 透明使用 refresh token 换取新令牌，无需用户重新交互。
   8. 通过 `mcp.transfer` 迁移服务器时，自动将 OAuth 令牌迁移至新 ID 下。
+- **无 DCR 的情况**：如果授权服务器元数据缺少 `registration_endpoint`，且没有可复用的客户端，点击“授权”不会打开浏览器。错误事件包含 `MCP_OAUTH_DCR_UNAVAILABLE`，设置页会显示本地化恢复指引，建议向服务器运营方索取客户端 ID，或改用支持 DCR 的服务器。
 - **链接规格**：`03-runtime/01-ipc-protocol.md`、ADR 0283、ADR 0142
 - **验收**：E（工具和权限）、安全性
 - **里程碑**：M5
@@ -5296,6 +5297,32 @@ eleven-tool-round desktop paths are verified by
   （`apps/desktop/test/composer-file-reference-display.test.mjs`）；文件模式行
   布局由 `scripts/e2e-composer-autocomplete.mjs` 覆盖；完整的用户界面
   旅程草稿（适用变更合入前需在具备条件的环境中运行 E2E）
+
+#### E2E-COMPOSER-deep-file-mentions：`@` 能找到大型工作区里的深层文件
+
+- **先决条件**：应用程序正在一个索引被截断（超过 8000 个文件和目录）的工作区中使用
+  Agent 会话运行，其中有一个脚本位于数千个浅层资源之下的几层目录里——例如 Unity
+  项目的 `Assets/_Game/Scripts/Gameplay/Player/FeatureController.cs`。工作区在 git
+  管理下和不在 git 管理下各运行一次。
+- **步骤**：1) 输入 `@` 并检查脚注。2) 输入脚本名称后停顿。3) 用 Enter 接受该脚本的行。
+  4) 快速把查询改成几个不同的前缀。5) 在小工作区和远程会话中重复。
+- **预期**：
+  - 只输入 `@` 时列出索引并显示截断脚注。
+  - 停顿后深层脚本作为一行出现，排序与其他匹配一致；这次搜索返回后脚注消失；被
+    `.gitignore` 或忽略集排除的文件从不出现。
+  - 接受后插入与其他引用相同的文件芯片。
+  - 行永远不属于更早的查询。搜索进行中菜单保留本地匹配。
+  - 小工作区不发出搜索请求；远程会话保持使用快照并保留脚注。
+- **链接规格**：`04-ux/08-component-spec.md` §11.8、`03-runtime/01-ipc-protocol.md`
+  §13c、`08-meta/decisions-log.md`（D124、D669）、ADR 0024
+- **接受**：C（对话和直播），质量
+- **里程碑**：M5
+- **状态**：单元覆盖（`packages/host-runtime/src/fs-index.test.ts` 覆盖 git 与遍历两种
+  清单、忽略规则、目录以及结果上限）；渲染层旅程——停顿后搜索、合并、接受、过期
+  结果、脚注以及完整索引路径——由
+  `apps/desktop/test/composer-deep-file-search-user-path.test.mjs` 在真实 Electron
+  渲染器中覆盖。针对大型真实目录树的完整桌面旅程为草稿（适用变更合入前需在具备
+  条件的环境中运行 E2E）。
 
 #### E2E-102b：未答复的停止恢复紧凑的文件参考草稿
 
@@ -5815,6 +5842,7 @@ eleven-tool-round desktop paths are verified by
 | C / 质量 / 安全（对话 MP4 附件） | E2E-CHAT-mp4-attachment-opens-in-system-player |
 | G——插件（聊天文件引用） | E2E-CHAT-file-ref-opens-the-surface-that-owns-it、E2E-PLUGIN-file-view-collapse-persists |
 | 品质（聊天文件引用） | E2E-CHAT-shorthand-file-ref-opens-the-matching-file、E2E-CHAT-file-ref-opens-the-surface-that-owns-it、E2E-PLUGIN-file-view-collapse-persists |
+| C / 品质（Composer 深层文件引用） | E2E-COMPOSER-deep-file-mentions |
 | G——插件（项目文件夹根） | E2E-PLUGIN-file-view-switches-folder-per-project |
 | 安全性（项目文件夹根） | E2E-PLUGIN-file-view-switches-folder-per-project |
 | 品质（项目文件夹根） | E2E-PLUGIN-file-view-switches-folder-per-project |
@@ -5869,6 +5897,7 @@ eleven-tool-round desktop paths are verified by
 | M6+（Windows 更新缓存） | E2E-260 |
 | M6+（独立会话通信） | E2E-SESSION-independent-top-level-communication、E2E-SESSION-hover-card-model-and-links |
 | M5（聊天文件引用） | E2E-CHAT-shorthand-file-ref-opens-the-matching-file、E2E-CHAT-file-ref-opens-the-surface-that-owns-it |
+| M5（Composer 深层文件引用） | E2E-COMPOSER-deep-file-mentions |
 | M5（对话 MP4 附件） | E2E-CHAT-mp4-attachment-opens-in-system-player |
 | M6+（聊天文件引用） | E2E-PLUGIN-file-view-collapse-persists |
 | M6+（项目文件夹根） | E2E-PLUGIN-file-view-switches-folder-per-project |

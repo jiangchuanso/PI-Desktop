@@ -43,32 +43,52 @@ export function BackgroundTasksBar(): React.JSX.Element | null {
       {tasks.map((task) => {
         const isRunning = task.state === "running";
         const stopping = stoppingIds.has(task.id);
+        const isExpanded = expandedId === task.id;
         return (
           <div
             key={task.id}
             className="background-task"
             data-state={task.state}
+            data-expanded={isExpanded ? "true" : undefined}
           >
-            <span
-              className="background-task-state"
-              data-state={task.state}
-              title={t(`backgroundTasks.${task.state}`)}
-            />
-            <span className="background-task-command" title={task.command}>
-              {task.command}
-            </span>
-            <span className="background-task-meta">
-              {t(`backgroundTasks.${task.state}`)}
-              {isRunning ? ` · ${formatElapsed(task.elapsedMs)}` : ""}
-              {task.exitCode !== undefined ? ` · ${task.exitCode}` : ""}
-            </span>
+            {/* The row body toggles the log; the explicit action buttons keep
+                their own behavior and stay out of it. Kept as a div with a
+                button role so Enter / Space match the projection button. */}
+            <div
+              className="background-task-main"
+              role="button"
+              tabIndex={0}
+              aria-expanded={isExpanded}
+              onClick={() => void toggleOutput(task.id)}
+              onKeyDown={(event) => {
+                if (event.target !== event.currentTarget) return;
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  void toggleOutput(task.id);
+                }
+              }}
+            >
+              <span
+                className="background-task-state"
+                data-state={task.state}
+                title={t(`backgroundTasks.${task.state}`)}
+              />
+              <span className="background-task-command" title={task.command}>
+                {task.command}
+              </span>
+              <span className="background-task-meta">
+                {t(`backgroundTasks.${task.state}`)}
+                {isRunning ? ` · ${formatElapsed(task.elapsedMs)}` : ""}
+                {task.exitCode !== undefined ? ` · ${task.exitCode}` : ""}
+              </span>
+            </div>
             <Button
               type="button"
               variant="ghost"
               size="sm"
               className="background-task-action"
               onClick={() => void toggleOutput(task.id)}
-              aria-expanded={expandedId === task.id}
+              aria-expanded={isExpanded}
             >
               {t("backgroundTasks.output")}
             </Button>
@@ -94,7 +114,7 @@ export function BackgroundTasksBar(): React.JSX.Element | null {
                 {t("backgroundTasks.dismiss")}
               </Button>
             )}
-            {expandedId === task.id ? (
+            {isExpanded ? (
               <pre className="background-task-output">
                 {outputText || NO_OUTPUT}
               </pre>

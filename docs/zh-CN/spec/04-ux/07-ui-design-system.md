@@ -710,7 +710,7 @@ Toast enter/exit 保留现有移除合同（`animationend` 于
 - 无视差
 - 没有连续的背景动画（粒子、波浪）；有界的
   前台吉祥物循环是显式的空主异常
-- shimmer/skeleton 动画的循环时间不超过 1 秒 — 使用简单的淡入来显示加载状态
+- shimmer/skeleton 动画的循环时间不超过 1 秒 — 使用简单的淡入来显示加载状态。例外：transcript 的 Thinking 指示器使用整段 TextShimmer，周期 1.2s、停止 220ms 淡回（ADR turn-process-and-thinking-display）；它不是逐字循环，减少动态效果时静态显示。
 - 无反弹效果
 - 没有多秒的开机戏剧序列；准备好后立即退出（+最小停留时间）
 

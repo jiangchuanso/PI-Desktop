@@ -61,6 +61,7 @@ import {
   IconX,
 } from "../../../components/icons";
 import { TooltipButton } from "../../../components/ui";
+import { TextShimmer } from "./TextShimmer";
 
 /**
  * Legacy message navigation reveals the row it names, at message precision.
@@ -702,14 +703,13 @@ export const ThinkingRow = memo(function ThinkingRow({
         <span className="tool-row-icon" aria-hidden>
           <IconSparkles size={15} />
         </span>
-        <span className="tool-row-name running">
-          {t("chat.thinking", { defaultValue: "Thinking" })}
+        <span className="tool-row-name">
+          <TextShimmer text={t("chat.thinking", { defaultValue: "Thinking" })} />
         </span>
       </div>
     ) : null;
   }
   const text = thinkingText(message);
-  const summary = text.replace(/\s+/g, " ").trim();
   return (
     <div className={`tool-row thinking ${open ? "open" : ""}`}>
       <button
@@ -723,10 +723,12 @@ export const ThinkingRow = memo(function ThinkingRow({
         <span className="tool-row-icon">
           <IconSparkles size={15} aria-hidden />
         </span>
-        <span className={`tool-row-name ${streaming ? "running" : ""}`}>
-          {t("chat.thinking", { defaultValue: "Thinking" })}
+        <span className="tool-row-name">
+          <TextShimmer
+            text={t("chat.thinking", { defaultValue: "Thinking" })}
+            active={streaming && !open}
+          />
         </span>
-        <span className="tool-row-summary">{summary}</span>
         <span className="tool-row-caret" aria-hidden>
           <IconChevronRight size={12} />
         </span>

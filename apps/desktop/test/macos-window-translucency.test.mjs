@@ -97,7 +97,8 @@ test("the switch is macOS-only and says when a restart is needed", async () => {
 test("both settings write paths reject a non-boolean translucency value", async () => {
   const rendererApi = await read("../src/lib/api.ts");
   const mainCatalog = await readMainModule("runtime/provider-catalog.ts");
-  assert.match(rendererApi, /"macosWindowTranslucency",\s*\] as const\) \{/);
+  const booleanKeys = rendererApi.match(/for \(const key of \[([\s\S]*?)\] as const\) \{/)?.[1];
+  assert.match(booleanKeys ?? "", /"macosWindowTranslucency"/);
   assert.match(rendererApi, /typeof value\[key\] !== "boolean"/);
   assert.match(
     mainCatalog,

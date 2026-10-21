@@ -120,6 +120,8 @@ export const SETTINGS_NAV: SettingsNavEntry[] = [
       "settings.smoothStreamingDesc",
       "settings.showThinking",
       "settings.showThinkingDesc",
+      "settings.transcriptDisplayMode",
+      "settings.transcriptDisplayModeDesc",
       "settings.contextUsageDisplay",
       "settings.contextUsageDisplayRemaining",
       "settings.contextUsageDisplayUsed",

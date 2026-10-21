@@ -799,7 +799,7 @@ are also explicitly suppressed or collapsed to a static state.
 - No parallax
 - No continuous background animations (particles, waves); the bounded
   foreground mascot loop is the explicit empty-home exception
-- No shimmer/skeleton animations longer than 1s loop — use simple fade-in for loading states
+- No shimmer/skeleton animations longer than 1s loop — use simple fade-in for loading states. Exception: the transcript Thinking indicator's whole-run TextShimmer runs 1.2s with a 220ms fade (ADR turn-process-and-thinking-display); it is not a per-glyph loop and becomes static under reduced motion.
 - No bounce effects
 - No multi-second boot theatrical sequences; splash exits as soon as ready (+ min dwell)
 

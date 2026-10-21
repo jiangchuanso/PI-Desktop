@@ -37,6 +37,8 @@ export type JevKeyCheckResult = {
  */
 export type CloseBehavior = "ask" | "tray" | "quit";
 
+export type TranscriptDisplayMode = "flat" | "command-first" | "fully-folded";
+
 export type AppSettings = {
   imageGeneration?: import("../image-generation.js").ImageGenerationBinding | null;
   /** All models marked for image generation; absent falls back to imageGeneration. */
@@ -106,6 +108,22 @@ export type AppSettings = {
    * export, or execution, and it does not control turn-process folding.
    */
   showThinking?: boolean;
+  /**
+   * How the assistant turn's process is grouped in the transcript.
+   *
+   * - `flat`: one outer process disclosure, no nested activity groups.
+   * - `command-first`: run rows stay standalone; other activity groups.
+   * - `fully-folded`: the v0.20.0 layout; run rows join activity groups.
+   *
+   * Absent means `fully-folded`, preserving the released transcript layout.
+   * This is presentation only and never changes tool execution or stored data.
+   */
+  transcriptDisplayMode?: TranscriptDisplayMode;
+  /**
+   * @deprecated Replaced by `transcriptDisplayMode`. Retained for persisted
+   * settings and older clients; current rendering no longer reads it.
+   */
+  keepCommandsExpanded?: boolean;
   /**
    * @deprecated Retained for persisted-settings compatibility. New writes use
    * `showThinking`; this field is read only as a fallback when `showThinking`

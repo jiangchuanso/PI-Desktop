@@ -716,8 +716,7 @@
     animation: none;
   }
   .working-indicator-mark > span,
-  .tool-row-name.running::after,
-  .tool-activity-label.running::after {
+  .activity-marker {
     animation: none;
     opacity: 0.7;
   }

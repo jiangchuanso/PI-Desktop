@@ -157,6 +157,7 @@ export function TurnProcess({
         <span className={`tool-activity-label${isActive ? " running" : ""}`}>
           {label}
         </span>
+        {isActive ? <span className="activity-marker" aria-hidden /> : null}
         {summary.issues > 0 && phase.kind !== "failed" ? (
           <span className="turn-process-error">
             <IconCircleAlert size={14} aria-hidden />

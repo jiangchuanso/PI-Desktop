@@ -488,6 +488,7 @@ function HostToolRow({
                   )
                 : actionLabel}
             </span>
+            {status === "running" ? <span className="activity-marker" aria-hidden /> : null}
             {lifecycle && roster.length > 0 ? (
               <span className="tool-row-agent is-count">
                 {t("chat.subagentCount", { count: roster.length })}

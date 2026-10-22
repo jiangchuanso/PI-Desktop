@@ -362,6 +362,7 @@ export const ActivityGroup = memo(function ActivityGroup({
         <span className={`tool-activity-label ${live ? "running" : ""}`}>
           {label}
         </span>
+        {live ? <span className="activity-marker" aria-hidden /> : null}
         {hasSubagentTopology ? (
           <span className="subagent-activity-metrics">
             {t("chat.subagentCount", { count: subagentSummary.total })}

@@ -1,6 +1,7 @@
-import { Fragment, memo } from "react";
+import { memo } from "react";
 import type { AssistantActivityItem } from "../../../lib/assistant-turns";
 import { isDelegationActivityItem, type DelegationActivityItem, type SubagentOutcome, type SubagentTiming } from "../../../lib/subagent-topology";
+import { reviewChangeFromMessage } from "../../../lib/workspace-review";
 import { ReviewChangeCard } from "../../../components/ReviewChangeCard";
 import { ThinkingRow } from "./shared";
 import { HostedSearchRow } from "./HostedSearchRow";
@@ -55,14 +56,25 @@ const ActivityItemBlock = memo(function ActivityItemBlock({
       />;
     }
     // A tool or hosted-search row always starts collapsed: only the user opens
-    // a payload, never the row's position in the turn.
-    if (item.kind === "tool") return (
-      <Fragment key={item.message.id}>
-        <ToolRow imagesInTurn message={item.message}
-          onUserInteraction={onUserInteraction} {...(item.delegate ? { delegate: item.delegate } : {})} />
-        <ReviewChangeCard message={item.message} />
-      </Fragment>
-    );
+    // a payload, never the row's position in the turn. A review-backed edit is
+    // already a complete tool-level row (file header + diff body), so rendering
+    // the generic tool row above it would repeat the file header.
+    if (item.kind === "tool") {
+      if (reviewChangeFromMessage(item.message)) {
+        return <ReviewChangeCard
+          key={item.message.id}
+          message={item.message}
+          asToolRow
+        />;
+      }
+      return <ToolRow
+        key={item.message.id}
+        imagesInTurn
+        message={item.message}
+        onUserInteraction={onUserInteraction}
+        {...(item.delegate ? { delegate: item.delegate } : {})}
+      />;
+    }
     if (item.kind === "hostedSearch") return <HostedSearchRow
       key={`hosted-search-${item.message.id}-${item.round.id}`}
       messageId={item.message.id}

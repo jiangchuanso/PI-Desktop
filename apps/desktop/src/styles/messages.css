@@ -807,6 +807,38 @@
   margin: 0;
 }
 
+/* In the transcript the review card is the tool row itself: it claims the full
+   band, drops the transcript inset, and puts the diff body directly beneath the
+   only header. Header order follows the file-ledger row: mark, path, counts,
+   caret. The panel keeps its existing caret-first order. */
+.review-change-card.is-tool-row {
+  width: 100%;
+  margin: 3px 0;
+}
+
+.review-change-card.is-tool-row .review-change-card-mark {
+  order: 0;
+}
+
+.review-change-card.is-tool-row .review-change-card-path {
+  order: 1;
+}
+
+.review-change-card.is-tool-row .review-change-card-counts {
+  order: 2;
+}
+
+.review-change-card.is-tool-row .review-change-card-caret {
+  order: 3;
+  /* This is now the row's only disclosure affordance, so it keeps the
+     tool-row caret's resting visibility instead of the old card's hidden one. */
+  opacity: 0.65;
+}
+
+.review-change-card.is-tool-row .review-change-card-body {
+  margin-left: 0;
+}
+
 .review-change-card-header {
   display: flex;
   width: 100%;
@@ -935,7 +967,8 @@
   padding-inline: 4px;
 }
 
-.review-change-rollback {
+.review-change-rollback,
+.review-change-copy {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -949,7 +982,8 @@
     color var(--motion-duration-fast) var(--motion-ease-out);
 }
 
-.review-change-rollback:hover:not(:disabled) {
+.review-change-rollback:hover:not(:disabled),
+.review-change-copy:hover:not(:disabled) {
   background: var(--ds-bg-hover);
   color: var(--ds-text-primary);
 }
@@ -957,6 +991,15 @@
 .review-change-rollback:disabled {
   cursor: wait;
   opacity: 0.65;
+}
+
+.review-change-copy:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.review-change-copy.copied {
+  color: var(--ds-success);
 }
 
 .review-change-state {
@@ -2887,10 +2930,10 @@
   outline-offset: -2px;
 }
 
-/* These bodies carry no content indent, so each rail keeps its own gutter lane
-   and stops at the header fill. The turn's control is the outer lane and the
-   nested group's is the inner lane: expanding a group never puts two hit
-   targets on the same pixels. Tool-row detail rails keep their tighter inset. */
+/* The turn body carries no content indent, so its rail keeps the outer lane.
+   A grouped body indents its child rows by 12px, and its rail sits in that
+   gutter; expanding a group never puts two hit targets on the same pixels.
+   Tool-row detail rails keep their tighter inset. */
 .turn-process-body > .disclosure-collapse-rail {
   left: -32px;
   width: 14px;
@@ -2898,7 +2941,7 @@
 }
 
 .process-activity-body > .disclosure-collapse-rail {
-  left: -18px;
+  left: -12px;
   width: 14px;
   min-width: 14px;
 }
@@ -3429,10 +3472,10 @@
 
 .turn-process-body {
   position: relative;
-  /* The turn's process and the levels it reveals share one left edge: a nested
-     group header or a run row starts exactly where the turn header does, so the
-     transcript reads as one column instead of an indenting staircase. Levels
-     stay distinguishable by type size and colour, not by indentation. */
+  /* The turn's process and its group headers share one left edge. A nested
+     group restores the released v0.20.1 hierarchy below that header: its body
+     indents child rows by 12px and keeps the group's collapse rail in the
+     gutter, so the transcript never becomes an indenting staircase. */
   padding-left: 0;
 }
 
@@ -3453,8 +3496,8 @@
 }
 
 /* The turn's own title is the strongest level; a nested group is smaller and
-   quieter, while leaf run rows keep tool-row secondary text. Indentation is
-   not carrying this hierarchy. */
+   quieter, while leaf run rows keep tool-row secondary text. Its body adds the
+   released 12px indent below the group header. */
 .process-activity-group > .tool-activity-header {
   color: var(--ds-text-muted);
   font-size: var(--text-sm);
@@ -3471,9 +3514,9 @@
 
 .process-activity-group.grouped > .process-activity-body {
   margin-block: 3px 6px;
-  /* Same left edge as the turn header above it. The smaller type is what marks
-     this as the nested level. */
-  padding-inline-start: 0;
+  /* Child tool rows sit one 12px step inside the group header; the group's
+     collapse rail lives in that gutter. No further nesting level is added. */
+  padding-inline-start: 12px;
 }
 
 /* The nested process levels share the base header row: no level-specific

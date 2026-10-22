@@ -17249,6 +17249,9 @@ plugin-form fixtures in an isolated temporary directory at runtime.
   singleton segment, literal-final-item leaf selection, failure/denial/recovery,
   retained-pane remounts, run rows keeping their details closed until opened, and
   a legacy search reveal.
+  In AI settings, check the display selector in English and Simplified Chinese
+  at 800px, 1000px, and 1440px window widths with 100% and 150% font scales.
+  Select all three values and verify each remains visibly selected and saved.
 - **Expected:** A turn renders exactly one process disclosure containing every
   pre-answer row, leaving the final answer, assistant errors, stopped trailing
   text and pending actions outside it; when no final answer text exists, the
@@ -17286,6 +17289,10 @@ plugin-form fixtures in an isolated temporary directory at runtime.
   restart and an absent or unknown value resolves to Fully folded; saved
   `showThinking` survives restart, and an absent value falls back to the legacy
   `thinkingDisplayMode` (`compact` hides, `detailed`/unknown/absent shows).
+  The Settings selector grows to its labels beyond the standard 240px field
+  cap. Option labels remain single-line and unclipped; the control and whole
+  options wrap only as needed, preserving the title/help space and preventing
+  horizontal row overflow. Wide windows keep the title and control inline.
 - **Validation scope for the 2026-09-20 change:** Nested disclosure and activity
   group presentation only; precise item-level transcript search targeting is out
   of scope and keeps the existing message-level search behavior.
@@ -17299,6 +17306,9 @@ plugin-form fixtures in an isolated temporary directory at runtime.
   Settings row and search indexing, and
   `apps/desktop/test/settings-roundtrip.test.mjs` covers normalization, write
   validation and the fully-folded default.
+  `node scripts/e2e-settings-scroll.mjs` additionally exercises the mounted
+  Settings page's selector layout and settings-save path across both locales,
+  three window widths, and both font scales with isolated Electron state.
 - **Specs:** 04-ux/06-settings-ia, 04-ux/08-component-spec,
   04-ux/09-interaction-patterns; ADR turn-process-and-thinking-display.
 

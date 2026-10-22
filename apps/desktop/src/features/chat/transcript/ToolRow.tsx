@@ -2,10 +2,10 @@ import { useChatSessionCapability } from "../../../hooks/use-chat-session-capabi
 import { SubagentStopButton } from "./SubagentStopButton";
 import { PlanHistoryCard } from "./PlanHistoryCard";
 import { planSubmission } from "../../../lib/plan-history";
+import { reviewChangeFromMessage } from "../../../lib/workspace-review";
 import { GeneratedImages } from "./GeneratedImages";
 import "../../../styles/generated-images.css";
 import {
-  Fragment,
   memo,
   useCallback,
   useEffect,
@@ -712,10 +712,15 @@ function SubagentRunFollow({
           <div ref={contentRef}>
             {items.map((item) =>
               item.kind === "tool" ? (
-                <Fragment key={item.message.id}>
-                  <ToolRow message={item.message} />
-                  <ReviewChangeCard message={item.message} />
-                </Fragment>
+                reviewChangeFromMessage(item.message) ? (
+                  <ReviewChangeCard
+                    key={item.message.id}
+                    message={item.message}
+                    asToolRow
+                  />
+                ) : (
+                  <ToolRow key={item.message.id} message={item.message} />
+                )
               ) : item.kind === "thinking" ? (
                 <ThinkingRow
                   key={`thinking-${item.message.id}`}

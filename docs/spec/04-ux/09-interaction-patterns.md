@@ -584,11 +584,12 @@ may be retained while exactly one workspace supplies the visible shell context.
   their retained context and never open, activate, resize, focus, or change the
   visible panel.
 - Each successful workspace Write/Edit tool result carries one durable review
-  snapshot. Its compact InlineReviewCard is rendered in the same activity
-  disclosure, immediately after its tool row; it is never moved to the
-  transcript bottom and never shared with another session. Its status badge
-  covers added, modified, and deleted changes, while counts and expandable
-  hunks come from that message's result, not a current Git diff.
+  snapshot. Its compact review row is rendered in the same activity disclosure
+  as the tool row itself: one file header followed by its diff body, with no
+  second generic tool row. It is never moved to the transcript bottom and never
+  shared with another session. Its status mark covers added, modified, and
+  deleted changes, while counts and expandable hunks come from that message's
+  result, not a current Git diff.
 - The transcript cards and Review consume the active session's persisted
   message history. A commit, workspace focus change, or external Git state
   change cannot remove or rewrite an old card. Review is a chronological
@@ -942,8 +943,9 @@ may be retained while exactly one workspace supplies the visible shell context.
   precedence, names compaction and recovery while those stages are live, reads
   `Thinking` while the live step is reasoning, omits the duration when the
   transcript recorded none, and never echoes the current command or query. A
-  nested group header and a run row share its left edge; hierarchy is carried by
-  type size and colour rather than indentation.
+  nested group header shares its left edge; the group body then indents child
+  rows by 12px with the hover/focus collapse rail in that gutter, while a run
+  row lifted out of a group keeps the turn's left edge.
 - No item payload opens itself, except the display mode's Thinking default: a
   tool, hosted-search or plan call stays a header row until the user opens it,
   including the literal final item of the last activity group. Group defaults are

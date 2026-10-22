@@ -790,7 +790,7 @@ reading surface of the workstation.
 |   MessageBubble (user/assistant)     |
 |   ToolCallCard                       |
 |   TurnOutcomeCard (one Continue)     |
-|   InlineReviewCard · M App.tsx +8 −2 |
+|   ReviewChangeCard · M App.tsx +8 −2 |
 |   PermissionCard                     |
 |   ...                                |
 +--------------------------------------+
@@ -913,9 +913,11 @@ stages a reader can sit in front of (compaction, recovery) name themselves; a
 live reasoning step reads `Thinking`, and momentary stages read as plain running.
 Elapsed time is omitted when the
 transcript recorded no timing rather than shown as zero, and issue counts sit
-beside the label. The disclosure and the levels it reveals share one left edge;
-hierarchy is carried by type size and colour, not by indentation, so a nested
-group header and a run row start exactly where the turn header does.
+beside the label. The disclosure and its group headers share one left edge; a
+nested activity group keeps the released v0.20.1 hierarchy below that header,
+indenting its child rows by 12px and keeping the group's collapse rail in that
+gutter. The rail stays invisible at rest, shows a 2px bar on hover or focus, and
+collapses the group when clicked. The outer turn fold adds no extra hierarchy.
 
 Except for the display mode's Thinking default, no item payload opens itself: a
 tool, hosted-search or plan call stays a header row until the user opens its
@@ -955,22 +957,24 @@ pending action cards remain reachable outside a hidden process. See
 | Empty | Restrained hero + optional onboarding checklist in a scrollable content region, with a bottom-reserved home composer and no starter-card or contextual quick-action layer (D111/D204/D206). An open project underlines the project name, including before its first session exists; the control opens a searchable switcher of the sidebar's open projects, with clone-git-project and open-project actions. |
 | Streaming | Auto-scroll follows while pinned; new tokens append |
 | Active progress | Immediately after send, before the first assistant or tool event, a compact localized `Working…` status with elapsed time appears inline. Its model and subagent elapsed labels use the carried-unit format in §9.1. When the runtime names a quiet interval, that same row identifies starting, waiting for the model, preparing the next request, compacting context, recovering an empty response, retrying, or waiting for delegated work (with each running subagent's latest coarse action). It remains visible through thinking, tool execution, completed-tool gaps, and partial answers until the turn ends. Runtime phases take precedence over the Planning/Goal or Working fallback. Pending permissions, questions, and plan/goal approvals suppress the row; history reading never shows live status; no large generic progress card is rendered. The row lives in the reserved tail lane, so it appears and clears mid-turn without changing the transcript's content height. A retrying row remains compact at rest; hovering or focusing it reveals an error-styled tooltip with the localized error summary, stable code/HTTP status, and bounded provider message. The tooltip mixes the error tint over `--ds-bg-elevated-opaque` so transcript text does not show through. |
-| Turn outcome | After a failed turn, a session-scoped recovery card summarizes the interruption and tool evidence. Completed turns use the existing transcript and message-scoped InlineReviewCard without an extra success card; failed turns can continue through one localized prompt without losing the transcript. |
+| Turn outcome | After a failed turn, a session-scoped recovery card summarizes the interruption and tool evidence. Completed turns use the existing transcript and message-scoped review rows without an extra success card; failed turns can continue through one localized prompt without losing the transcript. |
 | Session switch | A first-opened session paints at its latest record; a revisited pane paints at its own retained position. Bounded first commit and full-history expansion show the same position: no post-paint height correction may shift the visible rows, in either direction |
 | Turn start (send / retry / regenerate) | Re-pins and positions the latest content before paint, even if the user had scrolled up; the later persisted user-message event does not flash the transcript at its top, and the composer collapse / indicator layout clamps during the send never release follow mode |
 | Idle (after stream) | Auto-scroll unlocked; user can scroll freely |
-| Message-scoped review snapshot | Each successful workspace Write/Edit tool row is followed by one compact InlineReviewCard carrying that message's added/modified/deleted status and explicit addition/deletion totals. It renders as a single flat list row on the tool-row rhythm — disclosure caret, Git-style status letter (`A`/`M`/`D`), path, addition/deletion counts — with no card border, status rail, icon plate, or status pill; hover fill is the only row chrome, and a rolled-back change is struck through. Its hunks sit behind an expandable disclosure: every review card (inline and in the Review tab) is collapsed by default, and the user expands it on demand. The card remains after a Git commit, never becomes a bottom/global entry, and offers hash-guarded rollback without leaking into another session's transcript. |
+| Message-scoped review snapshot | Each successful workspace Write/Edit renders as one tool-level review row (`ReviewChangeCard`) carrying that message's added/modified/deleted status and explicit addition/deletion totals. The row itself is the file header — Git-style status letter (`A`/`M`/`D`), path, addition/deletion counts, disclosure caret — with no separate generic tool row above it, so the file header appears exactly once. It keeps the tool-row rhythm with no card border, status rail, icon plate, or status pill; hover fill is the only row chrome, and a rolled-back change is struck through. Its hunks sit in the diff body directly beneath that header behind the row's expandable disclosure: every review row (inline and in the Review tab) is collapsed by default, and the user expands it on demand. The diff body's action row keeps hash-guarded rollback and adds Copy for the hunks. The card remains after a Git commit, never becomes a bottom/global entry, and does not leak into another session's transcript. |
 
 ### 4.5 Accessibility
 
 - `role="log"` for transcript container
 - `aria-live="polite"` on transcript for new message announcements
 - Scroll-to-bottom button appears when user scrolls up during stream
-- InlineReviewCard uses a native button with `aria-expanded` and
-  `aria-controls`. Its localized accessible name includes the path, status,
-  addition count, and deletion count — and the rolled-back state, which the row
-  otherwise shows only as a strikethrough; the visible text and color are not
-  the only status signal (the row carries a Git-style status letter).
+- The review row (`ReviewChangeCard`) uses a native button with
+  `aria-expanded` and `aria-controls` for its diff body; the group's left rail
+  stays a separate control that collapses the surrounding activity group. Its
+  localized accessible name includes the path, status, addition count, and
+  deletion count — and the rolled-back state, which the row otherwise shows only
+  as a strikethrough; the visible text and color are not the only status signal
+  (the row carries a Git-style status letter).
 - Empty-home task entry starts in the always-visible bottom composer. There is
   no starter-card or contextual quick-action layer between the hero and
   composer.
@@ -1221,7 +1225,7 @@ entirely inside the plugin's isolated page:
   Background artifacts may update that retained context but never reveal it,
   resize the window, or change visible selection/focus. The transcript does
   not create a global Review changes launcher: each successful workspace
-  Write/Edit row owns only its adjacent InlineReviewCard, and another session
+  Write/Edit renders only its own tool-level review row, and another session
   cannot render that card in its transcript. Repeated resources deduplicate
   within the originating session.
 - Review truth: host-core adds one bounded `details.review` record to each

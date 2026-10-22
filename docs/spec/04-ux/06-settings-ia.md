@@ -335,6 +335,10 @@ Settings is a **full-window page** that replaces the app sidebar + main chrome (
   only, and are read at render time, so switching repaints the transcript
   immediately. The deprecated `keepCommandsExpanded` boolean is no longer
   exposed and is not read for rendering. Settings search indexes the row.
+  Settings-row segmented controls use content-sized options rather than the
+  standard 240px field-column cap. Labels stay on one line; when space is
+  insufficient, the control moves below the title and whole options wrap
+  within the available pane width without horizontal overflow.
 - The **Command shell** row in Defaults uses the host-discovered catalog of native
   PowerShell 5.1, PowerShell 7, cmd, Git Bash, and Bash with IDs
   `windows-powershell`, `windows-pwsh`, `cmd`, `git-bash`, and

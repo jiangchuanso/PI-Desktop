@@ -83,9 +83,12 @@ name themselves; a live reasoning step reads `Thinking`, and momentary stages
 read as plain running. Durations are dropped when the transcript recorded no
 timing rather than shown as zero, and issue counts sit beside the label.
 
-The disclosure and the levels it reveals share one left edge. Hierarchy is
-carried by type size and colour, not by indentation, so a nested group header and
-a run row start exactly where the turn header does.
+The disclosure and its group headers share one left edge. A nested activity
+group keeps the released v0.20.1 hierarchy below that header: its body indents
+child rows by 12px, with the group's collapse rail in that gutter — invisible at
+rest, a 2px bar on hover or focus, collapsing the group when clicked. The outer
+turn fold adds no extra hierarchy, and a review-backed Write/Edit stays a single
+tool-level row whose only header is the file header above its diff body.
 
 The thinking preference is a boolean `showThinking`. With it on, `flat` and
 `command-first` expand every Thinking row by default and let the user collapse

@@ -850,6 +850,16 @@ task-candidate E2E 从请求工作树运行，但使用主工作区已经准备�
 - **覆盖**：`scripts/e2e/composer-submission.tsx`，由
   `pnpm test:e2e:composer-paste` 执行；真实桌面录屏使用隔离数据，以及响应时间受控的本地模型。
 
+#### E2E-011c-2：迟到的发送失败不会恢复旧草稿
+
+- **前提条件**：会话 A 处于空闲状态；可分别暂停并结算该输入框的两次发送结果。
+- **步骤**：提交草稿 N，在 N 结算前再提交 N+1。先接受 N+1，再拒绝 N。然后保持 N 未结算，重复测试并拒绝 N+1。
+- **预期**：N 的迟到失败不会把 N 的文本或文件引用恢复到 N+1 上。如果 N+1 被拒绝，只恢复 N+1 自己的快照。
+- **关联规范**：`04-ux/09-interaction-patterns.md`（按会话保存的草稿）
+- **验收**：C（输入框和会话隔离）
+- **里程碑**：M2
+- **状态**：异步所有权行为由 `apps/desktop/test/composer-submit-race.test.mjs` 覆盖；完整 UI 场景仍为草稿
+
 #### E2E-SESSION-reference-conversation-link：粘贴的会话链接把那段对话带进本轮
 
 - **先决条件**：隔离的桌面配置；一个项目内有会话 A 与 B，另一个项目内有会话 C；
@@ -5846,7 +5856,7 @@ eleven-tool-round desktop paths are verified by
 | A — 应用程序启动 | E2E-001、E2E-002、E2E-003、E2E-004、E2E-067、E2E-076、E2E-079、E2E-092、E2E-097、E2E-143、E2E-150、E2E-168、E2E-204、E2E-217 |
 | B——模型配置 | E2E-005、E2E-005G、E2E-006、E2E-007、E2E-038、E2E-050、E2E-052、E2E-055、E2E-066、E2E-080、E2E-082、E2E-151、E2E-005J、E2E-199、E2E-201、E2E-202、E2E-203、E2E-209、E2E-166 |
 | C — 对话和直播 | E2E-CHAT-running-status-survives-output-pauses、E2E-008、E2E-008d、E2E-008a、E2E-009、E2E-010、E2E-011、E2E-011a、E2E-011b、E2E-031、E2E-040、E2E-047、E2E-048、E2E-048c、E2E-048A、E2E-049、E2E-052、 E2E-053、E2E-054、E2E-055、E2E-059、E2E-059a、E2E-060c、E2E-060d、E2E-061、E2E-061a、E2E-062、E2E-064、E2E-065、E2E-068、E2E-071、 E2E-073、E2E-074、E2E-075、E2E-081、E2E-083、E2E-084、E2E-086、E2E-087、E2E-088、E2E-088b、E2E-089、E2E-090、E2E-094、E2E-095、E2E-096、 E2E-097、E2E-098、E2E-099、E2E-102、E2E-102a、E2E-102b、E2E-106、E2E-109、E2E-111、E2E-114、E2E-116、E2E-117、E2E-118、E2E-119、 E2E-120、E2E-121、E2E-代理-001、E2E-142、E2E-144、E2E-145、E2E-146、E2E-147、E2E-151、E2E-199、E2E-250、E2E-166、E2E-SUBAGENT-resume-a-settled-delegation |
-| C — 对话和直播（输入框草稿） | E2E-011c、E2E-011c-1 |
+| C — 对话和直播（输入框草稿） | E2E-011c、E2E-011c-1、E2E-011c-2 |
 | A / C / F / Quality — Tray session navigation | E2E-TRAY-bounded-session-navigation |
 | D——工作区 | E2E-012、E2E-013、E2E-022B、E2E-024I、E2E-047、E2E-049、E2E-057、E2E-058、E2E-060、E2E-068、E2E-075、E2E-078、E2E-153 |
 | D——工作区（项目排序） | E2E-253 |

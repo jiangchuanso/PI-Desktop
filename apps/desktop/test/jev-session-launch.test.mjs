@@ -38,6 +38,7 @@ test("session launch resolves Jev credentials only for opted-in Agent mode", asy
     const keyReads = [];
     const logs = [];
     let failJevSecretRead = false;
+    let disabledSkills = [];
     const host = {
       isAvailable: () => true,
       async call(method, input) {
@@ -53,7 +54,7 @@ test("session launch resolves Jev credentials only for opted-in Agent mode", asy
         }
         if (method === "providers.list") return { providers: [provider] };
         if (method === "providers.getSecret") return { value: "" };
-        if (method === "skills.disabledBuiltins") return { disabled: [] };
+        if (method === "skills.disabledBuiltins") return { disabled: disabledSkills };
         if (method === "skills.active") return { skills: [] };
         if (method === "mcp.active") return { servers: [] };
         if (method === "agents.active") return { subagents: [] };
@@ -106,6 +107,19 @@ test("session launch resolves Jev credentials only for opted-in Agent mode", asy
           jevEnabled,
         },
       );
+
+    // The visualization directory follows the visualize skill (D671): a
+    // disabled skill must not leave the prompt pointing at it.
+    const withSkill = await launch("agent", false);
+    assert.equal(
+      withSkill.sidecarParams.visualizationsDir,
+      join(temp, "visualizations", "session-fixture"),
+    );
+    disabledSkills = ["pi-desktop/visualize"];
+    const withoutSkill = await launch("agent", false);
+    assert.equal("visualizationsDir" in withoutSkill.sidecarParams, false);
+    disabledSkills = [];
+    keyReads.length = 0;
 
     const enabledAgent = await launch("agent", true);
     assert.equal(enabledAgent.sidecarParams.jevApiKey, "jev-launch-fixture-key");

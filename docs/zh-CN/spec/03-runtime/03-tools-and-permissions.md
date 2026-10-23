@@ -219,6 +219,35 @@ Electron 主要低于 `<data_dir>/scratch/<sessionId>/pasted/` 之前的
 - 会话 lookup/storage 错误使工具请求失败；它绝不能是
   被视为丢失的旧会话或重定向到选定的工作区。
 
+## 4b.1 会话可视化目录（D671）
+
+内联可视化（ADR `gen-ui-inline-visualization`）是模型写出、由转录区渲染的 HTML 片段。
+它们放在第三个由宿主拥有的根目录中，与 scratch 分开，这样 scratch 保留 7 天清理，
+而可视化与会话同生命周期：
+
+```text
+<data_dir>/visualizations/<sessionId>/
+```
+
+- **可用范围。** 仅本地会话。远程工作区会话没有该目录、没有提示行，也没有
+  `pi-desktop/visualize` skill。
+- **寻址。** 只接受绝对路径；路径在系统提示中与 scratch 目录一起给出。相对路径
+  永远不会解析到这里。
+- **包含校验。** `resolve_tool_path` 依次检查工作区、scratch、可视化三个根目录，
+  使用相同的词法 + 符号链接防护。
+- **内容。** `Write`/`Edit` 只接受以 `.html` 结尾的单层文件名；该根目录下的其他目标
+  返回工具错误。允许 `Read`。
+- **权限。** 在该根目录内的 `Write`/`Edit` 与 scratch 条件相同，免确认自动允许。
+  Plan 和 Goal 不提供 Write/Edit，因此合约模式无法写入这里。结果带
+  `root: "visualization"`，不记为工件，也不做审核快照。
+- **生命周期。** 首次写入时延迟创建。随 `session.delete` 删除。启动清理只删除会话已
+  不存在的目录，从不按时间删除。
+- **渲染。** 代码块之外单独一行 `::visualize{"path":"<绝对路径>","title":"…"}` 会在
+  回合完成后渲染为内联卡片。渲染层由路径后缀推导出
+  `pi-genui://session/<sessionId>/<file>`，从不把绝对路径发给 Main。Main 只提供当前
+  数据目录下不超过 2 MB 的普通非符号链接片段，拒绝完整文档，并把片段包进带严格 CSP
+  （无网络、子框架、表单）的宿主外壳；框架为 `sandbox="allow-scripts"`。
+
 ## 4c。消息拥有的审核快照和回滚
 
 `Write` 和 `Edit` 是结构化审核边界。对于一个成功的

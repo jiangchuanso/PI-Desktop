@@ -5,6 +5,10 @@ import type { SubagentOutcome, SubagentTiming } from "../../../lib/subagent-topo
 import { useAppStore } from "../../../stores/app-store";
 import { Markdown } from "../../../components/Markdown";
 import { useSmoothText } from "../../../hooks/useSmoothText";
+import { useSlotSessionId } from "../../../plugins/renderer-slots/use-slots";
+import { GenUiCards } from "../gen-ui/GenUiCard";
+import { useGenUiSplit } from "../gen-ui/gen-ui-split";
+import { isGenUiRemoteOwner } from "../gen-ui/gen-ui-source";
 import { ActivityGroup } from "./ActivityGroup";
 import { AssistantErrorMessage } from "./shared";
 import { useRenderBlocks, type RenderBlock } from "./render-blocks";
@@ -20,12 +24,19 @@ const SmoothMessageBubble = memo(function SmoothMessageBubble({ message, streami
   const enabled = smoothStreaming && !prefersReducedMotion;
   const displayContent = useSmoothText(message.content || "", streaming, enabled);
   const showCursor = streaming && enabled && Boolean(displayContent);
+  const genUi = useGenUiSplit(displayContent, streaming);
+  // Cards load the pane session's own copy, never the session a path names.
+  const sessionId = useSlotSessionId();
+  const remote = useAppStore((s) =>
+    isGenUiRemoteOwner(sessionId, s.sessions.find((session) => session.id === sessionId)),
+  );
   return (
     <div
       className={`message-bubble assistant-turn-fragment${streaming ? " streaming" : ""}${showCursor ? " smooth-cursor" : ""}`}
       data-message-id={message.id}
     >
-      {displayContent ? <div className="prose-chat"><Markdown source={displayContent} streaming={streaming} /></div> : null}
+      {genUi.content ? <div className="prose-chat"><Markdown source={genUi.content} streaming={streaming} /></div> : null}
+      <GenUiCards references={genUi.references} sessionId={sessionId} remote={remote} />
       {message.error ? <AssistantErrorMessage message={message} /> : null}
     </div>
   );

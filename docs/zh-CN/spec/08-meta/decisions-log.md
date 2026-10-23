@@ -337,6 +337,7 @@
 | D620 | pi-ai 内置的 API-key 服务成为命名预设 | **向 `NAMED_ENDPOINT_PRESETS` 新增十五条命名预设——Ant Ling、Baseten、Cerebras、Hugging Face、Meta（`responses`）、MiniMax（国际）、Moonshot AI（国际）、NVIDIA、OpenCode Zen、Vercel AI Gateway、Qwen Token 套餐（`alibaba-token-plan`）、Qwen Token 套餐（中国）、小米 Token 套餐（中国/欧洲/新加坡）——各自使用官方主机名；models.dev 键与 pi-ai 提供方 id 不同的那几条，把 pi-ai id 保留为别名。八个内置提供方仍作例外并写明原因：Amazon Bedrock、Azure OpenAI、Cloudflare AI Gateway、Cloudflare Workers AI、Google Vertex AI（URL 里带账户或区域），GitHub Copilot 与 OpenAI Codex（以厂商账号行提供），以及 Radius（这里的 `pi_messages` 仅限账号）。pi-ai 升级后若某提供方既未被覆盖也不在例外中，`packages/agent-runtime/src/pi-ai-provider-sync.test.ts` 会失败。不改协议、存储或 IPC。** | pi-ai 其他能力本就可达，但服务目录的 API-key 一半靠手工维护，已经跟库自带的提供方列表脱节（ADR 0307）。 |
 | D668 | 每回合一个过程披露，并提供三种转录显示模式 | **修订 D661 / `turn-process-and-thinking-display` ADR：每个回合渲染一个顶层过程披露，包含回答前的全部行；回答留在披露之外。`AppSettings.transcriptDisplayMode` 选择布局：`flat` 不渲染嵌套活动组，`command-first` 将 `Bash`／run 行作为活动组旁的独立行，`fully-folded`（缺失或无效值的默认）让命令留在所属组内，且只有普通助手进度文字会拆分活动组。该模式在渲染时读取，因此切换后立即重绘——投影缓存只以消息和压缩为键。披露标题按失败／停止／执行中／已完成的优先级报告，且绝不回显当前条目；披露与它展开的层级共用一条左边缘。`transcriptDisplayMode` 加入可移植应用字段；`keepCommandsExpanded` 已弃用，仅为持久化设置兼容性保留，不再暴露，也不再参与渲染读取。无 Host 协议、持久化 schema、权限或插件契约变更。见修订后的 ADR、`04-ux/06-settings-ia.md`、`04-ux/08-component-spec.md`、`04-ux/09-interaction-patterns.md` 与 E2E-CHAT-turn-process-and-thinking-display。** | 按时间顺序的分段把同一回合拆成答案上方多个并列披露，而布尔命令折叠偏好只能表达两种布局；三种模式覆盖平铺、命令优先与已发布的分组视图，且不改变工具收到的内容或持久化内容。 |
 | D669 | `@` 查询越过被截断的文件索引 | **修订 D124：8000 条的 `fs/index` 快照被截断时，非空的 `@` 查询会在输入停顿后，通过只读的 Electron 通道 `pi-desktop/fs/search` 在该根目录的完整清单中搜索，最好的 50 行与本地匹配合并。完整的索引从不搜索。远程会话保持使用快照。不改变主机 RPC、存储或 schema。** | 只保留最浅 8000 条的索引，会让深几层目录里的脚本对任何查询都匹配不到，而截断提示还在邀请用户细化查询（issue #1781）。 |
+| D671 | 对话内联生成式 UI 可视化 | **修订 D114：本地会话新增第二个由宿主拥有的受控根目录 `<data_dir>/visualizations/<sessionId>/`，仅用于 `.html` 片段（Read/Write/Edit，与 scratch 一样免确认，远程会话和合约会话中不提供）。回复中单独一行 `::visualize{"path","title"}` 会通过沙箱化的 `pi-genui://session/<sid>/<file>` iframe（`sandbox="allow-scripts"`、严格 CSP、无网络）内联渲染该片段。内置 skill `pi-desktop/visualize`。不改变 schema。** | 交互式讲解需要内嵌页面；见 ADR gen-ui-inline-visualization。 |
 
 ## M0. 模型目录决策
 
@@ -5529,3 +5530,24 @@ Markdown 源码，不是 `text/html` 负载；对禁用行内 HTML 的外部编�
   `apps/desktop/test/composer-deep-file-search-user-path.test.mjs` 覆盖。见
   `03-runtime/01-ipc-protocol.md` §13c、`04-ux/08-component-spec.md` §11.8 与
   E2E-COMPOSER-deep-file-mentions。
+
+## 2026-10-22 —— 对话内联生成式 UI 可视化（D671）
+
+- 讲解动态系统、可调参数和空间关系时，小型交互页面比文字或 Mermaid 更清楚，但转录区
+  只渲染 Markdown。
+- 本地会话获得 `<data_dir>/visualizations/<sessionId>/`，作为 scratch（D114）之外的
+  第二个受控根目录。Write/Edit 在其中只接受 `.html` 片段，不弹权限确认；目录随会话
+  删除，启动时只清理孤儿目录，从不按时间清理。远程工作区会话和合约会话既没有该目录，
+  也没有该 skill。
+- 代码块之外单独一行 `::visualize{"path":"…","title":"…"}` 会在回合完成后变成内联卡片。
+  Main 通过 `pi-genui://session/<sessionId>/<file>` 提供片段，外包一层带严格 CSP（无网络、
+  无子框架、无表单）的宿主外壳，并放在沙箱 iframe（仅 `allow-scripts`）中；URL 由路径
+  后缀推导，因此数据目录迁移不会破坏旧引用。卡片总是从所属会话加载；分支会复制其引用
+  的片段。主题和高度通过 `postMessage` 传递。Chromium 尚未拦截 WebRTC ICE，这是已记录
+  的残留风险。
+- 外壳内嵌改编自 ZCode Apache-2.0 visualize 套件的样式表和 tooltip/标签页运行时，以及
+  从 `pi-genui://assets` 提供的离线 D3 7.9.0 与 Floating UI（固定版本的 CDN 地址会被
+  改写，其他远程地址一律拦截）。skill 是 ZCode skill 的精简改编。
+- v1 不支持控件状态、后续消息、CDN、图标库和微调面板。
+  见 ADR `gen-ui-inline-visualization`、`03-runtime/03-tools-and-permissions.md`
+  §4b.1、`03-runtime/04-data-storage.md` 与 E2E-GENUI-inline-visualization-card。

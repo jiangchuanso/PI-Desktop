@@ -1,5 +1,6 @@
 import { join } from "node:path";
 import {
+  GEN_UI_DIRECTORY_NAME,
   ErrorCodes as SharedErrorCodes,
   isActiveInProject,
   isCommandShellCatalog,
@@ -29,7 +30,7 @@ import {
   visionFromModelConfig,
   type UserSubagentDocument,
 } from "@pi-desktop/agent-runtime";
-import { builtinSkills } from "../builtin-skills";
+import { builtinSkills, VISUALIZE_SKILL_ID } from "../builtin-skills";
 import { OAUTH_AUTH_KIND, type VendorOAuth } from "../oauth";
 import {
   catalogModelConfigFor,
@@ -508,11 +509,13 @@ export function createSessionLaunchRuntime({
     // skills come first so a plugin's entry reads as a refinement of them, and
     // the user's own skills come last so they win a name clash in the model's
     // reading order.
+    const disabledSkillIds = await disabledBuiltinSkills();
     const pluginSkills = [
       ...builtinSkills({
         workspacePath: projectPath,
         pluginPaths: plugins.listLoaded().map((loaded) => loaded.path),
-        disabledIds: await disabledBuiltinSkills(),
+        disabledIds: disabledSkillIds,
+        remote: Boolean(remoteWorkspace),
       }),
       ...plugins
         .getSkills()
@@ -709,6 +712,12 @@ export function createSessionLaunchRuntime({
         ...(jevApiKey ? { jevApiKey } : {}),
         commandShell,
         scratchDir: join(dataDir, "scratch", sessionId),
+        // Remote-host tools write on that host; Main can only serve local files.
+        // A disabled visualize skill also withholds the directory, so the
+        // prompt never points the model at a skill it cannot load.
+        ...(remoteWorkspace || disabledSkillIds.includes(VISUALIZE_SKILL_ID)
+          ? {}
+          : { visualizationsDir: join(dataDir, GEN_UI_DIRECTORY_NAME, sessionId) }),
         attachmentsDir: join(dataDir, "attachments"),
         projectPath,
         ...(remoteWorkspace ? { remoteWorkspace } : {}),

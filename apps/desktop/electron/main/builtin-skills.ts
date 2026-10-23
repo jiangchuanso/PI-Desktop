@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseSkillFrontmatter } from "@pi-desktop/plugin-sdk";
+import { GEN_UI_SKILL_ID } from "@pi-desktop/shared";
 import type { PluginSkillDef } from "@pi-desktop/agent-runtime";
 import type { LoadedSkillDocument } from "./skill-document";
 import { getModuleDirectory } from "./module-path";
@@ -19,6 +20,9 @@ export const PLUGIN_DEV_SKILL_FILE = "plugin-development.md";
 export const PLUGIN_DEV_SKILL_ID = "pi-desktop/plugin-development";
 export const IMAGE_GENERATION_SKILL_ID = "pi-desktop/imagegen";
 const IMAGE_GENERATION_SKILL_FILE = "image-generation.md";
+/** Inline visualization contract (ADR gen-ui-inline-visualization). */
+export const VISUALIZE_SKILL_ID = GEN_UI_SKILL_ID;
+const VISUALIZE_SKILL_FILE = "visualize.md";
 
 /** electron-builder copies `resources/skills` to `<resources>/skills`. */
 function resolveBuiltinSkillPath(fileName: string): string | null {
@@ -85,12 +89,22 @@ export type BuiltinSkillInput = {
   pluginPaths?: string[];
   /** User-disabled ids are withheld from the agent and composer catalog. */
   disabledIds?: readonly string[];
+  /**
+   * The session runs on a remote host. Its tools write on that machine, which
+   * Electron Main cannot serve, so visualizations are not offered.
+   */
+  remote?: boolean;
 };
 
 const BUILTIN_SKILL_FILES = [
   [IMAGE_GENERATION_SKILL_ID, IMAGE_GENERATION_SKILL_FILE],
+  [VISUALIZE_SKILL_ID, VISUALIZE_SKILL_FILE],
   [PLUGIN_DEV_SKILL_ID, PLUGIN_DEV_SKILL_FILE],
 ] as const;
+
+function builtinSkillFile(id: string): string | null {
+  return BUILTIN_SKILL_FILES.find(([skillId]) => skillId === id)?.[1] ?? null;
+}
 
 /** All bundled skill entries, including ones whose applicability is conditional. */
 export function builtinSkillCatalog(): PluginSkillDef[] {
@@ -107,7 +121,8 @@ export function builtinSkillCatalog(): PluginSkillDef[] {
  * fresh so a packaged update takes effect without a restart.
  */
 export function builtinSkills(input: BuiltinSkillInput): PluginSkillDef[] {
-  const ids = [IMAGE_GENERATION_SKILL_ID];
+  const ids: string[] = [IMAGE_GENERATION_SKILL_ID];
+  if (!input.remote) ids.push(VISUALIZE_SKILL_ID);
   if (isPluginWorkspace(input.workspacePath, input.pluginPaths)) ids.push(PLUGIN_DEV_SKILL_ID);
   const activeIds = new Set(ids);
   const disabled = new Set(input.disabledIds ?? []);
@@ -121,7 +136,7 @@ export async function assertBuiltinSkillEnabled(
   id: string,
   loadDisabledIds: () => Promise<string[]>,
 ): Promise<void> {
-  if (id !== IMAGE_GENERATION_SKILL_ID && id !== PLUGIN_DEV_SKILL_ID) return;
+  if (!builtinSkillFile(id)) return;
   if ((await loadDisabledIds()).includes(id)) {
     throw new Error(`Built-in skill "${id}" is disabled in Settings`);
   }
@@ -132,10 +147,9 @@ export async function assertBuiltinSkillEnabled(
  * host does not ship, which is the caller's cue to try the plugin registry.
  */
 export function loadBuiltinSkillBody(id: string): LoadedSkillDocument | null {
-  if (id !== PLUGIN_DEV_SKILL_ID && id !== IMAGE_GENERATION_SKILL_ID) return null;
-  const raw = readBuiltinSkill(
-    id === IMAGE_GENERATION_SKILL_ID ? IMAGE_GENERATION_SKILL_FILE : PLUGIN_DEV_SKILL_FILE,
-  );
+  const file = builtinSkillFile(id);
+  if (!file) return null;
+  const raw = readBuiltinSkill(file);
   if (!raw?.raw.trim()) return null;
   const parsed = parseSkillFrontmatter(raw.raw);
   if (!parsed.body) return null;

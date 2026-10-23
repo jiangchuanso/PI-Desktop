@@ -119,7 +119,10 @@ Outer frame that positions Topbar, Sidebar, MainChat, and WorkPanel. Owns resize
   layout box and its scroll offset — and are `aria-hidden` and non-interactive.
   Eviction releases the DOM, not the renderer-lifetime reading bookmark. On
   return, restore the bookmarked message and its viewport offset, loading a
-  bounded historical range when necessary without search focus/highlighting.
+  bounded historical range when necessary without search focus/highlighting. If
+  the message is already loaded but outside the mounted row window, first restore
+  the saved absolute scroll offset; the bounded window can then grow as the user
+  scrolls toward the anchor.
   Explicit disclosure choices and the mounted-window budget survive eviction;
   bookmarks do not persist across renderer/app restarts.
 - A pane renders the store's live `messages` while its session is the active one
@@ -897,13 +900,12 @@ thinking never creates an empty wrapper. All three modes render exactly one
 top-level process disclosure and change neither what a tool received nor what is
 stored.
 
-The ordinary group owning the active execution segment starts open while a turn is
-active, then closes on completion only if untouched; other completed groups start
-closed. An untouched active group remains open when any failed or denied tool has
-been recorded, through later successful recovery, and closes on completion if still
-untouched. These group defaults are unified across modes and do not depend on the
-thinking preference. Group headers summarize count, running state and issue count
-without treating a failed child as a failed turn.
+The ordinary group owning the active execution segment stays open while its turn
+is active. Afterward, ordinary groups with at most four visible items remain open;
+larger groups start closed, while Task topology groups remain open. These defaults
+are unified across modes and do not depend on the thinking preference. Explicit
+user choices remain authoritative. Group headers summarize count, running state
+and issue count without treating a failed child as a failed turn.
 
 The turn disclosure header states the turn's outcome and never echoes the item it
 is working on, because a shell command or search query can be arbitrarily long. It
@@ -922,11 +924,10 @@ collapses the group when clicked. The outer turn fold adds no extra hierarchy.
 Except for the display mode's Thinking default, no item payload opens itself: a
 tool, hosted-search or plan call stays a header row until the user opens its
 disclosure, including a Bash row, whose detail stays closed until the user opens
-it. The activity groups keep their automatic open defaults, so
-a live turn still shows its work. With `Show thinking` on, Thinking rows expand by
-default in Flat and Commands first and collapse only on user action; Fully folded
-keeps the released exception where earlier rows stay collapsed and only the last
-active row opens while it is live. An expanded Thinking row shows its full
+it. Active groups stay open; after completion, small groups (up to four visible
+items) and Task topology groups remain open, while larger ordinary groups start
+closed. With `Show thinking` on, Thinking rows expand by default in every display
+mode and collapse only on user action. An expanded Thinking row shows its full
 reasoning markdown; a collapsed one shows only the Thinking indicator, with no
 summary or excerpt. With `Show thinking` off, no completed reasoning row renders;
 only a live whole-run TextShimmer `Thinking` indicator remains while reasoning is
@@ -1620,10 +1621,10 @@ storage but compose into one assistant turn until the next user message.
   spacing, including before the first assistant output. Opacity hides those
   buttons without removing their space, so hover does not shift content.
 - Toggle Thinking disclosure: expand/collapse reasoning independently from the
-  final answer. The latest reasoning row opens while it streams and closes when
-  the turn settles only if the user has not interacted with it. The expanded
-  content's left rule is itself a pointer and keyboard-focusable collapse
-  control.
+  final answer. With `Show thinking` on, every visible reasoning row starts
+  expanded and stays so after the turn settles unless the user collapses it. The
+  expanded content's left rule is itself a pointer and keyboard-focusable
+  collapse control.
 - Hover code block: copy button appears
 - Click a transcript file reference with `:line[:column]`: resolve the file
   first, then open it in the host `file:` tab and scroll the requested line into
@@ -2310,9 +2311,10 @@ as its own row beside them, and a progress message or command ends a group. With
 `flat`, no group renders and the rows keep transcript order inside the outer
 disclosure. A singleton uses its item disclosure directly, and Task topology
 keeps its existing container. A Bash-only turn still has its one disclosure.
-While the turn is active, the ordinary group owning the execution segment opens;
-when it settles, an untouched group closes. These group defaults do not depend on
-the thinking preference. No item payload opens itself, except the display mode's
+While the turn is active, its ordinary group opens. After completion, ordinary
+groups with at most four visible items remain open; larger groups start closed,
+and Task topology groups remain open. These group defaults do not depend on the
+thinking preference. No item payload opens itself, except the display mode's
 Thinking default: a tool, hosted-search or plan row stays a header row until the
 user opens it, whichever item of the group it is, including a Bash row whose
 detail stays closed until opened.
@@ -2344,14 +2346,14 @@ seconds when non-zero) from one hour onward. Zero-value units are omitted, so
 - The leading Lucide icon reflects the action type: file, folder, search,
   edit, terminal, web, or generic tool.
 - A multi-item group header owns elapsed time plus item and issue counts and stays
-  in the transcript after completion. The active group starts open and closes on
-  completion only if untouched; completed groups otherwise start closed. These
-  defaults do not depend on the thinking preference. A singleton has no group
-  header.
+  in the transcript after completion. Active groups stay open; after completion,
+  groups with at most four visible items and Task topology groups remain open,
+  while larger ordinary groups start closed. These defaults do not depend on the
+  thinking preference. A singleton has no group header.
 - Tool/search payloads stay collapsed until the user opens them; no tool/search
-  row auto-opens, so a final thinking item never selects an earlier tool. Live
-  thinking follows its own indicator/disclosure policy and never opens sibling
-  payloads.
+  row auto-opens, so a final thinking item never selects an earlier tool. With
+  `Show thinking` on, reasoning rows open by default in every display mode and
+  never open sibling payloads.
 - `Bash` and run rows are revealed by the turn's process disclosure. In
   `fully-folded` they sit inside their group; in `command-first` they sit at its
   top level beside the groups with adjacent rows separate; in `flat` no groups
@@ -2430,7 +2432,7 @@ twice.
 | State | Header treatment | Expanded content |
 |---|---|---|
 | Running | Progressive action with readable text and a pulsing marker; a `run` row also shows its spinner and pulses the status dot beside `Working…` | The active multi-item group opens; no tool/search payload opens itself, except the display mode's Thinking default; live thinking follows its own indicator/disclosure policy |
-| Success | Past-tense action + result chips; no green success badge, except a `run` row's dot and `Done` | Result blocks, then arguments if not already shown; an untouched active group closes on completion, while manual group and item choices are retained |
+| Success | Past-tense action + result chips; no green success badge, except a `run` row's dot and `Done` | Result blocks, then arguments if not already shown; small groups and Task topology groups stay open, large untouched ordinary groups close, and manual group and item choices are retained |
 | Error | Past-tense action + compact danger status; details remain collapsed by default and open only on user request. A `run` row is in this state whenever its command exited nonzero, whatever the call reported (D227) | Error note first, then arguments |
 | Denied | Muted `Denied` status; payload remains closed until requested | Permission result when available |
 
@@ -2451,9 +2453,10 @@ twice.
   disclosure, and a reference that matches nothing reports itself without
   opening a panel. A tool surface picks no destination of its own.
 - Click the processing header: expand/collapse only that ordered activity list.
-  The active group opens and closes on settlement only if untouched; completed
-  groups otherwise start closed. Opening a group does not expand every item, and
-  sibling groups remain independent.
+  Active groups stay open; after completion, ordinary groups with at most four
+  visible items and Task topology groups remain open, while larger ordinary
+  groups start closed. Opening a group does not expand every item, and sibling
+  groups remain independent.
 - Click or keyboard-activate the left rule beside expanded thinking, tool details,
   delegated work, or processing steps: collapse that owning disclosure without
   changing adjacent expansion state. Item interaction also claims its containing
@@ -3870,7 +3873,7 @@ Transient, non-blocking feedback for completed actions and failures that have no
 ### 17.2 Anatomy
 
 ```text
-                        ┌  toast-viewport (fixed top-center, z-toast) ┐
+                        ┌  toast-viewport (fixed safe-area top-center, z-toast) ┐
                         │  ┌──────────────────────────────────────┐ │
    newest, at anchor →  │  │ (✓)  Provider saved               ✕  │ │
                         │  ├──────────────────────────────────────┤ │
@@ -3882,6 +3885,11 @@ Transient, non-blocking feedback for completed actions and failures that have no
 - `ToastHost` (in `components/Toast.tsx`) renders the stack; mounted once per shell branch in `App.tsx`
 - Each card: 16px variant icon (semantic tint) · message · X dismiss button
 - Surface: `bg-elevated-opaque` + 1px `border-subtle` + `shadow-dialog`, radius-md-plus — same floating family as menus; metrics in [07-ui-design-system.md §11.8](07-ui-design-system.md#118-toast)
+- The host remains portaled to `document.body` for global stacking, but AppShell
+  anchors its horizontal center and width to the live `.main-pane` bounds. A
+  docked or resized work panel and a reopened sidebar therefore cannot be
+  covered by the toast stack. Settings and any shell without a main-content
+  anchor retain viewport-centered fallback placement.
 
 ### 17.3 API
 
@@ -3911,7 +3919,7 @@ dismissToast(id: number); // ToastHost internal / tests
 
 - Auto-dismiss 4s (error 8s, `duration: 0` sticky); hovering a card pauses its timer, leaving resumes with remaining time
 - Stack caps at 4 — oldest drops first; re-raising an identical message+variant restarts the existing toast instead of stacking a twin
-- Newest toast enters at the top-center anchor (slide-down 200ms ease-out) pushing older cards down; exit is a 150ms ease-in fade
+- Newest toast enters at the main-content safe area's top-center anchor (slide-down 200ms ease-out) pushing older cards down; exit is a 150ms ease-in fade
 - Dismiss X always available; every card is an explicit non-drag pointer target
   so hover pause and dismissal remain interactive where the top-center stack
   overlaps frameless titlebar drag chrome

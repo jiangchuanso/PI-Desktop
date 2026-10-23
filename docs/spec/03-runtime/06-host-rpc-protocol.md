@@ -664,6 +664,12 @@ Additive `worktree.*` methods; no protocol version bump. Failures use code
 - `tools.abort`
 - `tools.output` notifications for ordered `stdout`/`stderr` chunks
 
+`tools.abort` accepts `sessionId`, `toolCallId`, and the optional `toolName`.
+Current runtimes include the name so Host cancellation is scoped to the exact
+tool while permission and admission are pending. Older callers may omit it;
+that form retains the legacy Bash cancellation behavior and can still stop an
+active typed cancellation by session and call id.
+
 ### Background tasks
 - `backgroundTasks.list`
 - `backgroundTasks.output`

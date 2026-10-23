@@ -350,7 +350,9 @@ may be retained while exactly one workspace supplies the visible shell context.
   Reading bookmarks outlive DOM eviction and project switches, but not a
   renderer/app restart; deleting the session releases them. If the bookmarked
   message is outside the loaded page, read a bounded range around it using the
-  existing history API, without search focus or highlighting. Revalidation must
+  existing history API, without search focus or highlighting. If it is loaded
+  but outside the mounted row window, first restore the saved absolute scroll
+  offset; the user can grow the window to reach the anchor. Revalidation must
   not replace that reading range with the latest page. Real scroll input, search
   navigation, return-to-latest, and send/retry/regenerate take priority over
   restoration; obsolete reads cannot reclaim the viewport. A missing anchor
@@ -933,12 +935,12 @@ may be retained while exactly one workspace supplies the visible shell context.
   hidden thinking does not create a redundant group, and existing Task topology
   remains separate. No mode adds a second top-level disclosure or leaves a run
   row outside the process.
-- The active ordinary group starts open and closes when it completes only if
-  untouched; completed groups otherwise start closed, and an untouched active group
-  with any recorded failed/denied tool remains open through recovery. These group
-  defaults do not depend on the thinking preference. Closing the turn's disclosure hides
-  every group and run row under it without erasing their choices; reopening
-  restores the groups the user had opened.
+- The active ordinary group stays open while the turn runs. After completion,
+  ordinary groups with at most four visible items and Task topology groups remain
+  open; larger ordinary groups start closed. These defaults do not depend on the
+  thinking preference. Closing the turn's disclosure hides every group and run
+  row under it without erasing their choices; reopening restores their defaults
+  and any explicit user choices.
 - The turn header reports `Failed`, `Stopped`, `Running`, or `Finished` in that
   precedence, names compaction and recovery while those stages are live, reads
   `Thinking` while the live step is reasoning, omits the duration when the
@@ -948,13 +950,11 @@ may be retained while exactly one workspace supplies the visible shell context.
   row lifted out of a group keeps the turn's left edge.
 - No item payload opens itself, except the display mode's Thinking default: a
   tool, hosted-search or plan call stays a header row until the user opens it,
-  including the literal final item of the last activity group. Group defaults are
-  unchanged, so a final thinking item never causes a backward scan. With
-  `Show thinking` on, Thinking rows default expanded in Flat and Commands first and
-  collapse only on user action; Fully folded keeps the released live-only
-  auto-open exception. A collapsed row shows only the Thinking indicator, with no
-  excerpt. With `Show thinking` off, no completed reasoning row renders; only a
-  live whole-run TextShimmer `Thinking` indicator remains while reasoning streams.
+  including the literal final item of the last activity group. With `Show thinking`
+  on, Thinking rows default expanded in every display mode and collapse only on
+  user action. A collapsed row shows only the Thinking indicator, with no excerpt.
+  With `Show thinking` off, no completed reasoning row renders; only a live
+  whole-run TextShimmer `Thinking` indicator remains while reasoning streams.
   Stored reasoning is retained and reappears when the preference is turned back on.
 - Activating a group or item header toggles only that level. Closing a parent
   preserves child state, reopening restores it, and sibling groups remain
@@ -1115,7 +1115,7 @@ Running turns and pending approvals continue to gate the controls.
   `aria-expanded` / `aria-controls`; it is open on first render so the provider
   response is immediately discoverable, and supports copying the redacted text
 - Never use inline error for transient background operations (plugin load, connection test)
-- Toasts stack vertically, newest on top, at top-center
+- Toasts stack vertically, newest on top, at the top-center of the live main-content safe area; they follow sidebar/work-panel width changes and fall back to viewport center when that anchor is absent
 - Error toasts require manual dismiss or timeout at 8s (longer than success)
 - Success toasts auto-dismiss at 4s
 - One-off results of an explicit action (save, import, probe, sign-in, connection
@@ -1402,9 +1402,11 @@ Project drag/drop follows these patterns:
   No project is required to open a scratch artifact. Missing workspace state
   is normalized consistently across asynchronous session-change guards.
   Local `file:` Markdown URLs are converted to file references before
-  sanitization, not admitted as native links. `path:line[:column]` retains
-  source navigation in plain text, inline code and Markdown links, including
-  HTML; unavailable browser views report an error without auto-enabling.
+  sanitization, not admitted as native links. `path:line[:column]`,
+  `path:line-range` and GitHub `path#Lline[-Lend]` retain source navigation
+  from plain text, inline code and Markdown links, including HTML; ranges open
+  at their starting line. Ambiguous shorthand paths do not resolve. Unavailable
+  browser views report an error without auto-enabling.
   The address handed to
   the work panel follows the folder that answered: a file of the primary folder
   travels as a project-relative path, a file of a sibling folder of the same

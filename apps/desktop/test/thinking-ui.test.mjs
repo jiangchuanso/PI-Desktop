@@ -278,10 +278,13 @@ test("tool and search rows stay collapsed while thinking keeps its leaf default"
   assert.match(transcriptDisclosureSource, /revealRequest\?: number/);
   assert.match(transcriptDisclosureSource, /const currentOpen = useRef\(open\)/);
   assert.match(transcriptDisclosureSource, /const setManualOpen = useCallback/);
-  assert.match(transcriptSource, /useAutomaticDisclosure\(\s*hasSubagentTopology \? live : visibleItems\.length <= 1/);
   assert.match(
     transcriptSource,
-    /<ThinkingRow[\s\S]*?autoOpen=\{thinkingDefaultOpen \|\| \(live && item === lastItem\)\}/,
+    /const automaticallyOpen = hasSubagentTopology \|\| live \|\| visibleItems\.length <= AUTOMATIC_OPEN_MAX_ITEMS;/,
+  );
+  assert.match(
+    transcriptSource,
+    /<ThinkingRow[\s\S]*?\n\s*autoOpen\n/,
   );
   // The leaf default stays with thinking only; a tool, hosted-search or plan
   // row waits for an explicit user action in either mode.

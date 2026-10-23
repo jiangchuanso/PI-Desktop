@@ -25,6 +25,7 @@ export type AgentIpcDependencies = {
   persistenceOutbox: PersistenceOutbox;
   dataDir: string;
   activeTurns: Map<string, string>;
+  completionNoticeTurns: Set<string>;
   recordTurnStart: (sessionId: string, turnId: string) => void;
   /** Whether the named turn can still start or steer host work. */
   isTurnDispatchable: (sessionId: string, turnId: string | null | undefined) => boolean;
@@ -87,6 +88,7 @@ export function registerAgentIpc({
   persistenceOutbox,
   dataDir,
   activeTurns,
+  completionNoticeTurns,
   recordTurnStart,
   isTurnDispatchable,
   activeTurnUsages,
@@ -515,6 +517,16 @@ export function registerAgentIpc({
     } satisfies AgentEventEnvelope);
 
     let result: { accepted: boolean; turnId: string };
+    const isTrustedCompletionNotice =
+      sessionMessage?.origin.kind === "completion" &&
+      sessionMessage.origin.targetSessionId === req.sessionId &&
+      Boolean(
+        sessionMessage.origin.messageId.trim() &&
+        sessionMessage.origin.replyToMessageId?.trim(),
+      );
+    // sessionMessage was resolved from the Host ledger above; keep this
+    // provenance Main-owned and tied to the durable turn, never the prompt text.
+    if (isTrustedCompletionNotice) completionNoticeTurns.add(durableTurnId);
     try {
       result = await sidecar.call<{ accepted: boolean; turnId: string }>(
         "agent.prompt",
@@ -558,6 +570,7 @@ export function registerAgentIpc({
         },
       );
     } catch (e) {
+      completionNoticeTurns.delete(durableTurnId);
       await finishTurn(req.sessionId, "error", (e as any)?.errorCode, {
         turnId: durableTurnId,
       });

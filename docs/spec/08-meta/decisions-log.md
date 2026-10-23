@@ -7903,3 +7903,20 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   `apps/desktop/test/composer-deep-file-search-user-path.test.mjs`. See
   `03-runtime/01-ipc-protocol.md` §13c, `04-ux/08-component-spec.md` §11.8,
   and E2E-COMPOSER-deep-file-mentions.
+
+## 2026-10-22 — Keep small activity groups and reasoning visible after settlement (D670)
+
+- D670 amends D661 / D668 and ADR `turn-process-and-thinking-display`: an
+  ordinary activity group stays open while active; after completion, groups with
+  at most four visible items remain open, larger ordinary groups start closed,
+  and Task topology groups remain open. The whole-turn process still closes on
+  completion by default.
+- With `showThinking` on, all visible Thinking rows default expanded in Flat,
+  Commands first, and Fully folded. Tool, search, and run-row payloads remain
+  collapsed until the user opens them. Explicit disclosure choices remain
+  authoritative; there is no protocol or persistence change.
+- Issue #1806 reproduced the group and reasoning collapse at turn settlement.
+  `pnpm test:e2e:transcript` covers active-to-completed groups, reasoning rows,
+  and closed payloads. See `04-ux/08-component-spec.md`,
+  `04-ux/09-interaction-patterns.md`, and
+  E2E-CHAT-turn-process-and-thinking-display.

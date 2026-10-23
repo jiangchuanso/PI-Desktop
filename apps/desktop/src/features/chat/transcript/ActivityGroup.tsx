@@ -61,6 +61,8 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 type ActivityItem = AssistantActivityItem;
 
+const AUTOMATIC_OPEN_MAX_ITEMS = 4;
+
 
 function waitingSubagentActionLabel(
   agent: AgentActivityAgent,
@@ -204,7 +206,6 @@ export const ActivityGroup = memo(function ActivityGroup({
   const showThinking = useAppStore((state) => resolveShowThinking(state.settings));
   const hideThinking = !showThinking;
   const displayMode = useAppStore((state) => resolveTranscriptDisplayMode(state.settings));
-  const thinkingDefaultOpen = displayMode !== "fully-folded";
   const { t } = useTranslation();
   const detailsId = useId();
   const rawDelegateItems = useMemo(() => items.filter(isDelegationActivityItem), [items]);
@@ -241,8 +242,11 @@ export const ActivityGroup = memo(function ActivityGroup({
     ? searchTarget.requestId : undefined, [items, searchTarget]);
   const visibleItems = useMemo(() => cachedVisibleActivityItems(items, hideThinking, isActive), [items, hideThinking, isActive]);
   const first = items[0];
+  // Groups frame their rows; each tool or search payload keeps its own
+  // disclosure, so leaving a small group open does not reveal tool details.
+  const automaticallyOpen = hasSubagentTopology || live || visibleItems.length <= AUTOMATIC_OPEN_MAX_ITEMS;
   const disclosure = useAutomaticDisclosure(
-    hasSubagentTopology ? live : visibleItems.length <= 1 || live,
+    automaticallyOpen,
     revealRequest,
     disclosureKey("activity", first?.message.id ?? "", first?.kind ?? "", first?.kind === "hostedSearch" ? first.round.id : ""),
   );
@@ -321,7 +325,6 @@ export const ActivityGroup = memo(function ActivityGroup({
     delegationStatuses={delegationStatuses}
     delegationTimings={delegationTimings}
     onUserInteraction={claimDisclosure}
-    thinkingDefaultOpen={thinkingDefaultOpen}
   />;
 
   // Flat mode has one outer process disclosure and no nested group at all.

@@ -37,6 +37,27 @@
   `TranscribeModel.dispose()` 会向操作系统归还内存，且现有延迟加载路径可重新加载。
 - **规格：** [实时语音](../03-runtime/live-voice.md)。
 
+### E2E-LIVE-VOICE-gemini-work-schema
+
+- **Preconditions:** Production Gemini adapter with a deterministic transport
+  fixture and a bound work profile; no credentials or hardware devices.
+- **Steps:** Start the call with a work target, accept a valid setup, unmute and
+  send PCM. Reject another setup with close 1007 and a UTF-8 reason. Repeat
+  with a transport error followed by close; cancel and close the adapter.
+- **Expected:** Gemini sends the supported Schema subset and connects; OpenAI's
+  schema and Host argument validation remain strict. Setup rejection settles
+  immediately as `LIVE_PROTOCOL_ERROR`, transport errors remain network errors,
+  and only one failure is reported. The raw reason reaches only the provider
+  log; even the connect rejection crossing IPC contains only the public code.
+  Cancellation suppresses terminal noise and close removes socket observers.
+- **Specs:** `03-runtime/live-voice.md`, `09-logging-and-observability.md`.
+- **Acceptance:** C, E, Security, Quality.
+- **Milestone:** Maintenance, issue #1812.
+- **Automation:** `live-voice-gemini-adapter.test.mjs`,
+  `live-voice-service-lifecycle.test.mjs`, and voice-runtime `live/protocol.test.ts`.
+- **Status:** Adapter/service contract-covered; full Electron/Gemini account and
+  physical microphone acceptance remain separate and are not certified here.
+
 ### E2E-LIVE-VOICE-public-settings-and-reconnect
 
 - **前提：** 生产 Renderer 构建、真实 Electron/Main/Host、隔离数据和测试项目、关闭开发者模式、本地 TLS Realtime fixture 及合成麦克风。仅在测试子进程中信任 fixture CA，不关闭 TLS、sender、沙盒或麦克风权限校验。
@@ -5792,6 +5813,7 @@ eleven-tool-round desktop paths are verified by
 ## 8. 可追溯性矩阵
 | 验收 | 应用场景 |
 |---|---|
+| C / E / Security / Quality — Gemini work setup | E2E-LIVE-VOICE-gemini-work-schema |
 | B / Security / Quality — Optional provider client certificate requests | E2E-PROVIDER-optional-client-certificate |
 | C / E / F / Quality / Security — Session Todo checklist | E2E-CHAT-session-todo-checklist |
 | C / E / Security / Quality — Live Voice 四阶段交互 | E2E-LIVE-VOICE-four-stage-ui |
@@ -6724,14 +6746,16 @@ eleven-tool-round desktop paths are verified by
   倒计时。过长的问题正文在卡片内滚动（`min(208px, 24dvh)`，并有 `24vh` 回退），可通过键盘聚焦且显示焦点环；标题栏上的
   Decline、Skip 和 Next/Submit 留在该滚动区域之外。切换问题后正文从顶部开始。工具输出排序为 `question：answer`，使用 `、`
   多个答案之间和问题之间的 `\n---\n` 之间，并保持
-  `question：` 用于跳过的问题。拒绝所有产生空
-  每个问题的占位符，仍然完成工具调用。
+  `question：` 用于跳过的问题。拒绝所有会产生空的
+  每个问题占位符，但仍然完成工具调用。右侧工作面板打开时，问题 Toast 在
+  主内容安全区内水平居中，不与面板标签栏、浏览器导航控件或地址栏相交；安全区
+  缩放或同宽平移时 Toast 同步跟随。
 - **链接规格**：`03-runtime/17-asktool-questions.md`，
   `04-ux/11-asktool-question-card.md`、ADR 0077
 - **验收**：E（交互式工具输出）、C（内联卡）
 - **里程碑**：M5
-- **自动化覆盖**：`pnpm test:e2e:asktool-card` 在 Electron 中挂载生产组件，覆盖长问题滚动、键盘可达性、标题栏动作可见性和点击 Next 后的滚动重置。
-- **状态**：部分自动化（组件路径和长问题行为已覆盖；完整应用桌面旅程仍待完成）
+- **自动化覆盖**：`pnpm test:e2e:asktool-card` 在 Electron 中挂载生产组件，覆盖长问题滚动、键盘可达性、标题栏动作可见性和点击 Next 后的滚动重置。`pnpm test:e2e:question-notification` 覆盖安全区缩放与水平平移、Toast 创建、会话/项目导航、答案提交和原生键盘输入。
+- **状态**：部分自动化（组件路径、长问题行为和通知安全区已覆盖；完整应用桌面旅程仍待完成）
 
 - **请求切换回归**：在聊天 B 留下一个单题请求。在聊天 A 将双题请求推进到第二题，
   再切换到 B。B 应显示自己的第一题、空白答案和可用输入框，不应出现应用错误页。
@@ -8536,13 +8560,13 @@ runner 会在运行时的隔离临时目录中生成六个插件形态 fixture�
 
 ### E2E-WORK-PANEL-active-tab-close-visibility
 
-- **前提条件**：在 Windows 上打开桌面会话，将工作面板调整到支持的窄宽度，并创建一个名称较长的文件或插件标签，使标签容器宽于可见的横向标签栏。
-- **步骤**：激活发生溢出的标签，读取标签容器及其 `.work-panel-tab-close` 矩形与标签栏 client 视口的关系。在两个溢出标签之间切换，并分别将标签栏滚向两端后重复检查。
-- **预期**：激活标签时，整个标签容器及其关闭按钮都会滚动到可见标签栏内。关闭按钮无需中键、键盘快捷键或扩大面板即可看见并命中。
+- **前提条件**：渲染工作面板，并创建足够多的长标题标签使横向标签栏溢出。
+- **步骤**：在窄布局中激活溢出标签，检查关闭按钮矩形是否落入标签栏视口，并确认 `elementFromPoint` 命中关闭按钮。保持同一标签激活并缩窄布局后重复检查。随后将标签栏滚到一半，对部分可见的非激活标签执行悬停，再检查其关闭按钮。
+- **预期**：激活标签及布局缩窄后，关闭按钮都完整位于标签栏内；悬停部分可见的非激活标签时，其关闭按钮也会滚入视口。三个状态下按钮都可见且可命中，无需中键、键盘快捷键或扩大面板。
 - **链接规格**：`04-ux/07-ui-design-system.md` §10，issue #1762
 - **验收**：品质
 - **里程碑**：M6 之后桌面壳维护
-- **状态**：渲染器源契约回归由 `apps/desktop/test/work-panel.test.mjs` 覆盖；`scripts/e2e-work-panel-drag.mjs` 的 Windows 探针也会在原生命中测试阶段前检查激活标签关闭按钮的矩形。
+- **状态**：`scripts/e2e-work-panel-tab-close.mjs` 在 Electron 中覆盖真实几何位置和命中目标；`apps/desktop/test/work-panel.test.mjs` 也覆盖滚动契约。Windows 原生命中测试由 `scripts/e2e-work-panel-drag.mjs` 单独覆盖。
 
 #### E2E-LAYOUT-sidebar-project-group-fold
 
@@ -8727,9 +8751,9 @@ runner 会在运行时的隔离临时目录中生成六个插件形态 fixture�
 
 #### E2E-MARKET-CATALOG-RETRY：重试失败或部分可用的市场查询
 
-- **前提条件**：渲染技能市场和 MCP 市场面板，并在 IPC 边界模拟市场 API。每个 API 依次返回全部失败、一个来源失败的结果、完整成功结果。
-- **步骤**：打开两个市场；全部失败后点击重试；确认加载播报和恢复的目录条目；部分失败后再次点击重试。
-- **预期**：两个市场都按当前查询重新请求，期间显示加载状态；部分来源失败时仍有重试入口；来源恢复后失败项清除。测试不访问公网，也不改变主进程网络策略。
+- **前提条件**：渲染技能市场和 MCP 市场面板，并在 IPC 边界模拟市场 API。每个 API 依次返回全部失败、一个来源失败的结果、完整成功结果。第二组先加载成功、随后失败、重试后恢复；第三组在成功后切换搜索词再失败，使快照属于另一个查询；第四组在从未成功过的情况下失败。
+- **步骤**：打开两个市场；全部失败后点击重试；确认加载播报和恢复的目录条目；部分失败后再次点击重试。随后先加载出列表、令下一次查询失败、重试，再切换搜索词后失败一次。
+- **预期**：两个市场都按当前查询重新请求，期间显示加载状态；部分来源失败时仍有重试入口；来源恢复后失败项清除。成功加载过后再遇失败，列表保留上次成功加载的结果并标注时间，MCP 条目的来源角标也保留，重试入口保留；重试成功后保留列表消失，且该列表不回答其他查询、也不在从未成功过时出现。测试不访问公网，也不改变主进程网络策略。
 - **链接规格**：`04-ux/06-settings-ia.md`、ADR 0177、ADR 0272
 - **验收**：Quality
 - **里程碑**：M6+
@@ -9216,7 +9240,8 @@ Follow the [current S3 acceptance scenario](/spec/06-delivery/04-e2e-test-plan#e
 - **步骤：** 运行 `node scripts/e2e-provider-certificates.mjs`。启动真实桌面
   sidecar，使用不受信任的 localhost 证书提交聊天提示。再将其 CA 放入
   `NODE_EXTRA_CA_CERTS` 后重启，并通过 SAN 中不存在的主机名请求同一证书。
-- **预期：** 子进程默认 CA 集合包含系统根证书和额外 CA。首次请求只失败一次，
+- **预期：** 子进程默认 CA 集合包含所有未过期的系统根证书和额外 CA，排除系统证书库中
+  已过期的条目。首次请求只失败一次，
   返回不可重试的证书错误且没有重试状态；信任 CA 后请求返回文本；主机名不匹配
   仍只失败一次。TLS 和主机名校验始终保持启用。
 - **UI：** 运行 `node scripts/e2e-provider-certificate-ui.mjs`，在隔离 Chromium
@@ -9309,6 +9334,15 @@ Follow the [current S3 acceptance scenario](/spec/06-delivery/04-e2e-test-plan#e
 
 - **状态：** 单元测试覆盖；没有端到端驱动对重复转录发出真实提供商请求。
 
+- **Reused-id regression (#1815):** Run two actual tool executions whose
+  provider responses reuse the same id, then inspect the next request. Both
+  results must remain, with distinct paired ids and no synthetic placeholder.
+  Repeat after context trimming and restored history, and verify cancellation,
+  metadata and replayed pending snapshots retain their semantics.
+  `runtime.test.ts` covers the parent prompt path; `subagent-fallback.test.ts`
+  drives the real Pi adapter over local HTTP with two executions and three
+  requests; `tool-call-identity.test.ts` covers retained identities after trim.
+
 ### E2E-RUNTIME-system-update-during-tool-call-restore
 
 - **先决条件：** 一份会话转录，其中一条模型系统记录在工具调用执行期间保存：位于发出该调用的助手行之后、该调用的工具行之前
@@ -9335,6 +9369,15 @@ Follow the [current S3 acceptance scenario](/spec/06-delivery/04-e2e-test-plan#e
   因此由 `tool-call-dedupe.test.ts`（request wire contract）直接驱动 pi-ai 的消息变换，固定「请求把调用与结果隔开时同一个 call id
   会拿到两条输出」这一机制。
 - **状态：** 单元测试覆盖；没有端到端驱动从「循环追加过的上下文」构建新回合的请求。
+
+### E2E-OUTPUT-CAP-716：保持模型请求在发布上下文窗口内
+
+- **先决条件：** 确定性 provider 夹具公布上下文窗口，支持父级和子代理请求并记录请求负载；不使用真实凭据。
+- **步骤：** 配置大于已发布窗口的用户上下文覆盖；发送包含 CJK 文本的父级提示、调用子代理并运行一次性补全，再以 `thinkingLevel: "omit"` 重复父级请求。随后恢复一个包含许多大型系统指令更新的长会话，并通过不支持对话中途系统消息的 Responses 网关继续；再运行一个最后一次用量报告之后才追加多次系统指令更新的子代理。
+- **预期：** 每个请求都有不超过估算剩余窗口的明确输出预算；运行时按已发布安全上限压缩，且 `input + output` 不超过上限。能容纳时，小型 ASCII 请求保留配置的预算；恢复会话和子代理仅发送一条折叠后的指令消息，并保留配置预算，而不是降至 provider 最小值。
+- **关联规格：** `03-runtime/02-agent-runtime.md`、`03-runtime/13-model-catalog-and-selection.md`。
+- **自动化：** `packages/agent-runtime/src/output-cap-request.test.ts` 通过 loopback Responses 网关驱动恢复会话和子代理请求。
+- **状态：** 折叠指令步骤由 loopback 网关覆盖；其余确定性 provider 夹具待补充。
 
 ### E2E-MCP-HTTP-ACK — HTTP acknowledgement and authorization status
 

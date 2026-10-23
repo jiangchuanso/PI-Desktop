@@ -2593,7 +2593,7 @@ Live Voice 受现有开发者模式和开发构建门控约束，包含四种展
 ### 17.2 解剖学
 
 ```text
-                        ┌  toast-viewport (fixed top-center, z-toast) ┐
+                        ┌  toast-viewport (fixed safe-area top-center, z-toast) ┐
                         │  ┌──────────────────────────────────────┐ │
    newest, at anchor →  │  │ (✓)  Provider saved               ✕  │ │
                         │  ├──────────────────────────────────────┤ │
@@ -2605,6 +2605,10 @@ Live Voice 受现有开发者模式和开发构建门控约束，包含四种展
 - `ToastHost`（在 `components/Toast.tsx` 中）渲染堆栈；在 `App.tsx` 中的每个 shell 分支安装一次
 - 每张卡片：16px 变体图标（语义色调）·消息·X 关闭按钮
 - Surface：`bg-elevated-opaque` + 1px `border-subtle` + `shadow-dialog`，radius-md-plus — 与菜单相同的浮动系列； [07-ui-design-system.md §11.8](/zh-CN/spec/04-ux/07-ui-design-system#_11-8-toast) 中的指标
+- Host 仍通过 portal 挂在 `document.body` 以维持全局层级，但 AppShell 会把
+  水平中心和宽度锚定到实时 `.main-pane` 边界。停靠或调整工作面板、重新打开
+  侧栏时，Toast 堆栈都不会覆盖这些区域。设置页和没有主内容锚点的 shell
+  保留以整个视口为中心的回退位置。
 
 ### 17.3 API
 
@@ -2634,7 +2638,7 @@ dismissToast(id: number); // ToastHost internal / tests
 
 - 自动关闭 4 秒（错误 8 秒，`duration: 0` 粘性）；悬停卡片会暂停其计时器，离开悬停后从剩余时间继续
 - 堆叠上限为 4 — 最旧的掉落优先；重新引发相同的消息+变体会重新启动现有的 toast，而不是堆叠一个双胞胎
-- 最新的 toast 进入顶部中心锚点（向下滑动 200 毫秒缓出），将旧卡向下推；退出是 150 毫秒的渐入淡出
+- 最新 Toast 从主内容安全区的顶部中心锚点进入（向下滑动 200ms 缓出），将旧卡向下推；退出为 150ms 淡出
 - 关闭 X 始终可用；每张卡都是明确的非拖动指针目标
   因此，悬停暂停和关闭保持交互，其中顶部中心堆栈
   重叠无框标题栏拖动镶边

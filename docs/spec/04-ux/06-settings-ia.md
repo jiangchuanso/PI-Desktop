@@ -728,7 +728,10 @@ system while preserving their different data ownership:
   user sees that refusal while the same URL opens in their browser (ADR 0177).
   A failed catalog query offers Retry; the same action remains available when
   only some sources failed. It repeats the current search over the configured
-  sources and announces loading while the request runs.
+  sources and announces loading while the request runs. After a successful
+  load, a later failure keeps that list on screen with the time it was taken
+  and still offers Retry; the retained list never answers a different query,
+  and it disappears once a retry succeeds.
   Back reloads the skill list.
 - Skills also exposes **Scan other tools** in its toolbar. The explicit scan
   opens inline on the Skills page, and imported entries follow the current
@@ -740,7 +743,9 @@ system while preserving their different data ownership:
   shown in candidate rows.
 - MCP Market offers Retry after a failed query or partial source failure. It
   repeats the current search through the existing market request path and
-  announces loading while the request runs.
+  announces loading while the request runs. After a successful load, a later
+  failure keeps that list on screen with the time it was taken and still
+  offers Retry.
 - The Subagents create/edit sheet pins a model with a searchable, provider-
   grouped anchored menu — the same option-menu control the service picker uses
   — over the configured, runnable models the Composer offers, plus an

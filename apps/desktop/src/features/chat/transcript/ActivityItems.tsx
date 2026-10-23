@@ -23,13 +23,10 @@ type ActivityItemsProps = {
   delegationStatuses: ReadonlyMap<string, SubagentOutcome>;
   delegationTimings: ReadonlyMap<string, SubagentTiming>;
   onUserInteraction: () => void;
-  /** Flat and command-first expand every Thinking row by default. */
-  thinkingDefaultOpen?: boolean;
 };
 
 type ActivityItemBlockProps = Omit<ActivityItemsProps, "items" | "delegateItems" | "delegationStatuses" | "delegationTimings"> & {
   block: RenderBlock<AssistantActivityItem>;
-  lastItem?: AssistantActivityItem;
   topologyItem?: AssistantActivityItem;
   delegateItems?: DelegationActivityItem[];
   delegationStatuses?: ReadonlyMap<string, SubagentOutcome>;
@@ -37,9 +34,8 @@ type ActivityItemBlockProps = Omit<ActivityItemsProps, "items" | "delegateItems"
 };
 
 const ActivityItemBlock = memo(function ActivityItemBlock({
-  block, isActive, live, lastItem, topologyItem,
+  block, isActive, live, topologyItem,
   delegateItems, delegationStatuses, delegationTimings, onUserInteraction,
-  thinkingDefaultOpen,
 }: ActivityItemBlockProps) {
   return <>{block.items.map((item) => {
     // The topology predicate narrows to all tools, but a false result can still
@@ -86,7 +82,7 @@ const ActivityItemBlock = memo(function ActivityItemBlock({
       key={`thinking-${item.message.id}`}
       message={item.message}
       streaming={isActive && item.message.status === "streaming"}
-      autoOpen={thinkingDefaultOpen || (live && item === lastItem)}
+      autoOpen
       onUserInteraction={onUserInteraction}
     />;
   })}</>;
@@ -94,23 +90,19 @@ const ActivityItemBlock = memo(function ActivityItemBlock({
 
 export const ActivityItems = memo(function ActivityItems({ items, ...context }: ActivityItemsProps) {
   const blocks = useRenderBlocks(items, itemKey);
-  const lastItem = items.at(-1);
   const topologyItem = context.delegateItems[0];
   return <>{blocks.map((block) => {
-    const ownsLast = lastItem !== undefined && block.items.includes(lastItem);
     const ownsTopology = topologyItem !== undefined && block.items.includes(topologyItem);
     return <ActivityItemBlock
       key={block.key}
       block={block}
       isActive={context.isActive}
       live={context.live}
-      lastItem={ownsLast ? lastItem : undefined}
       topologyItem={ownsTopology ? topologyItem : undefined}
       delegateItems={ownsTopology ? context.delegateItems : undefined}
       delegationStatuses={ownsTopology ? context.delegationStatuses : undefined}
       delegationTimings={ownsTopology ? context.delegationTimings : undefined}
       onUserInteraction={context.onUserInteraction}
-      thinkingDefaultOpen={context.thinkingDefaultOpen}
     />;
   })}</>;
 });

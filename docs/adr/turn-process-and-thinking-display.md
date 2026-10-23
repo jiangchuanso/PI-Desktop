@@ -2,8 +2,8 @@
 
 - Status: Accepted
 - Date: 2026-09-17
-- Amended: 2026-10-21
-- Issues: #510, #461
+- Amended: 2026-10-22
+- Issues: #510, #461, #1806
 - Amends: D071, [ADR 0242](0242-delta-only-streaming-updates.md)
 
 ## Context
@@ -64,11 +64,11 @@ still load, is no longer exposed in Settings, and is not read for rendering; new
 writes store `transcriptDisplayMode`.
 
 Group folding defaults are unified across modes and do not depend on the
-thinking preference. Where a group renders, the group that owns the active
-execution segment starts open, then closes on completion only while untouched.
-Other completed groups start closed. An untouched active group containing any
-recorded failed or denied tool stays open through later recovery and closes on
-turn completion if still untouched.
+thinking preference. The active ordinary group stays open while its segment is
+active. After completion, ordinary groups with at most four visible items stay
+open, larger ordinary groups start closed, and Task topology groups stay open.
+Tool, search and run-row payloads keep their own closed defaults. Explicit user
+choices remain authoritative.
 
 The turn's disclosure header states the turn's outcome and never echoes the item
 it is working on, because a shell command or search query can be arbitrarily
@@ -90,13 +90,11 @@ rest, a 2px bar on hover or focus, collapsing the group when clicked. The outer
 turn fold adds no extra hierarchy, and a review-backed Write/Edit stays a single
 tool-level row whose only header is the file header above its diff body.
 
-The thinking preference is a boolean `showThinking`. With it on, `flat` and
-`command-first` expand every Thinking row by default and let the user collapse
-them; an expanded row shows the full reasoning markdown, while a collapsed row
-shows only the Thinking indicator with no summary or excerpt. `fully-folded`
-keeps the released exception: earlier Thinking rows stay collapsed, and the last
-active Thinking row opens only while it is the live step, so completed rows
-collapse. With the preference off, no completed reasoning row renders; only a
+The thinking preference is a boolean `showThinking`. With it on, every visible
+Thinking row expands by default in all three display modes and the user may
+collapse each row independently; an expanded row shows the full reasoning
+markdown, while a collapsed row shows only the Thinking indicator with no summary
+or excerpt. With the preference off, no completed reasoning row renders; only a
 live whole-run `TextShimmer` `Thinking` indicator remains while reasoning is
 actively streaming. The shimmer is a 1.2s linear sweep with a 220ms fade — no
 spinner, pulsing dot, or per-character animation — and stays static under
@@ -154,10 +152,11 @@ turn.
 - One disclosure per turn keeps the final answer and actionable interruptions
   reachable, and makes a long turn collapsible in a single gesture.
 - Group folding defaults are unified across display modes: active work stays
-  visible, untouched completed groups fold by default, and explicit disclosure
-  choices are preserved regardless of the thinking preference. Closing the
-  turn's disclosure closes the groups under it, and reopening restores the groups
-  the user had opened.
+  visible, small completed ordinary groups and Task topology groups stay open,
+  and larger ordinary groups start closed. Explicit disclosure choices are
+  preserved regardless of the thinking preference. Closing the turn's disclosure
+  hides the groups under it, and reopening restores their defaults and explicit
+  choices.
 - With `showThinking` off, no completed reasoning row renders; only the live
   whole-run TextShimmer `Thinking` indicator remains while reasoning streams.
   Stored reasoning is retained and reappears when the preference is turned back
@@ -168,8 +167,8 @@ turn.
   groups; all three render exactly one disclosure, and reading the mode while
   rendering repaints the transcript immediately instead of waiting for new
   messages.
-- With `showThinking` on, Thinking rows default expanded in `flat` and
-  `command-first`; `fully-folded` keeps the live-only auto-open exception.
+- With `showThinking` on, Thinking rows default expanded in `flat`,
+  `command-first`, and `fully-folded`.
 - The header answers "how did this turn end up" in one short line. Echoing the
   current command was removed: it pushed the counts off the row and duplicated
   what opening the item already shows.
@@ -194,6 +193,13 @@ covers the `showThinking`/legacy `thinkingDisplayMode` resolver precedence, and
 the i18n catalog tests cover the new `settings.showThinking` copy. The UI,
 resolver, and E2E scenarios are validated on the integration candidate; see
 E2E-CHAT-turn-process-and-thinking-display for the synchronized scenario text.
+For the 2026-10-22 amendment, issue #1806 was reproduced in the React/Electron
+transcript harness: after settlement, a small activity group and reasoning rows
+were collapsed behind the closed turn process. The amendment keeps groups of up
+to four visible items and Task topology groups open, and leaves Thinking rows
+expanded by default when `showThinking` is on. The transcript E2E now covers
+active-to-settled disclosure behavior, while oversized groups and tool payloads
+remain closed by default. See E2E-CHAT-turn-process-and-thinking-display.
 For the 2026-10-21 amendment, `apps/desktop/test/turn-process.test.mjs` covers
 mode segmentation, including `flat`, `command-first` and `fully-folded`, and
 header phase precedence. `apps/desktop/test/transcript-display-modes-ui.test.mjs`

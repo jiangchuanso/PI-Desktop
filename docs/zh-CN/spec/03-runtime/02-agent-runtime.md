@@ -585,6 +585,10 @@ Goal 批准所承诺的内容与 Plan 批准所承诺的内容完全相同：`mo
 - 视觉支持由同一条 Pi catalog 记录解析：只有 `input.includes("image")` 才启用
   图片传输。未知/自定义模型 id 保持为保守的 text/path 模型，即使发现到的元数据
   声称支持 `vision`。
+- 模型绑定的可选 `supportsReasoningEffort` 仅控制 Chat Completions 的
+  `reasoning_effort` 参数。缺省或 `null` 保留目录及供应商兼容默认值；显式布尔值
+  优先于自动兼容识别，包括 DeepSeek 系列默认值。它不启用推理、不选择思考档位，
+  也不改变 Responses 或 Anthropic 的请求序列化。目录兼容元数据不等于用户显式开启。
 - 有效级别会传给 pi `Agent`；特定于提供商的请求
   序列化仍然是 pi-ai 的责任。
 - Pi `thinking` 块变为 `UiMessage.thinking` 并且

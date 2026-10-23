@@ -9941,3 +9941,21 @@ host-created files. The full app's file-preview viewer is covered separately.
 - **关联规格**：`04-ux/01-ui-ia.md` §3.2、`04-ux/06-settings-ia.md`（常规 → 侧边栏卡片）。
 - **验收**：项目折叠时仍能回答“这里是否有正在运行的工作”，且两种提示可从持久化设置独立控制。
 - **状态**：草稿。现有 `apps/desktop/test/sidebar-project-runs.test.mjs` 覆盖数量分类、总开关与子开关门控、两种渲染入口，以及主题令牌和减少动态效果保证；它不覆盖设置 API 缺省值规范化或完整交互，相关场景仍需在可用环境手动验证。
+
+#### E2E-PROVIDER-reasoning-effort-override: Preserve an explicit gateway reasoning parameter
+
+- **Setup:** A custom Chat Completions provider with a DeepSeek-family model;
+  start with a legacy binding that omits `supportsReasoningEffort`.
+- **Steps:** In English, Chinese and German at 850/1000/1400px widths, open model settings, confirm Auto, select
+  Send, save and reopen; repeat for Do not send and Auto. Switch to Responses
+  and Anthropic and confirm the Completions-only control is hidden.
+- **Expected:** Each saved binding retains true, false, or null respectively.
+  With High selected, the real Completions adapter sends `reasoning_effort: high`
+  only when enabled; Auto keeps the existing DeepSeek compatibility default.
+  Responses continues using its own reasoning contract. Provider creation,
+  update/read, copying, and sync preserve the explicit override.
+- **Automation:** `node scripts/e2e-provider-api-style.mjs --reasoning-effort` exercises real
+  React/Chromium controls and captures the Host API payload (the IPC boundary is
+  stubbed). Rust provider tests independently verify real SQLite persistence;
+  `provider-reasoning-effort.test.ts` captures requests from the real pi-ai
+  adapter with fixture SSE responses. No live gateway credentials are required.

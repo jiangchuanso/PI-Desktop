@@ -5284,12 +5284,18 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
 
 #### E2E-060d: Assistant meta chips, compact context summary, and retry action
 
-- **Preconditions**: A completed assistant message includes modelId and token
-  usage; another completed assistant message has content but no usage. The
-  selected model has a published 1m-class context window, while its provider
-  binding still contains the legacy 128k generic seed.
+- **Preconditions**: A completed visual turn includes modelId and token usage
+  across more than one assistant message; another completed assistant message
+  has content but no usage. The selected model has a published 1m-class context
+  window, while its provider binding still contains the legacy 128k generic
+  seed.
 - **Steps**: 1) Open the session. 2) Confirm the completed turn shows a model
-  badge and no context inspector under the answer. 3) Hover the composer
+  badge and no context inspector under the answer. Confirm the turn usage
+  capsule follows the badge with its average speed and compact total, then
+  hover or keyboard-focus it and inspect the cache-read/input/output exact
+  counts, the turn total, and cache write only when non-zero. Move the pointer
+  into the popover and confirm it stays open, then dismiss it with Escape and
+  with an outside pointer press. 3) Hover the composer
   toolbar inspector trigger, confirm the panel stays closed, then click it.
   4) Inspect the remaining-token-plus-percentage heading, used/window counts,
   unboxed turn/speed values, total session duration, and three timing rows for
@@ -5311,7 +5317,15 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   without usage still offers Retry on completed turns and omits the composer
   inspector.
 - **Expected**: Model badge appears under completed assistant answers when a
-  model id exists. The compact Context inspector appears in the composer
+  model id exists, followed immediately by the turn usage capsule when that
+  turn has usage. The capsule's speed is summed output tokens over summed
+  response duration, and its total sums input/output/cache read/cache write
+  across the visual turn, counting reasoning inside output and excluding
+  subagent spend. Its popover stays open while the pointer is over it, closes
+  on pointer leave after a grace delay unless the trigger retains keyboard
+  focus, on Escape, or on an outside press; it portals to the body, clamps to
+  the conversation pane, and is absent on streaming turns.
+  The compact Context inspector appears in the composer
   right toolbar, left of the model picker, once any usage exists, and always
   mirrors the newest usage-bearing assistant turn. The trigger shows the ring
   plus remaining-capacity percentage (no Context label) and low-space
@@ -5330,7 +5344,8 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   explanatory estimate paragraph is rendered. Occupancy, turn total, and
   provider cache/input/output/reasoning/hit-rate are the last usage-bearing
   assistant message, not the summed tool-loop, so cache read stays on the
-  same scale as the context window. The cache hit rate is omitted
+  same scale as the context window; this last-request value remains distinct
+  from the capsule's visual-turn aggregate. The cache hit rate is omitted
   when cache-read metadata is absent rather than inferred. A published 1m-class
   limit (for example `gpt-5.6-luna` at 1,050,000 tokens) is shown instead of
   128k, the same effective window is used by the agent runtime, and a non-default

@@ -41,6 +41,9 @@ function harness({ sessions = DEFAULT_SESSIONS, pendingAsks = {}, pendingPermiss
     sessions,
     pendingAsks,
     pendingPermissions,
+    // The ask-card drafts the session slice prunes when a restored read drops a
+    // request; the real store always initializes them (initial-state.ts).
+    askDrafts: {},
     planningStates: {},
     planCheckpoints: {},
     pendingPlans: {},

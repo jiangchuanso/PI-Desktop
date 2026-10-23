@@ -9283,7 +9283,9 @@ Follow the [current S3 acceptance scenario](/spec/06-delivery/04-e2e-test-plan#e
   指示器，不使用转圈、脉冲圆点或逐字符动画，减少动态效果时保持静态；重新打开后确认
   已完成的推理行恢复。分别选择每个 `过程显示` 值并重启，确认设置保留；移除已保存的值，
   确认默认使用「全折叠显示」。确认标题分别显示执行中、已完成、已停止或失败，执行期间
-  压缩上下文与恢复会各自命名，未记录时长时不显示时长，且绝不回显当前命令。检查嵌套路径，
+  压缩上下文与恢复会各自命名，未记录时长时不显示时长，且绝不回显当前命令。确认顶层标题
+  只显示状态、已记录的耗时与直接工具／搜索数；折叠指示紧跟工具数；标题行下方有一条细线；
+  悬停只改变文字颜色、不绘制背景；失败回合不追加问题计数。检查嵌套路径，
   包括相互独立的组／条目切换、父级收起与恢复、单项片段、字面最后一项选择、失败／被拒／
   恢复、保留窗格重新挂载、命令行详情在打开前保持收起，以及旧版搜索定位。
 - **预期：** 一个回合只渲染一个过程披露，包含全部回答前的行，最终回答、助手错误、中止后
@@ -9298,8 +9300,10 @@ Follow the [current S3 acceptance scenario](/spec/06-delivery/04-e2e-test-plan#e
   展开，完成后收起。用户明确选择的状态继续保留，并在外层披露重新展开时恢复；这些组默认值
   不依赖 `Show thinking` 偏好。回合标题按执行中、已完成、已停止、失败的顺序报告，失败与
   停止优先于正常完成，当前步骤为推理时显示 `Thinking`，执行期间压缩上下文和恢复会各自
-  命名，未记录时长时不显示时长，且绝不回显当前命令。嵌套组标题与命令行共用回合标题的
-  左边缘。`Show thinking` 关闭时，不再渲染任何已完成的推理行，仅在推理流式输出期间保留
+  命名，未记录时长时不显示时长，且绝不回显当前命令。标题只包含状态、耗时与直接工具／
+  搜索数，折叠指示紧跟工具数，标题行下方有细线，悬停只改变文字颜色、不绘制背景，且不
+  显示问题计数。嵌套组标题与命令行共用回合标题的左边缘。`Show thinking` 关闭时，不再
+  渲染任何已完成的推理行，仅在推理流式输出期间保留
   整段运行的 TextShimmer `Thinking` 指示器；重新打开时恢复。除显示模式的思考默认值外，
   没有任何条目载荷会自动展开：工具／搜索行在用户打开之前保持收起。父级、子级和同级状态
   相互独立；窗格拥有的用户选择跨更新、偏好切换和重新挂载保留，渲染器重启后重新应用默认值。
@@ -9314,7 +9318,10 @@ Follow the [current S3 acceptance scenario](/spec/06-delivery/04-e2e-test-plan#e
   以及运行中到完成时的过程披露行为；`pnpm test:e2e:transcript-disclosure` 验证手动
   展开状态保留和视口锚定；`apps/desktop/test/turn-process.test.mjs` 覆盖模式分段，
   `apps/desktop/test/transcript-display-modes-ui.test.mjs` 覆盖渲染层模式接线、
-  思考默认值与 TextShimmer，`apps/desktop/test/transcript-display-mode-settings.test.mjs`
+  思考默认值与 TextShimmer，`apps/desktop/test/turn-process-header.test.mjs` 覆盖
+  顶层标题的状态／耗时／工具数组合及不显示问题计数，
+  `apps/desktop/test/turn-process-header-style.test.mjs` 覆盖整行细线与仅文字变色的
+  悬停，`apps/desktop/test/transcript-display-mode-settings.test.mjs`
   覆盖设置行与搜索索引，`apps/desktop/test/settings-roundtrip.test.mjs` 覆盖规范化、
   写入校验与全折叠默认值。
 - **规格：** 04-ux/06-settings-ia、04-ux/08-component-spec、

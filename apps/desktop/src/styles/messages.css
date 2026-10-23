@@ -3669,6 +3669,53 @@
   min-width: 0;
 }
 
+/*
+ * The top-level fold is a hairline row, not a hover chip. Status, duration,
+ * tool count and the caret form one left-aligned run, so the disclosure
+ * indicator trails the metadata instead of being pushed to the far edge of the
+ * band. Hover only strengthens the ink; no background fill is involved.
+ */
+.turn-process > .tool-activity-header {
+  margin: 0;
+  border-radius: 0;
+  border-bottom: 1px solid var(--ds-border-subtle);
+  padding: 4px 0 8px;
+}
+
+.turn-process > .tool-activity-header:hover {
+  background: transparent;
+  color: var(--ds-text-primary);
+}
+
+.turn-process > .tool-activity-header:hover .tool-activity-icon,
+.turn-process > .tool-activity-header:hover .tool-activity-label,
+.turn-process > .tool-activity-header:hover .turn-duration,
+.turn-process > .tool-activity-header:hover .tool-activity-count,
+.turn-process > .tool-activity-header:hover .tool-activity-caret {
+  color: var(--ds-text-primary);
+}
+
+.turn-process > .tool-activity-header:hover .turn-sep {
+  color: var(--ds-text-secondary);
+}
+
+.turn-process > .tool-activity-header > .tool-activity-caret {
+  margin-inline-start: 0;
+  opacity: 0.8;
+}
+
+.turn-duration {
+  flex: none;
+  color: var(--ds-text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.turn-sep {
+  flex: none;
+  color: var(--ds-text-faint);
+}
+
 .turn-process.open > .tool-activity-header > .tool-activity-caret,
 .process-activity-group.open > .tool-activity-header > .tool-activity-caret {
   transform: rotate(90deg);
@@ -3732,15 +3779,6 @@
   align-items: center;
   gap: 8px;
   padding-block: 6px;
-}
-
-.turn-process-error {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  flex: none;
-  font-size: var(--text-xs-plus);
-  color: var(--ds-error);
 }
 
 /* Provider-hosted web search round. The row reuses the tool-row idiom; only

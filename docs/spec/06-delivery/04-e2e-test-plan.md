@@ -17335,7 +17335,11 @@ plugin-form fixtures in an isolated temporary directory at runtime.
   defaults to Fully folded. Confirm the header reads running, finished, stopped,
   or failed for each case, names compaction and recovery while those stages are
   live, omits the duration when none was recorded, and never repeats the current
-  command. Review the nested path, including independent group/item toggles, a
+  command. Confirm the top-level header shows exactly status, recorded duration
+  and direct tool/search count; its caret sits immediately after the tool count;
+  a hairline underlines the row; hovering changes only the text colour with no
+  background fill; and a failed turn does not add an issue count. Review the
+  nested path, including independent group/item toggles, a
   singleton segment, literal-final-item leaf selection, failure/denial/recovery,
   retained-pane remounts, run rows keeping their details closed until opened, and
   a legacy search reveal.
@@ -17364,12 +17368,15 @@ plugin-form fixtures in an isolated temporary directory at runtime.
   reports running, finished, stopped, or failed with failure and stop outranking
   a normal finish, reads `Thinking` while the live step is reasoning, names
   compaction and recovery while those stages are live, omits a duration the
-  transcript did not record, and never repeats the current command. Nested group
-  headers and run rows share the turn header's left edge. When `Show thinking` is
-  off, no completed reasoning row renders, and only the live whole-run TextShimmer
-  `Thinking` indicator remains while reasoning streams; turning it back on
-  restores the rows. No item payload opens itself except the display mode's
-  Thinking default: a tool/search row stays closed until the user opens it.
+  transcript did not record, and never repeats the current command. It carries
+  only status, duration and direct tool/search count, with the caret immediately
+  after the tool count, a hairline under the row, text-colour-only hover, and no
+  issue count. Nested group headers and run rows share the turn header's left
+  edge. When `Show thinking` is off, no completed reasoning row renders, and only
+  the live whole-run TextShimmer `Thinking` indicator remains while reasoning
+  streams; turning it back on restores the rows. No item payload opens itself
+  except the display mode's Thinking default: a tool/search row stays closed until
+  the user opens it.
   Parent/child/sibling states remain independent, pane-owned user choices survive
   updates, preference changes and remounts, and renderer restart reapplies
   defaults. Search reveals the turn process and, where one exists, the activity
@@ -17392,6 +17399,10 @@ plugin-form fixtures in an isolated temporary directory at runtime.
   viewport anchoring; `apps/desktop/test/turn-process.test.mjs` covers mode
   segmentation, `apps/desktop/test/transcript-display-modes-ui.test.mjs` covers
   the renderer's mode wiring, Thinking defaults and TextShimmer,
+  `apps/desktop/test/turn-process-header.test.mjs` covers the top-level header's
+  status/duration/tool-count composition and the absence of issue counts,
+  `apps/desktop/test/turn-process-header-style.test.mjs` covers its hairline and
+  text-only hover,
   `apps/desktop/test/transcript-display-mode-settings.test.mjs` covers the
   Settings row and search indexing, and
   `apps/desktop/test/settings-roundtrip.test.mjs` covers normalization, write

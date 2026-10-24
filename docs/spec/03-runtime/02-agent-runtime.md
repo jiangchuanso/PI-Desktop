@@ -782,6 +782,12 @@ criterion-by-criterion report of what was met and the evidence observed.
   enables or disables image transport for the configured binding. Unknown or
   custom ids remain conservative text/path models unless their binding
   explicitly enables image input.
+- A model binding's optional `supportsReasoningEffort` controls the Chat
+  Completions `reasoning_effort` parameter only. An absent or `null` value keeps
+  existing catalog/provider compatibility; an explicit boolean takes precedence
+  over automatic compatibility detection, including DeepSeek-family defaults.
+  This does not enable reasoning, select a level, or change Responses/Anthropic
+  request serialization. Published compatibility alone is not an explicit opt-in.
 - The effective level is passed to the pi `Agent`; provider-specific request
   serialization remains pi-ai's responsibility.
 - Pi `thinking` blocks become `UiMessage.thinking` and

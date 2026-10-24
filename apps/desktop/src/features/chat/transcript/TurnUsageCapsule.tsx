@@ -159,9 +159,6 @@ export function TurnUsageCapsule({
       popover: { width: popoverRect.width, height: popoverRect.height },
       pane: paneRect ? { left: paneRect.left, right: paneRect.right } : null,
       viewport: { width: window.innerWidth, height: window.innerHeight },
-      // The approved capsule design opens into the space under the answer;
-      // the bottom dock flips it above only when that space is too short.
-      prefer: "below",
     });
     if (!next) {
       setOpen(false);

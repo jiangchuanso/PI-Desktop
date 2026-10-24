@@ -62,7 +62,7 @@ test("the popover portals to body and clamps to the conversation pane", () => {
   assert.match(capsule, /useId\(\)/);
   assert.match(capsule, /portalToBody\(popover\)/);
   assert.match(capsule, /placeContextInspector\(\{/);
-  assert.match(capsule, /prefer: "below"/);
+  assert.doesNotMatch(capsule, /prefer:/);
   assert.match(capsule, /closest\("\.main-pane"\)/);
   assert.match(capsule, /new ResizeObserver\(updatePosition\)/);
   assert.match(capsule, /addEventListener\("scroll", handleViewportChange, true\)/);

@@ -519,6 +519,11 @@ a usage tab.
     outside settings container dismisses it before the trigger can become
     detached. Search results keep a dedicated no-match state instead of
     reusing the search placeholder.
+  - Chat Completions model settings include a reasoning effort parameter menu:
+    **Auto**, **Send**, and **Do not send**. Auto restores compatibility defaults;
+    the other choices persist an explicit per-model `supportsReasoningEffort`
+    boolean. The selection survives save/reopen, copying, and configuration sync.
+    Other API formats hide this control without deleting the saved preference.
   - the context-window field states its provenance: while the number still
     follows the published models.dev limit, a faint hint under the input says so
     (`settings.contextWindowCatalogHint`), and the first edit — the preset

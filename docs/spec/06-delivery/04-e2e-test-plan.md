@@ -1255,7 +1255,7 @@ identify the platform validation still needed.
 #### E2E-005: Add a provider and save API key
 
 - **Preconditions**: App running; no provider configured; the models.dev snapshot ships with the build.
-- **Steps**: 1) Open Settings → Model configuration and choose Add provider. 2) Confirm the searchable service chooser opens. Filter and select a built-in API-key service or **Custom endpoint**; the selection must open its matching form, never the plugin-only “selected service unavailable” state. Confirm the form has no stepper or Next/Back buttons. For **Custom endpoint**, Name and Base URL appear on one row with no helper paragraph under the URL (placeholder only), API Key and API format appear side by side on the next row (not behind Advanced), and a focused field plus its 2px accent ring stays fully inside the dialog, including on a window narrower than 1040px. The custom form's **No API key required** switch starts off; enabling it clears and disables the key field. 3) Enter a name and a base URL for a service that publishes a `/models` route, then paste an API key. Confirm the models section fills with the models THAT SERVICE returned without requiring a key for discovery; confirm a model the deployment does not host is absent. Also exercise the no-auth path with a custom endpoint: leave the key empty, enable **No API key required**, select a discovered model, and save. 4) Type in the filter box and confirm the list narrows client-side with no network request per keystroke. 5) Confirm each row shows the models.dev-derived context/output for models the catalog knows, that its compact text tracks the published value instead of a coarser rounded one (a 1,050,000 window reads `1.05M`, never `1.1M`), and that a model with no catalog match still lists with generic defaults. 6) Select two models with the checkboxes. 7) Expand Advanced on one chosen row, override its limits and toggle thinking chips; confirm each numeric field has a five-chip preset ladder for common values, clicking a chip writes the value, hand editing remains possible, and a non-preset value leaves the ladder unselected. Set max output to 8,192 while its context window still follows the catalog. On a model whose published image input is enabled, toggle image input off and then back on before saving, so the explicit choice equals the current catalog value. Confirm the label and optional hint sit above one compact grouped control and do not force the options onto a second row at normal dialog width; confirm all seven canonical levels are available, that published levels start selected for a known reasoning model, and that a non-reasoning or unknown row shows the same chips unselected with the manual-override hint; enable one level on that row and confirm the other row is unaffected. 8) Open the form-level Advanced and confirm the API format is present but pre-derived. 9) Add a free-form model ID the service did not return; confirm it is added with 128,000 / 8,192 / no-thinking defaults, then enable a thinking level if the endpoint supports it; confirm re-adding the same ID in different letter case is rejected as already added. 10) Save.
+- **Steps**: 1) Open Settings → Model configuration and choose Add provider. 2) Confirm the searchable service chooser opens. Filter and select a built-in API-key service or **Custom endpoint**; the selection must open its matching form, never the plugin-only “selected service unavailable” state. Confirm the form has no stepper or Next/Back buttons. For **Custom endpoint**, Name and Base URL appear on one row with no helper paragraph under the URL (placeholder only), API Key and API format appear side by side on the next row (not behind Advanced), and a focused field plus its 2px accent ring stays fully inside the dialog, including on a window narrower than 1040px. The custom form has no authentication-mode switch; the API key is optional and its input stays enabled. 3) Enter a name and a base URL for a service that publishes a `/models` route, then paste an API key. Confirm the models section fills with the models THAT SERVICE returned without requiring a key for discovery; confirm a model the deployment does not host is absent. Also exercise the no-auth path with a custom endpoint: leave the key empty, select a discovered model, and save. 4) Type in the filter box and confirm the list narrows client-side with no network request per keystroke. 5) Confirm each row shows the models.dev-derived context/output for models the catalog knows, that its compact text tracks the published value instead of a coarser rounded one (a 1,050,000 window reads `1.05M`, never `1.1M`), and that a model with no catalog match still lists with generic defaults. 6) Select two models with the checkboxes. 7) Expand Advanced on one chosen row, override its limits and toggle thinking chips; confirm each numeric field has a five-chip preset ladder for common values, clicking a chip writes the value, hand editing remains possible, and a non-preset value leaves the ladder unselected. Set max output to 8,192 while its context window still follows the catalog. On a model whose published image input is enabled, toggle image input off and then back on before saving, so the explicit choice equals the current catalog value. Confirm the label and optional hint sit above one compact grouped control and do not force the options onto a second row at normal dialog width; confirm all seven canonical levels are available, that published levels start selected for a known reasoning model, and that a non-reasoning or unknown row shows the same chips unselected with the manual-override hint; enable one level on that row and confirm the other row is unaffected. 8) Open the form-level Advanced and confirm the API format is present but pre-derived. 9) Add a free-form model ID the service did not return; confirm it is added with 128,000 / 8,192 / no-thinking defaults, then enable a thinking level if the endpoint supports it; confirm re-adding the same ID in different letter case is rejected as already added. 10) Save.
 - **Expected**: The service is asked first and models.dev only enriches the answer and seeds known-model defaults. The no-auth custom path saves `authKind: "none"`, omits `secretValue`, and makes the configured provider available anywhere an enabled no-auth provider is selectable; named cloud preset behavior stays unchanged. Newly fetched or checked model rows stay collapsed until the user opens Advanced, so every selected model ID remains visible in the right pane after a multi-select. The settings picker always offers the seven canonical thinking levels, and the Composer later renders the explicit levels saved in the same model binding; an empty or `off`-only binding resolves to `off`. Discovery is debounced ~600 ms, does not mark loading until that window elapses, and a slow reply from an earlier keystroke never replaces a newer list; named add-path discovery waits for an API key, while an unsaved custom provider is probed with the typed base URL (and key, if any) before it exists. Preset ladders cover common context/output limits while preserving hand-edited values. The explicitly selected 8,192 output remains pinned independently of the catalog-sourced context window, and the image-input choice remains explicitly enabled after it is toggled back to the published value; neither is reinterpreted as "follow catalog" on save/reopen. Later catalog corrections change only values whose own source is `catalog`. Limit text renders through one shared compact formatter, so neighbouring published windows stay distinguishable (`1M` / `1.05M` / `1.1M`) and a compact limit never reads above its published value. Custom endpoint keeps API format beside the key and omits Base URL helper copy; named endpoints do not show format. Point the same custom form at an unreachable or unauthorized URL and confirm one classified sentence reaches the app toast while the left pane keeps its single “no list” label (not a raw JSON/HTML dump and not a second “no models” empty state); with cached rows from a later edit the same reason is toasted while the rows stay. Point a second provider at a base URL with no `/models` route and confirm the list falls back to the catalog, is labelled as coming from models.dev rather than the service, and still saves. The provider appears as a row with its host, model count and secret badge; the key is stored securely (not in plaintext config); `models` contains both bindings and `models[0]` remains the provider default.
 - **Specs linked**: `03-runtime/11-provider-model-system.md`, `03-runtime/12-provider-config-schema.md`, `03-runtime/13-model-catalog-and-selection.md`, `03-runtime/14-secrets-storage.md`, `04-ux/06-settings-ia.md`
 - **Acceptance**: B (multi-model provider configuration, save key)
@@ -1265,9 +1265,9 @@ identify the platform validation still needed.
 #### E2E-PROVIDER-custom-endpoint-no-api-key: Configure a custom service without credentials
 
 - **Preconditions**: Isolated settings profile and a local OpenAI-compatible fixture that lists a model without credentials; no live or paid provider.
-- **Steps**: 1) Open Settings → Model configuration → Add provider → Custom endpoint. 2) Enter a name and the fixture URL; check **No API key required**. 3) Confirm model discovery succeeds without a key, select the returned model, and save. 4) Confirm the provider and model are offered by chat/default-model and subagent selectors. 5) Edit an API-key provider, select **No API key required**, save, and inspect the provider's stored auth kind and credential state. 6) Send a request through the no-auth provider fixture.
-- **Expected**: The custom form remains in API-key mode by default. The explicit no-key selection saves `authKind: "none"` without `secretValue`; editing to this mode removes the provider's existing API key. The enabled provider with `hasSecret: false` remains selectable for chat, defaults, subagents, and image generation where its model supports that operation. Runtime requests contain no API-key or Authorization credentials.
-- **Automation**: `pnpm test:e2e:provider-api-style` renders the production setup form in English and Simplified Chinese with a stubbed model-discovery/API boundary and verifies create/update payloads and chat/default/subagent selector eligibility. `pnpm --filter @pi-desktop/agent-runtime test -- provider-binding.test.ts` verifies request headers; `apps/desktop/test/image-generation-default.test.mjs` covers no-auth image-model availability; `cargo test -p host-core --locked switching_provider_to_no_auth_clears_its_api_key` verifies Host persistence and secret removal.
+- **Steps**: 1) Open Settings → Model configuration → Add provider → Custom endpoint. 2) Enter a name and the fixture URL; leave the optional API key empty, without selecting an authentication mode. 3) Confirm model discovery succeeds without a key, select the returned model, and save. 4) Reopen and save without changes, then type a key and save; confirm API-key authentication is restored. 5) Edit an API-key provider and save with a blank input; confirm its key is retained. Reopen, choose **Clear saved API key**, and confirm subsequent discovery does not reuse the stored key. Close without saving and confirm no credential changed. Repeat Clear followed by Save, and Clear followed by a replacement key and Save. 6) Confirm the no-auth provider and model are offered by chat/default-model and subagent selectors. 7) Send a request through the no-auth provider fixture.
+- **Expected**: The custom form has no no-key switch and keeps the key input enabled. An empty or whitespace-only key with no saved credential automatically saves `authKind: "none"` without `secretValue`; a supplied key uses API-key authentication. A blank edit retains an existing key. Clear is staged until Save and a replacement key takes precedence over removal. The enabled no-auth provider with `hasSecret: false` remains selectable for chat, defaults, subagents, and image generation where its model supports that operation. Named cloud presets remain unchanged. Runtime requests contain no API-key or Authorization credentials.
+- **Automation**: `node --test apps/desktop/test/custom-provider-no-api-key-user-path.test.mjs` covers empty/whitespace keys, keyed creation, save/reopen, preservation, staged removal/cancellation, discovery without the old secret, and replacement. `pnpm test:e2e:provider-api-style` renders the production setup form in English and Simplified Chinese with a stubbed model-discovery/API boundary and verifies create/update payloads and chat/default/subagent selector eligibility. `pnpm --filter @pi-desktop/agent-runtime exec vitest run src/provider-binding.test.ts` verifies request headers; `apps/desktop/test/image-generation-default.test.mjs` covers no-auth image-model availability; `cargo test -p host-core --locked switching_provider_to_no_auth_clears_its_api_key` verifies Host persistence and secret removal.
 - **Specs linked**: `03-runtime/11-provider-model-system.md`, `03-runtime/12-provider-config-schema.md`, `03-runtime/13-model-catalog-and-selection.md`, `04-ux/06-settings-ia.md`.
 - **Acceptance**: B (model configuration), F (provider persistence), Security.
 - **Milestone**: M2.
@@ -1859,23 +1859,22 @@ identify the platform validation still needed.
   2) With the work panel closed, ask the agent to preview a workspace HTML
   file (`BrowserPreview`) and verify the Browser tab opens in the visible work
   panel. 3) Use ToolSearch `cdp` / `Browser` to snapshot and interact while the
-  panel remains visible. 4) With the work panel closed, call the plugin
-  Browser tool for an HTTP(S) URL and verify it activates the existing Browser
-  tab before navigating. 5) Switch to a second session and call Browser;
-  verify it opens that session's own page, then switch back and verify the first
-  page is retained. 6) Run Browser from a background session and verify it does
-  not steal focus. 7) Switch to Plan and call the plugin Browser tool. 8) Disable
+  panel remains visible. 4) Collapse the panel and continue Browser snapshot,
+  click/fill, screenshot and navigation. 5) Switch to a second session and call
+  Browser; verify it uses that session's own page. 6) Continue the first session's
+  Browser actions while the second session is visible; reload the shell and
+  return to the first page. 7) In Plan/Goal, exercise the read-only Browser
+  actions and verify mutating actions remain denied. 8) Disable
   `pi.browser`. 9) Call `BrowserPreview` and click an http(s) transcript link.
   10) From a third-party or test caller, send
   `Network.getAllCookies` through `pi.browser.cdp`.
 - **Expected**: The launcher has no host Browser row. Preview opens the plugin
-  view, reveals the work panel, and live-reloads the file. Browser operations
-  run only after the originating session's view is visible; the agent opens it
-  automatically and waits for readiness. A background session does not change
-  the visible tab and receives `UNAVAILABLE` if it cannot be revealed. Plugin
-  tool `plugin_pi_browser_Browser` can snapshot
-  after ToolSearch. Plan denies the plugin tool
-  (`PLUGIN_DISABLED_IN_PLAN`) while `BrowserPreview` remains callable. Disable
+  view, reveals the work panel, and live-reloads the file. Session-owned Browser
+  operations run in the background without opening the panel, borrowing another
+  page, or changing focus. Shell reload retains the native page and form data;
+  its side-panel tabs can be restored. ToolSearch activates the Browser tool.
+  Plan/Goal allow navigate/snapshot/screenshot/console; click/fill/evaluate/cdp
+  remain denied. Disable
   hides the view and tools; `BrowserPreview` errors; http(s) chips use
   `openExternal`. Cookie CDP is denied. Guest bounds stay inside the plugin
   view.
@@ -2253,6 +2252,20 @@ identify the platform validation still needed.
 - **Coverage**: `scripts/e2e/composer-submission.tsx`, executed by
   `pnpm test:e2e:composer-paste`; real desktop recording uses isolated data and
   a local model with a controlled response delay.
+
+#### E2E-011c-2: Late send failures do not restore stale composer drafts
+
+- **Preconditions**: Session A is idle; the two send results for its composer
+  can be held and settled independently.
+- **Steps**: Submit draft N, then submit draft N+1 before N settles. Accept N+1
+  and reject N. Repeat with N+1 rejected after N remains pending.
+- **Expected**: N's late rejection never restores its text or file references
+  over N+1. If N+1 is rejected, only N+1's own snapshot is restored.
+- **Specs linked**: `04-ux/09-interaction-patterns.md` (session-scoped drafts)
+- **Acceptance**: C (composer input and session isolation)
+- **Milestone**: M2
+- **Status**: Async ownership behavior covered by
+  `apps/desktop/test/composer-submit-race.test.mjs`; rendered UI scenario Draft
 
 #### E2E-SESSION-reference-conversation-link: A pasted conversation link carries that conversation into the turn
 
@@ -4992,10 +5005,10 @@ window; opening a normal panel afterward must still work.
   does not create a work-panel tab. Session switches and invalid schemes retain
   their security and visibility gates.
 - **Additional paths**: Invoke BrowserPreview through ToolSearch/BrowserPreview
-  while a tab has unsent form input: only a new tab navigates. Queue navigation
-  for an inactive session with an existing tab, then return and verify the queued
-  destination wins over an old load completion. Open a blank tab and inspect its
-  empty address and state. Close a background tab and verify its WebContents is
+  while a tab has unsent form input: only a new host-owned page navigates, before
+  its renderer tab mounts. Navigate for an inactive session and verify immediate
+  execution in its connected page without changing the visible one. Open a blank
+  tab and inspect its empty address and state. Close a background tab and verify its WebContents is
   destroyed without affecting its sibling; deleting a session and plugin/window
   disposal release the appropriate retained pages.
 - **Status**: Targeted isolated Electron validation; no new repository test suite.
@@ -5013,6 +5026,31 @@ window; opening a normal panel afterward must still work.
 - **Coverage**: `browser-pane-navigation.test.mjs` for published state and event
   isolation; native Electron click-through for actual same-document events.
 - **Specs linked**: `04-ux/08-component-spec.md` §5.3.
+
+#### E2E-BROWSER-background-lifecycle: Side-panel presentation does not own page execution
+
+- **Preconditions**: Dedicated worktree, reused Electron/toolchain, isolated
+  profile and localhost A/B/C pages. No real account or paid provider requests.
+- **Steps**: Snapshot A, switch to B, fill and click A through production CDP,
+  then start a new hidden screenshot. Detach presentation, reload the renderer,
+  repeat A's snapshot/screenshot and restore its tab. Open a first C preview
+  before UI mounting. Close C and try unknown/closed targets. Exercise every
+  Browser API through real concurrent plugin invocations with spoofed argument
+  identities. Restore missing renderer tabs while the panel is collapsed.
+- **Expected**: A's actions, pixels and screenshot path belong to A; B is
+  unchanged and remains the only visible guest. No background action reveals
+  a page. Renderer reload retains native identity and inputs. C executes before
+  mounting. Unknown/closed targets fail without fallback. Restored tabs are
+  scoped, duplicate-free and do not reopen or replace a user's selected resource.
+  Hidden backing hosts remain invisible and release with the last parked page.
+- **Automation**: `node scripts/e2e-browser-background.mjs`,
+  `browser-background-session.test.mjs`, `browser-tab-restore.test.mjs`,
+  `browser-capture-resize.test.mjs`, and `plugin-tool-invocations.test.mjs`.
+  The isolated Desktop trial also uses real Composer, sidecar, plugin and Host
+  wiring with a localhost SSE model; no real provider is contacted.
+- **Specs**: `04-ux/08-component-spec.md`, `07-plugins/03-plugin-api.md`,
+  `05-security/01-security.md`, [background lifecycle ADR](../../adr/browser-background-lifecycle.md).
+- **Status**: Automated native Chromium/service paths; isolated Desktop trial passed.
 
 #### E2E-060: Files tab browsing stays inside the workspace
 
@@ -10298,7 +10336,7 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
 | A / C / F / Quality — Tray session navigation | E2E-TRAY-bounded-session-navigation |
 | B — Model config | E2E-005, E2E-PROVIDER-custom-endpoint-no-api-key, E2E-006, E2E-007, E2E-038, E2E-050, E2E-052, E2E-055, E2E-066, E2E-080, E2E-082, E2E-102c, E2E-102d, E2E-102e, E2E-151, E2E-154, E2E-163, E2E-166, E2E-172, E2E-174, E2E-197, E2E-005G, E2E-005J, E2E-199, E2E-201, E2E-202, E2E-203, E2E-205, E2E-206, E2E-209, E2E-PLUGIN-provider-catalog-add-service |
 | C — Conversation & stream | E2E-CHAT-long-history-stream-keeps-responsive, E2E-CHAT-running-status-survives-output-pauses, E2E-008, E2E-008d, E2E-008e, E2E-008a, E2E-009, E2E-010, E2E-011, E2E-011a, E2E-011b, E2E-011d, E2E-011e, E2E-011g, E2E-031, E2E-040, E2E-047, E2E-048, E2E-048A, E2E-049, E2E-052, E2E-053, E2E-054, E2E-055, E2E-059, E2E-059a, E2E-060c, E2E-060d, E2E-061, E2E-061a, E2E-062, E2E-064, E2E-065, E2E-068, E2E-071, E2E-073, E2E-074, E2E-075, E2E-081, E2E-083, E2E-084, E2E-086, E2E-087, E2E-088, E2E-088b, E2E-089, E2E-090, E2E-COMPOSER-narrow-controls, E2E-094, E2E-095, E2E-096, E2E-097, E2E-098, E2E-099, E2E-102, E2E-102a, E2E-102b, E2E-102c, E2E-102d, E2E-102g, E2E-106, E2E-109, E2E-111, E2E-114, E2E-116, E2E-117, E2E-118, E2E-119, E2E-120, E2E-121, E2E-218, E2E-259, E2E-219, E2E-AGENTS-001, E2E-142, E2E-144, E2E-145, E2E-146, E2E-146a, E2E-147, E2E-151, E2E-154, E2E-155, E2E-158, E2E-159, E2E-161, E2E-162, E2E-166, E2E-172, E2E-173, E2E-174, E2E-177, E2E-178, E2E-179, E2E-180, E2E-182, E2E-183, E2E-187, E2E-198, E2E-199, E2E-202, E2E-203, E2E-207, E2E-208, E2E-CHAT-content-width-handles, E2E-250, E2E-102i, E2E-PLUGIN-session-orchestrator-real-workers, E2E-SUBAGENT-settlement-updates-before-parent-poll, E2E-SUBAGENT-resume-a-settled-delegation |
-| C — Conversation & stream (composer drafts) | E2E-011c, E2E-011c-1 |
+| C — Conversation & stream (composer drafts) | E2E-011c, E2E-011c-1, E2E-011c-2 |
 | D — Workspace | E2E-012, E2E-013, E2E-022B, E2E-024I, E2E-047, E2E-049, E2E-057, E2E-058, E2E-060, E2E-068, E2E-075, E2E-078, E2E-153, E2E-158, E2E-182, E2E-187, E2E-252 |
 | C / D / Quality — Project session history resets after collapse | E2E-263 |
 | D — Workspace (project ordering) | E2E-253 |
@@ -10388,7 +10426,7 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
 | Post-baseline local automation | E2E-220 |
 | Post-baseline local automation (MCP `pi_session_get` large compaction) | E2E-MCP-session-get-projects-large-compaction |
 | Post-MVP remote control | E2E-221, E2E-222, E2E-223, E2E-224, E2E-225, E2E-226, E2E-227, E2E-228, E2E-229, E2E-230, E2E-231, E2E-232, E2E-REMOTE-HOST-settings-compact-inventory |
-| Trusted extensions (R7 v1) | E2E-DIALOG-long-text-boundaries, E2E-241, E2E-242, E2E-HOOKS-prompt-chain, E2E-HOOKS-cancel-and-dispose, E2E-TRUSTED-EXTENSION-custom-agent-stream-and-binding, E2E-243, E2E-TRUSTED-EXTENSION-temporary-session-cwd-is-scratch, E2E-244, E2E-245, E2E-PLUGIN-imported-pi-package-skills, E2E-PLUGIN-import-extension-installs-dependencies, E2E-PLUGIN-import-extension-reports-missing-dependency, E2E-PLUGIN-declared-provider-appears-in-the-native-provider-list, E2E-PLUGIN-provider-catalog-add-service |
+| Trusted extensions (R7 v1) | E2E-DIALOG-long-text-boundaries, E2E-241, E2E-242, E2E-HOOKS-prompt-chain, E2E-HOOKS-context-every-request, E2E-HOOKS-cancel-and-dispose, E2E-TRUSTED-EXTENSION-custom-agent-stream-and-binding, E2E-243, E2E-TRUSTED-EXTENSION-temporary-session-cwd-is-scratch, E2E-244, E2E-245, E2E-PLUGIN-imported-pi-package-skills, E2E-PLUGIN-import-extension-installs-dependencies, E2E-PLUGIN-import-extension-reports-missing-dependency, E2E-PLUGIN-declared-provider-appears-in-the-native-provider-list, E2E-PLUGIN-provider-catalog-add-service |
 | Trusted extensions (R7 v1 npm recovery) | E2E-PLUGIN-import-extension-recovers-missing-npm |
 | Post-MVP regression coverage (plugin tool dispatch) | E2E-PLUGIN-slow-tool-is-not-cut-off-by-host-dispatch |
 | M6+ (Project delete) | E2E-PROJECT-delete-removes-project-and-owned-sessions |
@@ -15628,6 +15666,19 @@ plugin-form fixtures in an isolated temporary directory at runtime.
   failed handlers do not discard earlier additions, cancelled turns send no
   request, and the next turn can proceed. Other events retain existing folds.
 - **Specs linked**: `07-plugins/16-trusted-extensions.md` §6; ADR 0214; #1023.
+
+#### E2E-HOOKS-context-every-request: Context handlers shape every provider request
+
+- **Preconditions**: An enabled fixture extension appends a marker message in
+  `context`; the provider is a local deterministic HTTP/SSE service whose first
+  reply is a tool call.
+- **Steps**: Run two turns through the real runtime: the first turn makes a
+  tool call and a follow-up request, the second answers directly. Inspect every
+  provider request and the persisted transcript rows.
+- **Expected**: `context` fires once per provider request, including the first
+  request of each run, and every request carries the marker exactly once. The
+  marker never reaches the persisted transcript.
+- **Specs linked**: `07-plugins/16-trusted-extensions.md` §6; ADR 0214; #1838.
 - **Acceptance**: B (agent), Quality
 - **Milestone**: Post-MVP (R7 v1)
 - **Status**: Automated by `extensions/prompt-chain.test.ts`,
@@ -18604,3 +18655,68 @@ host-created files. The full app's file-preview viewer is covered separately.
   `composer-suggestion-state.test.mjs`, `composer-suggestion-relay.test.mjs`,
   and `plugin-composer-suggestion.test.mjs`; the rendered journey remains a
   manual/Electron check when this surface changes.
+
+### E2E-GENUI-inline-visualization-card: a visualization renders inline and stays sandboxed
+
+- **Preconditions**: The app is running with a local Agent session, Settings →
+  AI → Inline visualizations switched on, and the builtin
+  `pi-desktop/visualize` skill enabled. A second session uses a remote
+  workspace.
+- **Steps**: 0) With the switch off (the default), ask for a chart and confirm
+  no directory, skill, or card appears; then switch it on. 1) Ask for an
+  interactive chart (for example "show a slider that
+  changes a sine wave's frequency"). 2) Wait for the turn to finish, then drag
+  the slider. 3) Switch the app theme between light and dark. 4) Press the
+  card's expand button, then Esc. 5) Ask the model to write a non-`.html` file
+  into the visualization directory, and to write a fragment that calls
+  `fetch("https://example.com")`. 6) Fork the session, then delete the source
+  session. 7) Repeat step 1 in the remote session. 8) Relocate the data directory,
+  then fork a transcript that still names its old visualization path. 9) Try
+  redirected visualization roots and a `.html` FIFO, and open two document
+  URLs from callers that omit the iframe sandbox. 10) Expand a card while
+  eight inline cards are live.
+- **Expected**:
+  - No permission card appears for the fragment write. While streaming, the
+    reply shows plain text; after completion the `::visualize` line is
+    replaced by a card whose height fits the content (at most 2000 px).
+  - The slider works; theme changes recolor the card without a reload.
+  - Expand opens a large modal copy; Esc closes it and the inline card keeps
+    its state.
+  - The non-`.html` write fails with a tool error; fetch requests are blocked,
+    and the frame cannot open popups or navigate remotely. The ADR's WebRTC
+    ICE limitation remains explicit rather than a blanket no-network claim.
+  - The fork retains its own card after the source session is deleted, including
+    a fork made after data relocation. The source's directory is removed.
+  - Redirected roots cannot bypass Ask write confirmation or let cleanup delete
+    unrelated data. FIFO requests fail without blocking other filesystem work.
+  - Every document response enforces an opaque sandbox; a caller that omits
+    iframe sandbox cannot read another session's DOM.
+  - Expanded and inline frames share the eight-frame quota, and the expanded
+    card's original inline control state remains unchanged.
+  - The remote session gets no visualization directory or skill.
+- **Coverage**: `pnpm test:e2e:gen-ui` runs the offline Electron card journey,
+  including real protocol responses, bundled assets, focus/guest Escape,
+  viewport release, and unsandboxed callers through a real isolated Host.
+  Native directory, FIFO, and ABA regressions run in `visualizations/files`;
+  `gen-ui-file-safety.test.mjs` validates the private Host-to-Main boundary.
+  Rust visualization RPC/lifecycle/fork tests
+  cover authorization, deletion safety, Windows path spelling, and relocation.
+- **Status**: Automated without a paid provider or a user's running instance.
+
+#### E2E-PROVIDER-reasoning-effort-override: Preserve an explicit gateway reasoning parameter
+
+- **Setup:** A custom Chat Completions provider with a DeepSeek-family model;
+  start with a legacy binding that omits `supportsReasoningEffort`.
+- **Steps:** In English, Chinese and German at 850/1000/1400px widths, open model settings, confirm Auto, select
+  Send, save and reopen; repeat for Do not send and Auto. Switch to Responses
+  and Anthropic and confirm the Completions-only control is hidden.
+- **Expected:** Each saved binding retains true, false, or null respectively.
+  With High selected, the real Completions adapter sends `reasoning_effort: high`
+  only when enabled; Auto keeps the existing DeepSeek compatibility default.
+  Responses continues using its own reasoning contract. Provider creation,
+  update/read, copying, and sync preserve the explicit override.
+- **Automation:** `node scripts/e2e-provider-api-style.mjs --reasoning-effort` exercises real
+  React/Chromium controls and captures the Host API payload (the IPC boundary is
+  stubbed). Rust provider tests independently verify real SQLite persistence;
+  `provider-reasoning-effort.test.ts` captures requests from the real pi-ai
+  adapter with fixture SSE responses. No live gateway credentials are required.

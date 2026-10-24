@@ -402,7 +402,10 @@ may be retained while exactly one workspace supplies the visible shell context.
   has its own draft slot. Creating a new session does not copy another slot. A
   completed send clears only the draft belonging to the session that submitted
   it, even if the user switches sessions while the request is in flight;
-  deleted sessions cannot retain drafts.
+  deleted sessions cannot retain drafts. A rejected submission restores its
+  captured text and file references only while no later submission has taken
+  ownership of that draft slot; an older late failure never replaces newer
+  input.
 - The composer also recalls the accepted submissions of its own conversation,
   newest-first, with ArrowUp/ArrowDown (D632). ArrowUp starts browsing only when
   the draft is empty (no text and no references), and while browsing both keys
@@ -607,6 +610,11 @@ may be retained while exactly one workspace supplies the visible shell context.
   switching back restores it; selecting a workspace without an active
   conversation hides the panel. Session/workspace identity remains attached to
   every relative resource, preventing cross-context reinterpretation.
+- Browser page execution is Main-owned, independent of the side panel's
+  presentation lifecycle. Hidden/background tool operations keep their trusted
+  session connection and never reveal or retarget the visible page. A shell
+  reload detaches presentation; selecting a session restores its live Browser
+  tab metadata without changing the panel's collapsed state.
 - Relaunch discards every session context, including Browser resources; only
   the committed preferred panel width persists. Native window state is stored
   independently from normal bounds, including when the app closes while

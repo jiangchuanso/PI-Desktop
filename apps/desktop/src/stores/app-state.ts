@@ -439,6 +439,7 @@ export type AppState = {
   ) => void;
   openUrlInWorkPanel: (url: string) => void;
   updateBrowserWorkPanelTab: (state: BrowserState) => void;
+  restoreBrowserWorkPanelTabs: (sessionId: string, pages: BrowserState[]) => void;
 };
 
 export type AppStateData = {

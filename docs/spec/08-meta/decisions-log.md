@@ -334,6 +334,7 @@ Gold source: local Codex electron captures; latest row wins where rows conflict.
 | D620 | pi-ai built-in API-key services are named presets | **Add fifteen named endpoint presets — Ant Ling, Baseten, Cerebras, Hugging Face, Meta (`responses`), MiniMax (International), Moonshot AI (International), NVIDIA, OpenCode Zen, Vercel AI Gateway, Qwen Token Plan (`alibaba-token-plan`), Qwen Token Plan (China), Xiaomi Token Plan (China / Europe / Singapore) — to `NAMED_ENDPOINT_PRESETS`, each at its published host, with the pi-ai provider id kept as an alias wherever the models.dev key differs. Eight built-in providers remain exceptions with a recorded reason: Amazon Bedrock, Azure OpenAI, Cloudflare AI Gateway, Cloudflare Workers AI, Google Vertex AI (account- or region-scoped URLs), GitHub Copilot and OpenAI Codex (vendor-account rows), and Radius (`pi_messages` is account-only here). `packages/agent-runtime/src/pi-ai-provider-sync.test.ts` fails on a pi-ai upgrade that leaves a provider neither covered nor excepted. No protocol, storage, or IPC change.** | Every other pi-ai capability was already reachable, but the API-key half of the service catalog was hand-maintained and had drifted from the library's own provider list (ADR 0307). |
 | D668 | One process disclosure per turn, with three transcript display modes | **Amend D661 / the `turn-process-and-thinking-display` ADR. A turn renders exactly one top-level process disclosure holding every pre-answer row; the answer stays outside it. `AppSettings.transcriptDisplayMode` selects the layout: `flat` renders no nested activity groups, `command-first` renders `Bash`/run rows as standalone rows beside activity groups, and `fully-folded` (the default for absent or invalid values) keeps commands inside their groups and lets only ordinary assistant progress text split them. The mode is read while rendering, so switching repaints immediately - the projection cache is keyed by messages and compactions only. The disclosure header reports failed / stopped / running / finished with precedence in that order and never echoes the current item, and the disclosure shares one left edge with the levels it reveals. `transcriptDisplayMode` joins the portable application fields; `keepCommandsExpanded` is deprecated, retained only for persisted-settings compatibility, and no longer exposed or read for rendering. No host protocol, persistence schema, permission, or plugin contract change. See the amended ADR, `04-ux/06-settings-ia.md`, `04-ux/08-component-spec.md`, `04-ux/09-interaction-patterns.md`, and E2E-CHAT-turn-process-and-thinking-display.** | Chronological segmentation split one turn into several sibling disclosures above the answer, and the boolean command-folding preference could only express two layouts; a three-mode setting covers flat, command-first, and the released grouped view without changing what a tool received or stored. |
 | D669 | `@` queries search past a truncated file index | **Amend D124: while the 8000-entry `fs/index` snapshot is truncated, a non-empty `@` query is also searched over the root's full listing through the read-only Electron channel `pi-desktop/fs/search` once typing pauses, and its best 50 rows merge with the local matches. A complete index never searches. Remote sessions keep their snapshot. No host RPC, storage, or schema change.** | The shallowest-8000-entry index left a script several folders down matching no query at all, even though the truncation note invited the reader to refine it (issue #1781). |
+| D671 | Inline generative UI visualizations | **Amend D114: local sessions get a second host-owned contained root `<data_dir>/visualizations/<sessionId>/` for `.html` fragments only (Read/Write/Edit, auto-allowed like scratch, never in remote or contract sessions). A standalone `::visualize{"path","title"}` reply line renders the fragment inline through a sandboxed `pi-genui://session/<sid>/<file>` iframe (`sandbox="allow-scripts"`, strict CSP, no network). Builtin skill `pi-desktop/visualize`. No schema change.** | Interactive explanations need an embedded page; ADR gen-ui-inline-visualization. |
 
 
 ## M0. Model catalog decisions
@@ -7920,3 +7921,31 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   and closed payloads. See `04-ux/08-component-spec.md`,
   `04-ux/09-interaction-patterns.md`, and
   E2E-CHAT-turn-process-and-thinking-display.
+
+## 2026-10-22 — Inline generative UI visualizations (D671)
+
+- Models explain dynamic systems, tunable parameters, and spatial relations
+  better with a small interactive page than with prose or Mermaid, but the
+  transcript renders Markdown only.
+- Local sessions get `<data_dir>/visualizations/<sessionId>/`, a second
+  contained root next to scratch (D114). Write/Edit accept only `.html`
+  fragments there, without a permission prompt; the directory is removed with
+  its session and orphan directories are swept at startup, never by age.
+  Remote-workspace and contract sessions get neither the root nor the skill.
+- A standalone `::visualize{"path":"…","title":"…"}` line outside code blocks
+  becomes an inline card once the turn completes. Main serves the fragment
+  through `pi-genui://session/<sessionId>/<file>` inside a host shell with a
+  strict CSP (no network, no frames, no forms) and a sandboxed iframe
+  (`allow-scripts` only); the URL is derived from the path suffix, so data-dir
+  relocation does not break old references. Cards always load from the
+  owning session; forks copy the fragments they reference. Theme and height
+  travel by `postMessage`. WebRTC ICE is not blocked by Chromium yet and is a
+  documented residual risk.
+- The shell embeds a stylesheet and tooltip/tab runtime adapted from ZCode's
+  Apache-2.0 visualize kit, plus offline D3 7.9.0 and Floating UI served from
+  `pi-genui://assets` (pinned CDN URLs are rewritten; any other remote URL is
+  blocked). The skill is a condensed adaptation of ZCode's.
+- v1 has no widget state, follow-up messages, CDN access, icons, or tweak
+  panel.
+  See ADR `gen-ui-inline-visualization`, `03-runtime/03-tools-and-permissions.md`
+  §4b.1, `03-runtime/04-data-storage.md`, and E2E-GENUI-inline-visualization-card.

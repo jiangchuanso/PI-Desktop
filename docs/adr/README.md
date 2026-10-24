@@ -20,6 +20,7 @@ Each ADR includes:
 
 | ID | Title | Status |
 |---|---|---|
+| browser-background-lifecycle | [Browser page execution outlives side-panel presentation](browser-background-lifecycle.md) | Accepted |
 | asktool-draft-survives-session-switch | [AskTool drafts survive a card remount](asktool-draft-survives-session-switch.md) | Accepted |
 | tool-abort-abandons-host-call | [A user stop ends the turn even when the running tool cannot be cancelled](tool-abort-abandons-host-call.md) | Accepted for implementation |
 | provider-metadata-client-certificate-retry | [Provider metadata recovery from optional client certificates](provider-metadata-client-certificate-retry.md) | Implemented candidate |
@@ -385,3 +386,6 @@ Each ADR includes:
 
 | local-agent-remote-workspace-tools | [Local Agent and model requests for remote workspaces](local-agent-remote-workspace-tools.md) | Accepted for implementation |
 | 0332 | [macOS keeps its translucent window surface with an opaque opt-out](0332-macos-opaque-window-surface.md) | Accepted (D665, amended by D666 and D667; supersedes the macOS vibrancy window backing from D348; issue #1064) |
+| gen-ui-inline-visualization | [Inline generative UI visualizations](gen-ui-inline-visualization.md) | Accepted (D671) |
+
+| model-reasoning-effort-override | [Model reasoning effort override](model-reasoning-effort-override.md) | Proposed |

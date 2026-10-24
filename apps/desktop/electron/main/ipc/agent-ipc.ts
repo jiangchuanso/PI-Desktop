@@ -143,7 +143,9 @@ export function registerAgentIpc({
     const mcpExpansion = /^\/mcp:\S/.test(req.content)
       ? expandMcpInvocation(
           req.content,
-          await composerCommandService.buildComposerCommands(localProjectPath ?? null),
+          await composerCommandService.buildComposerCommands(localProjectPath ?? null, {
+            remote: Boolean(context.remoteWorkspace),
+          }),
           Boolean(req.attachments?.length),
         )
       : null;
@@ -238,6 +240,7 @@ export function registerAgentIpc({
           req.content,
           await composerCommandService.buildComposerCommands(
             !session.remoteWorkspace && typeof session.projectPath === "string" ? session.projectPath.trim() || null : null,
+            { remote: Boolean(session.remoteWorkspace) },
           ),
           Boolean(req.attachments?.length),
         )
@@ -362,6 +365,7 @@ export function registerAgentIpc({
           : "";
         const commands = await composerCommandService.buildComposerCommands(
           session.remoteWorkspace ? null : launch.projectPath ?? root,
+          { remote: Boolean(session.remoteWorkspace) },
         );
         const command = commands.find((item) => item.name === commandName);
         const activeSkills = new Map(

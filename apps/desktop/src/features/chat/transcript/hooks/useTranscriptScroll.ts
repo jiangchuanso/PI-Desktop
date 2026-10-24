@@ -431,6 +431,11 @@ export function useTranscriptScroll({
     });
     lastScrollTopRef.current = el.scrollTop;
     if (transition.releasedFollow) cancelFollowScroll();
+    // A reader scroll-up takes the viewport back from any held disclosure
+    // anchor, exactly as a real gesture does in `markScrollGesture`. Without
+    // this, a held anchor can still be restored by the ResizeObserver during a
+    // later stream and steal the reader's position.
+    if (transition.releasedFollow) releaseDisclosureAnchor();
     if (gesturing && transition.releasedFollow) {
       pinnedRef.current = false;
       setShowJump(true);
@@ -447,7 +452,7 @@ export function useTranscriptScroll({
       setShowJump(transition.showJump);
     }
     rememberReadingPosition();
-  }, [cancelFollowScroll, reachTop, readingPositionPendingRef, readingWindow, rememberReadingPosition, scheduleFollowScroll]);
+  }, [cancelFollowScroll, reachTop, readingPositionPendingRef, readingWindow, rememberReadingPosition, releaseDisclosureAnchor, scheduleFollowScroll]);
 
   // Send / retry / regenerate always re-pins follow mode so the new prompt and
   // its stream stay in view, even if the user had scrolled up through history.

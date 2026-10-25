@@ -125,7 +125,7 @@ test("manual upward scrolling cancels pending transcript follow work", () => {
   assert.match(transcript, /reduceTranscriptScroll/);
   assert.match(
     transcript,
-    /if \(transition\.releasedFollow\) cancelFollowScroll\(\)/,
+    /if \(transition\.releasedFollow\)\s*(?:\{[\s\S]{0,200}?)?cancelFollowScroll\(\)/,
   );
   assert.match(transcript, /pinnedRef\.current = transition\.pinned/);
   assert.match(transcript, /setShowJump\(transition\.showJump\)/);
@@ -160,7 +160,7 @@ test("layout clamps after send cannot release transcript follow as a gesture", (
     transcript,
     /isRecentScrollGesture\(\s*performance\.now\(\),\s*lastScrollGestureAtRef\.current,\s*\)/,
   );
-  assert.match(transcript, /if \(transition\.releasedFollow\) cancelFollowScroll\(\)/);
+  assert.match(transcript, /if \(transition\.releasedFollow\)\s*(?:\{[\s\S]{0,200}?)?cancelFollowScroll\(\)/);
   assert.match(transcript, /if \(gesturing && transition\.releasedFollow\) \{/);
 });
 

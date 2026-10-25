@@ -11,8 +11,14 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const viewEntry =
   process.env.PI_FILE_MANAGER_VIEW ??
   join(root, "apps/desktop/resources/plugins/pi.file-manager/views/index.html");
-const electronBinary =
-  process.env.PI_DESKTOP_ELECTRON_BIN ?? resolveElectronBinary(root).electronBinary;
+// Resolve the Electron binary lazily, inside the test body. The JS CI job has
+// no Electron download and no display, so resolving at module load would throw
+// before the test's skip guard could apply.
+function electronBinaryPath() {
+  return (
+    process.env.PI_DESKTOP_ELECTRON_BIN ?? resolveElectronBinary(root).electronBinary
+  );
+}
 
 const preloadFixture = String.raw`
 const { contextBridge } = require("electron");
@@ -225,7 +231,7 @@ test(
       const env = { ...process.env, PI_FILE_MANAGER_VIEW: viewEntry };
       delete env.ELECTRON_RUN_AS_NODE;
       const child = spawn(
-        electronBinary,
+        electronBinaryPath(),
         [join(temp, "main.cjs")],
         { env, stdio: ["ignore", "pipe", "pipe"] },
       );

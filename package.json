@@ -1,7 +1,7 @@
 {
   "name": "pi-desktop",
   "private": true,
-  "version": "0.21.0-beta.8",
+  "version": "0.21.0",
   "description": "Local-first AI coding agent desktop client",
   "packageManager": "pnpm@12.8.1+sha512.f64ba907507f5ceafe06c8d38e6052d0179444580ec1279ddd5bfc11cb48aa8a2644b66598e07e761da84872a9fc57d5f902b87fa49d024198d558612aabbe45",
   "engines": {
@@ -96,6 +96,7 @@
     "test:e2e:plugin-import-deps": "node scripts/e2e-plugin-import-deps.mjs",
     "test:e2e:trusted-extensions": "node scripts/e2e-trusted-extensions.mjs",
     "test:e2e:plugin-ui-slots": "node scripts/e2e-plugin-ui-slots.mjs",
+    "test:e2e:file-manager-theme": "node --test apps/desktop/test/file-manager-theme-user-path.test.mjs",
     "test:e2e:collaboration": "node scripts/e2e-session-collaboration.mjs",
     "test:e2e:session-completion": "node scripts/e2e-session-completion.mjs",
     "test:e2e:remote-host": "node scripts/e2e-remote-host.mjs",

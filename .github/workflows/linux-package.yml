@@ -8,8 +8,16 @@ permissions:
 
 jobs:
   build:
-    name: Linux x64 packages
-    runs-on: ubuntu-22.04
+    name: Linux ${{ matrix.arch }} packages
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: ubuntu-22.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
     timeout-minutes: 60
     defaults:
       run:
@@ -29,23 +37,60 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Prepare package inputs
-        # Mirrors release.yml: build host-core with --locked so a drifted
-        # Cargo.lock fails here instead of being silently rewritten by the
-        # desktop `build:host-release` script, which does not pass --locked.
+        # host-core is built separately on a glibc 2.31 base (see next step) so
+        # the bundled binary loads on Ubuntu 20.04 / 银河麒麟 V10 SP1. The
+        # frontend deps are built here.
         run: |
           set -euo pipefail
-          cargo build --release --locked -p host-core &
-          host_build_pid=$!
-          trap 'kill "$host_build_pid" 2>/dev/null || true' EXIT
-
           pnpm install --frozen-lockfile
           pnpm --filter '@pi-desktop/desktop^...' --fail-if-no-match build
 
-          wait "$host_build_pid"
-          trap - EXIT
+      - name: Build host-core on glibc 2.31 base
+        # Container build pins the Rust sidecar to glibc 2.31, and also extracts
+        # a GCC 12 libstdc++.so.6 (GLIBCXX_3.4.30) that Electron 43 needs on
+        # 20.04 / 麒麟 V10 SP1. afterPack bundles that lib into the package.
+        run: |
+          set -euo pipefail
+          PLATFORM="${{ matrix.arch == 'arm64' && 'linux/arm64' || 'linux/amd64' }}"
+          docker run --rm --platform "$PLATFORM" \
+            -v "$PWD":/work -w /work \
+            -v pi-cargo:/root/.cargo \
+            ubuntu:20.04 bash -c '
+              set -e
+              export DEBIAN_FRONTEND=noninteractive
+              apt-get -o Acquire::Retries=5 update
+              apt-get install -y --no-install-recommends curl ca-certificates git build-essential pkg-config libssl-dev
+              curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+              source "$HOME/.cargo/env"
+              cargo build --release --locked -p host-core
+              # Ubuntu 20.04 ships GCC 9 (GLIBCXX_3.4.28) but Electron 43 needs
+              # GLIBCXX_3.4.30, so pull GCC 12+ from the toolchain PPA. Add it
+              # with [trusted=yes] to skip the GPG keyserver fetch, which times
+              # out intermittently in CI.
+              codename="$(. /etc/os-release; echo "$VERSION_CODENAME")"
+              echo "deb [trusted=yes] https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu ${codename} main" \
+                > /etc/apt/sources.list.d/ubuntu-toolchain-r-test.list
+              apt-get -o Acquire::Retries=5 update
+              gcc_ver=""
+              for v in 14 13 12; do
+                if apt-get -o Acquire::Retries=5 install -y --no-install-recommends "g++-$v" >/dev/null 2>&1; then gcc_ver="$v"; break; fi
+              done
+              if [ -z "$gcc_ver" ]; then echo "no g++-1{2,3,4} in ubuntu-toolchain-r/test" >&2; exit 1; fi
+              mkdir -p /work/.ci-bundled-libstdc++
+              cp -L "$(readlink -f /usr/lib/$(gcc-$gcc_ver -print-multiarch)/libstdc++.so.6)" /work/.ci-bundled-libstdc++/libstdc++.so.6
+            '
 
       - name: Build Linux packages
-        run: pnpm --filter @pi-desktop/desktop run dist:linux -- --x64
+        # Bypasses the npm `dist:linux` script's `build:host-release`, which would
+        # recompile host-core on the runner (glibc 2.35+) and undo the 2.31 build
+        # above. libstdc++ is bundled from the gcc-12 lib extracted in that step.
+        env:
+          PI_BUNDLED_LIBSTDCXX: ${{ github.workspace }}/.ci-bundled-libstdc++/libstdc++.so.6
+        run: |
+          set -euo pipefail
+          pnpm --filter @pi-desktop/desktop run bundle:runtime
+          pnpm --filter @pi-desktop/desktop exec electron-vite build
+          pnpm --filter @pi-desktop/desktop exec electron-builder --linux --publish never --${{ matrix.arch }}
 
       - name: Verify Linux host glibc floor
         run: node scripts/check-linux-host-glibc.mjs target/release/pi-desktop-host-core
@@ -85,7 +130,40 @@ jobs:
       - name: Upload RPM package
         uses: actions/upload-artifact@v7
         with:
-          name: pi-desktop-linux-x64-rpm
+          name: pi-desktop-linux-${{ matrix.arch }}-rpm
           if-no-files-found: error
           retention-days: 7
           path: apps/desktop/release/*.rpm
+
+      - name: Verify DEB package
+        run: |
+          set -euo pipefail
+          mapfile -t debs < <(find apps/desktop/release -maxdepth 1 -type f -name '*.deb' -print)
+          test "${#debs[@]}" -eq 1
+          deb="${debs[0]}"
+          dpkg-deb -I "$deb"
+          deb_contents=$(dpkg-deb -c "$deb")
+          # Launcher wrapper + real binary + bundled libstdc++ (glibc 2.31 floor).
+          grep -Eq ' \./opt/PI-Desktop/pi-desktop$' <<<"$deb_contents" >/dev/null
+          grep -F './opt/PI-Desktop/pi-desktop.bin' <<<"$deb_contents" >/dev/null
+          grep -F './opt/PI-Desktop/lib/libstdc++.so.6' <<<"$deb_contents" >/dev/null
+          # Desktop entry + hicolor icon so Kylin/UKUI shows the app icon in the
+          # start menu and groups the running window with it.
+          grep -F './usr/share/applications/pi-desktop.desktop' <<<"$deb_contents" >/dev/null
+          grep -F './usr/share/icons/hicolor/512x512/apps/pi-desktop.png' <<<"$deb_contents" >/dev/null
+          deb_root=$(mktemp -d)
+          dpkg-deb -x "$deb" "$deb_root"
+          desktop_entry="$deb_root/usr/share/applications/pi-desktop.desktop"
+          test -f "$desktop_entry"
+          grep -Fx 'Type=Application' "$desktop_entry" >/dev/null
+          grep -Fx 'Icon=pi-desktop' "$desktop_entry" >/dev/null
+          grep -Fx 'StartupWMClass=pi-desktop' "$desktop_entry" >/dev/null
+          grep -Eq '^Exec=.*pi-desktop' "$desktop_entry" >/dev/null
+
+      - name: Upload DEB package
+        uses: actions/upload-artifact@v7
+        with:
+          name: pi-desktop-linux-${{ matrix.arch }}-deb
+          if-no-files-found: error
+          retention-days: 7
+          path: apps/desktop/release/*.deb

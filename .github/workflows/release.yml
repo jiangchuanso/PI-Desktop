@@ -34,6 +34,11 @@ on:
         required: false
         default: true
         type: boolean
+      build_macos:
+        description: 'Build macOS artifacts (default true; set false to skip macOS entirely)'
+        required: false
+        default: true
+        type: boolean
 
 # Least privilege by default; only the publish job needs to write the release.
 permissions:
@@ -86,8 +91,13 @@ jobs:
     name: Build ${{ matrix.name }}
     needs: verify
     env:
-      # Tag pushes always sign. workflow_dispatch signs unless explicitly disabled.
-      MACOS_SIGN_RELEASE: ${{ github.event_name != 'workflow_dispatch' || inputs.sign_macos == true }}
+      # Signing is only possible when the notarization secrets exist; forks and
+      # clones without them fall through to the unsigned debug lane instead of
+      # failing the release. workflow_dispatch also honours sign_macos.
+      MACOS_SIGN_RELEASE: ${{ (github.event_name != 'workflow_dispatch' || inputs.sign_macos == true) && secrets.CSC_LINK != '' && secrets.APPLE_TEAM_ID != '' }}
+      # Set the BUILD_MACOS repository variable to "false" to skip the macOS
+      # jobs entirely (forks without macOS runners or notarization secrets).
+      BUILD_MACOS: ${{ (github.event_name != 'workflow_dispatch' || inputs.build_macos == true) && vars.BUILD_MACOS != 'false' }}
     strategy:
       fail-fast: false
       matrix:
@@ -113,9 +123,8 @@ jobs:
             platform: windows
             dist: dist:win
           - name: Linux x64
-            # Ubuntu 22.04 keeps host-core at glibc 2.35 so Ubuntu 22.04,
-            # Debian 12, and Fedora 36+ can load the binary. ubuntu-latest
-            # (24.04) would raise the floor to 2.39.
+            # glibc floor is 2.31 (Ubuntu 20.04 / 银河麒麟 V10 SP1); the
+            # host-core check enforces it, so Ubuntu 22.04 is a safe build host.
             os: ubuntu-22.04
             arch: x64
             runner_arch: x86_64
@@ -125,9 +134,9 @@ jobs:
             dist: dist:linux
           - name: Linux arm64
             # GitHub's native arm64 runner packages the Electron app and the
-            # host-core sidecar at the same architecture; the `-arm` image
-            # keeps the glibc 2.35 floor the x64 lane documents
-            # (ubuntu-24.04-arm would raise it to 2.39).
+            # host-core sidecar at the same architecture. libstdc++ is bundled by
+            # apps/desktop/scripts/after-pack-bundle-libstdc.mjs; host-core glibc
+            # floor 2.31 is enforced by scripts/check-linux-host-glibc.mjs.
             os: ubuntu-22.04-arm
             arch: arm64
             runner_arch: aarch64
@@ -147,8 +156,9 @@ jobs:
         # A mislabelled or emulated runner would wrap one architecture's
         # Electron app around the other architecture's Rust sidecar. The
         # Windows rows carry no `runner_arch` because electron-builder
-        # cross-builds Windows from any runner.
-        if: matrix.runner_arch
+        # cross-builds Windows from any runner, and the macOS rows are exempt
+        # when BUILD_MACOS skips the macOS packaging jobs entirely.
+        if: matrix.runner_arch && (matrix.platform != 'macos' || env.BUILD_MACOS == 'true')
         run: |
           set -euo pipefail
           actual_arch="$(uname -m)"
@@ -195,28 +205,83 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Prepare package inputs
+        # Skip the (expensive) install and JS build on macOS runs that are not
+        # going to package anything.
+        if: env.BUILD_MACOS == 'true' || matrix.platform != 'macos'
         run: |
           set -euo pipefail
-          cargo build --release --locked -p host-core &
-          host_build_pid=$!
-          trap 'kill "$host_build_pid" 2>/dev/null || true' EXIT
+          if [ "${{ matrix.platform }}" != "linux" ]; then
+            cargo build --release --locked -p host-core &
+            host_build_pid=$!
+            trap 'kill "$host_build_pid" 2>/dev/null || true' EXIT
+          fi
 
           pnpm install --frozen-lockfile
           pnpm --filter '@pi-desktop/desktop^...' --fail-if-no-match build
 
-          wait "$host_build_pid"
-          trap - EXIT
+          if [ "${{ matrix.platform }}" != "linux" ]; then
+            wait "$host_build_pid"
+            trap - EXIT
+          fi
+
+      - name: Build host-core on glibc 2.31 base
+        if: matrix.platform == 'linux'
+        # Container build pins the Rust sidecar to glibc 2.31, and extracts a
+        # GCC 12 libstdc++.so.6 (GLIBCXX_3.4.30) that Electron 43 needs on
+        # 20.04 / 麒麟 V10 SP1. afterPack bundles that lib into the package.
+        run: |
+          set -euo pipefail
+          PLATFORM="${{ matrix.arch == 'arm64' && 'linux/arm64' || 'linux/amd64' }}"
+          docker run --rm --platform "$PLATFORM" \
+            -v "$PWD":/work -w /work \
+            -v pi-cargo:/root/.cargo \
+            ubuntu:20.04 bash -c '
+              set -e
+              export DEBIAN_FRONTEND=noninteractive
+              apt-get -o Acquire::Retries=5 update
+              apt-get install -y --no-install-recommends curl ca-certificates git build-essential pkg-config libssl-dev
+              curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+              source "$HOME/.cargo/env"
+              cargo build --release --locked -p host-core
+              # Ubuntu 20.04 ships GCC 9 (GLIBCXX_3.4.28) but Electron 43 needs
+              # GLIBCXX_3.4.30, so pull GCC 12+ from the toolchain PPA. Add it
+              # with [trusted=yes] to skip the GPG keyserver fetch, which times
+              # out intermittently in CI.
+              codename="$(. /etc/os-release; echo "$VERSION_CODENAME")"
+              echo "deb [trusted=yes] https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu ${codename} main" \
+                > /etc/apt/sources.list.d/ubuntu-toolchain-r-test.list
+              apt-get -o Acquire::Retries=5 update
+              gcc_ver=""
+              for v in 14 13 12; do
+                if apt-get -o Acquire::Retries=5 install -y --no-install-recommends "g++-$v" >/dev/null 2>&1; then gcc_ver="$v"; break; fi
+              done
+              if [ -z "$gcc_ver" ]; then echo "no g++-1{2,3,4} in ubuntu-toolchain-r/test" >&2; exit 1; fi
+              mkdir -p /work/.ci-bundled-libstdc++
+              cp -L "$(readlink -f /usr/lib/$(gcc-$gcc_ver -print-multiarch)/libstdc++.so.6)" /work/.ci-bundled-libstdc++/libstdc++.so.6
+            '
 
       - name: Package installers (${{ matrix.dist }})
         if: matrix.platform != 'macos'
         # The dist scripts pass --publish never themselves: electron-builder
         # must not self-publish on tag builds (no token; softprops owns it).
         # The explicit architecture keeps the package and native Rust sidecar
-        # aligned with the runner selected by this matrix entry.
-        run: pnpm --filter @pi-desktop/desktop run ${{ matrix.dist }} -- --${{ matrix.arch }}
+        # aligned with the runner selected by this matrix entry. On Linux we
+        # bypass `build:host-release` (would recompile host-core at glibc 2.35+)
+        # and bundle the gcc-12 libstdc++ extracted above.
+        env:
+          PI_BUNDLED_LIBSTDCXX: ${{ github.workspace }}/.ci-bundled-libstdc++/libstdc++.so.6
+        run: |
+          set -euo pipefail
+          if [ "${{ matrix.platform }}" = "linux" ]; then
+            pnpm --filter @pi-desktop/desktop run bundle:runtime
+            pnpm --filter @pi-desktop/desktop exec electron-vite build
+            pnpm --filter @pi-desktop/desktop exec electron-builder --linux --publish never --${{ matrix.arch }}
+          else
+            pnpm --filter @pi-desktop/desktop run ${{ matrix.dist }} -- --${{ matrix.arch }}
+          fi
 
       - name: Package unsigned macOS installer
-        if: matrix.platform == 'macos' && env.MACOS_SIGN_RELEASE != 'true'
+        if: matrix.platform == 'macos' && env.MACOS_SIGN_RELEASE != 'true' && env.BUILD_MACOS == 'true'
         env:
           # Debug-only lane: workflow_dispatch with sign_macos=false.
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
@@ -231,11 +296,11 @@ jobs:
         # Xcode tools, Apple timestamp reachability) before electron-builder
         # imports the certificate. Informational: the Developer ID identity is
         # absent here by design and is imported from CSC_LINK during packaging.
-        if: matrix.platform == 'macos'
+        if: matrix.platform == 'macos' && env.BUILD_MACOS == 'true'
         run: scripts/macos-signing-diagnostics.sh
 
       - name: Require macOS signing and notarization secrets
-        if: matrix.platform == 'macos' && env.MACOS_SIGN_RELEASE == 'true'
+        if: matrix.platform == 'macos' && env.MACOS_SIGN_RELEASE == 'true' && env.BUILD_MACOS == 'true'
         env:
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
@@ -261,7 +326,7 @@ jobs:
           fi
 
       - name: Package signed and notarized macOS installer
-        if: matrix.platform == 'macos' && env.MACOS_SIGN_RELEASE == 'true'
+        if: matrix.platform == 'macos' && env.MACOS_SIGN_RELEASE == 'true' && env.BUILD_MACOS == 'true'
         env:
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
@@ -311,12 +376,12 @@ jobs:
         # determine how much work the signing phase had, on the exact bundle the
         # release just produced. Diagnosis only: continue-on-error keeps a
         # surprising bundle layout from failing a release.
-        if: matrix.platform == 'macos'
+        if: matrix.platform == 'macos' && env.BUILD_MACOS == 'true'
         continue-on-error: true
         run: node scripts/macos-bundle-inventory.mjs apps/desktop/release
 
       - name: Notarize and staple the macOS DMG
-        if: matrix.platform == 'macos' && env.MACOS_SIGN_RELEASE == 'true'
+        if: matrix.platform == 'macos' && env.MACOS_SIGN_RELEASE == 'true' && env.BUILD_MACOS == 'true'
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
@@ -334,7 +399,7 @@ jobs:
             -- scripts/notarize-and-staple-macos-release-dmg.sh apps/desktop/release
 
       - name: Verify signed and notarized macOS installer
-        if: matrix.platform == 'macos' && env.MACOS_SIGN_RELEASE == 'true'
+        if: matrix.platform == 'macos' && env.MACOS_SIGN_RELEASE == 'true' && env.BUILD_MACOS == 'true'
         run: scripts/verify-macos-release.sh apps/desktop/release
 
       - name: Verify Linux host-core glibc floor
@@ -362,7 +427,7 @@ jobs:
           fi
 
       - name: Verify macOS artifact names
-        if: matrix.platform == 'macos'
+        if: matrix.platform == 'macos' && env.BUILD_MACOS == 'true'
         run: |
           set -euo pipefail
           shopt -s nullglob
@@ -386,7 +451,7 @@ jobs:
           done
 
       - name: Disambiguate macOS update metadata
-        if: matrix.platform == 'macos'
+        if: matrix.platform == 'macos' && env.BUILD_MACOS == 'true'
         run: mv apps/desktop/release/latest-mac.yml apps/desktop/release/latest-mac-${{ matrix.arch }}.yml
 
       - name: Upload artifacts
@@ -464,22 +529,33 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      - name: Build inputs (host-core, workspace, sidecar bundle)
+      - name: Build host-core on glibc 2.31 base
+        # Container build pins the Rust sidecar to glibc 2.31 so pi-host loads on
+        # Ubuntu 20.04 / 银河麒麟 V10 SP1. (Electron's libstdc++ bundling is only
+        # needed for the desktop app, not for pi-host.)
         run: |
           set -euo pipefail
-          # Ubuntu 22.04 keeps the host-core glibc floor at 2.35, matching the
-          # desktop Linux build so the bundled binary loads on the same distros.
-          cargo build --release --locked -p host-core &
-          host_build_pid=$!
-          trap 'kill "$host_build_pid" 2>/dev/null || true' EXIT
+          PLATFORM="${{ matrix.arch == 'arm64' && 'linux/arm64' || 'linux/amd64' }}"
+          docker run --rm --platform "$PLATFORM" \
+            -v "$PWD":/work -w /work \
+            -v pi-cargo:/root/.cargo \
+            ubuntu:20.04 bash -c '
+              set -e
+              export DEBIAN_FRONTEND=noninteractive
+              apt-get update
+              apt-get install -y --no-install-recommends curl ca-certificates git build-essential pkg-config libssl-dev
+              curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+              source "$HOME/.cargo/env"
+              cargo build --release --locked -p host-core
+            '
 
+      - name: Build inputs (workspace, sidecar bundle)
+        run: |
+          set -euo pipefail
           pnpm install --frozen-lockfile
           pnpm build:js
           pnpm --filter @pi-desktop/agent-runtime bundle
           pnpm --filter @pi-desktop/pi-host build
-
-          wait "$host_build_pid"
-          trap - EXIT
 
       - name: Verify host-core glibc floor
         run: node scripts/check-linux-host-glibc.mjs target/release/pi-desktop-host-core
@@ -537,6 +613,12 @@ jobs:
           require "yaml"
 
           paths = Dir["latest-mac-*.yml"].sort
+          # Forks without macOS notarization secrets ship no macOS updater feeds;
+          # skip the merge instead of aborting the whole release.
+          if paths.empty?
+            puts "No macOS updater feeds; skipping merge."
+            exit 0
+          end
           expected_paths = ["latest-mac-arm64.yml", "latest-mac-x64.yml"]
           abort "Expected both macOS updater feeds" unless paths == expected_paths
 
@@ -559,7 +641,7 @@ jobs:
           )
           File.write("latest-mac.yml", merged.to_yaml)
           RUBY
-          rm latest-mac-arm64.yml latest-mac-x64.yml
+          rm -f latest-mac-arm64.yml latest-mac-x64.yml
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3

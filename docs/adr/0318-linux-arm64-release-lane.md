@@ -36,8 +36,10 @@ on x64 and `latest-linux-<arch>.yml` on every other architecture
 1. The release matrix publishes two native Linux lanes: `ubuntu-22.04` for x64
    and GitHub's arm64 `ubuntu-22.04-arm` runner for arm64. Both verify
    `uname -m` (`x86_64` / `aarch64`) before preparing package inputs, exactly as
-   the macOS lanes verify their native runner. Both images are Ubuntu 22.04, so
-   both keep the documented glibc 2.35 floor.
+   the macOS lanes verify their native runner. Both jobs compile
+   `pi-desktop-host-core` inside an Ubuntu 20.04 container and bundle the newer
+   `libstdc++.so.6` Electron 43 needs, so both lanes keep the documented glibc
+   2.31 floor (Ubuntu 20.04 / 银河麒麟 V10 SP1 and newer).
 2. The static Linux targets stay AppImage, deb, and rpm without a pinned `arch`.
    The workflow passes the matching `--x64` or `--arm64` flag to
    electron-builder, which is the same rule ADR 0145 set for macOS.

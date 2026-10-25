@@ -1265,7 +1265,7 @@ identify the platform validation still needed.
 #### E2E-PROVIDER-custom-endpoint-no-api-key: Configure a custom service without credentials
 
 - **Preconditions**: Isolated settings profile and a local OpenAI-compatible fixture that lists a model without credentials; no live or paid provider.
-- **Steps**: 1) Open Settings → Model configuration → Add provider → Custom endpoint. 2) Enter a name and the fixture URL; leave the optional API key empty, without selecting an authentication mode. 3) Confirm model discovery succeeds without a key, select the returned model, and save. 4) Reopen and save without changes, then type a key and save; confirm API-key authentication is restored. 5) Edit an API-key provider and save with a blank input; confirm its key is retained. Reopen, choose **Clear saved API key**, and confirm subsequent discovery does not reuse the stored key. Close without saving and confirm no credential changed. Repeat Clear followed by Save, and Clear followed by a replacement key and Save. 6) Confirm the no-auth provider and model are offered by chat/default-model and subagent selectors. 7) Send a request through the no-auth provider fixture.
+- **Steps**: 1) Open Settings → Model configuration → Add provider → Custom endpoint. 2) Enter a name and the fixture URL; leave the optional API key empty, without selecting an authentication mode. 3) Confirm model discovery succeeds without a key, select the returned model, and save. 4) Reopen and save without changes, then type a key and save; confirm API-key authentication is restored. 5) Edit an API-key provider and save with a blank input; confirm its key is retained. Reopen and confirm **Clear saved API key** is an icon-only button to the right of the input on the same row, with a localized accessible name and tooltip. Activate it, confirm focus returns to the input, and confirm subsequent discovery does not reuse the stored key. Close without saving and confirm no credential changed. Repeat Clear followed by Save, and Clear followed by a replacement key and Save. 6) Confirm the no-auth provider and model are offered by chat/default-model and subagent selectors. 7) Send a request through the no-auth provider fixture.
 - **Expected**: The custom form has no no-key switch and keeps the key input enabled. An empty or whitespace-only key with no saved credential automatically saves `authKind: "none"` without `secretValue`; a supplied key uses API-key authentication. A blank edit retains an existing key. Clear is staged until Save and a replacement key takes precedence over removal. The enabled no-auth provider with `hasSecret: false` remains selectable for chat, defaults, subagents, and image generation where its model supports that operation. Named cloud presets remain unchanged. Runtime requests contain no API-key or Authorization credentials.
 - **Automation**: `node --test apps/desktop/test/custom-provider-no-api-key-user-path.test.mjs` covers empty/whitespace keys, keyed creation, save/reopen, preservation, staged removal/cancellation, discovery without the old secret, and replacement. `pnpm test:e2e:provider-api-style` renders the production setup form in English and Simplified Chinese with a stubbed model-discovery/API boundary and verifies create/update payloads and chat/default/subagent selector eligibility. `pnpm --filter @pi-desktop/agent-runtime exec vitest run src/provider-binding.test.ts` verifies request headers; `apps/desktop/test/image-generation-default.test.mjs` covers no-auth image-model availability; `cargo test -p host-core --locked switching_provider_to_no_auth_clears_its_api_key` verifies Host persistence and secret removal.
 - **Specs linked**: `03-runtime/11-provider-model-system.md`, `03-runtime/12-provider-config-schema.md`, `03-runtime/13-model-catalog-and-selection.md`, `04-ux/06-settings-ia.md`.
@@ -1732,9 +1732,10 @@ identify the platform validation still needed.
   turns that had no thinking. Non-official DeepSeek-family relays use real
   retained thinking when available, otherwise the documented non-empty
   placeholder from ADR 0256 — never a silent empty string after compaction.
-  The request omits the generic OpenAI `reasoning_effort` field because
-  DeepSeek endpoints do not accept it, while the selected thinking mode still
-  follows the endpoint's own wire format.
+  Relay requests omit the generic OpenAI `reasoning_effort` field because
+  relays were reported rejecting it (#1664). Official `api.deepseek.com`
+  requests send `thinking: {type: "enabled"}` together with the selected
+  `reasoning_effort` (#1821).
   The request does not switch `thinkingFormat` to `"deepseek"` solely because
   the model id contains `"deepseek"`. Official `api.deepseek.com` rows keep
   URL-based DeepSeek `thinkingFormat` from pi-ai.
@@ -4214,18 +4215,18 @@ window; opening a normal panel afterward must still work.
 - **Status**: Unit-covered (`main-process-errors.test.mjs`); packaged Windows
   proxy journey Documented
 
-#### E2E-195: Linux glibc below 2.35 names supported distros
+#### E2E-195: Linux glibc below 2.31 names supported distros
 
 - **Preconditions**: Linux x64 or arm64 packaged app; the machine glibc is older than
-  2.35 (for example Ubuntu 20.04 / Debian 11 / Fedora 35), or a test doubles
-  `process.report` to `2.31`.
+  2.31 (for example Ubuntu 18.04 / Debian 10 / Fedora 32), or a test doubles
+  `process.report` to `2.30`.
 - **Steps**: 1) Launch the AppImage, deb, or rpm. 2) Observe the main window and
   fatal banner. 3) Confirm host-core is not restarted in a loop.
 - **Expected**: Electron still opens. There is no uncaught `write EPIPE`
-  dialog. The fatal banner says the build needs glibc 2.35 or newer and names
-  Ubuntu 22.04, Debian 12, and Fedora 36+. Restart supervision does not spin.
-  A host-core binary whose symbols need glibc 2.39 fails
-  `scripts/check-linux-host-glibc.mjs`.
+  dialog. The fatal banner says the build needs glibc 2.31 or newer and names
+  Ubuntu 20.04 / 银河麒麟 V10 SP1, Ubuntu 22.04, Debian 12, and Fedora 36+.
+  Restart supervision does not spin. A host-core binary whose symbols need glibc
+  2.39 fails `scripts/check-linux-host-glibc.mjs`.
 - **Specs linked**: `03-runtime/07-process-model.md`,
   `01-product/01-product-scope.md`, `06-delivery/06-release-runbook.md`
 - **Acceptance**: H (diagnostics), Quality (main path no crash)
@@ -6150,12 +6151,15 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
 - **Steps**: 1) Open sessions A, B, and C in that order, scrolling each one up a
   measured amount. 2) Switch back to A, then B, and confirm each returns to its
   own offset. 3) Open D and then E, so A and B fall outside the retained budget.
-  4) Return to A. 5) Return to E, then D, and confirm they are still warm. 6)
-  Repeat the whole cycle once more and watch for a stuck progress track, an error
-  toast, or a blank chat area.
+  4) Return to A and scroll to the lower boundary of the restored range without
+  clicking any load control. 5) Return to E, then D, and confirm they are still
+  warm. 6) Repeat the whole cycle once more and watch for a stuck progress track,
+  an error toast, or a blank chat area.
 - **Expected**: Only the visible pane and the two most recently visited ones are
   retained; visiting beyond that budget evicts the oldest pane. A warm return
-  paints the retained frame and offset immediately. Returning to an evicted
+  paints the retained frame and offset immediately. The returned pane keeps the
+  page that already holds its anchor, so a warm return never offers to load later
+  messages for rows that page already had. Returning to an evicted
   session restores the message and viewport offset recorded before eviction,
   including explicit expanded content, using a bounded historical read if the
   latest page no longer contains the anchor. If the anchor is already loaded but
@@ -6167,6 +6171,14 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   dimmed at any point, hidden panes stay non-interactive and out of the
   accessibility tree, and repeated cycling neither leaks a growing number of
   mounted transcripts nor leaves a pane showing another session's rows.
+  A restored historical range has no Load later messages button: reaching its
+  lower boundary automatically reads bounded newer pages without moving the
+  visible anchor. Short ranges fill the viewport automatically; hidden panes do
+  not initiate reads. Pending reads coalesce, obsolete results cannot replace
+  a newer navigation, and failures do not cause automatic retry loops. After
+  continuation reaches the tail, live updates resume without adding older
+  cached rows above the reading position. Explicit search still uses manual
+  later-message paging.
 - **Specs linked**: `04-ux/08-component-spec.md` §1.6 / §3.5 / §7,
   `04-ux/09-interaction-patterns.md` §5, ADR 0130, ADR 0137
 - **Acceptance**: C (switch sessions), Quality
@@ -9750,14 +9762,17 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
      actions are absent, the default-app action is disabled, and editor choices
      remain available.
   5. Open a text file, edit it, and save. Confirm the file on disk changed and
-     the editor keeps the saved content. Change the same file outside the app,
-     edit and save again, and confirm the conflict is reported instead of the
-     external change being overwritten. Click the binary file and confirm it
-     reports as unsupported rather than printing replacement characters; open
-     the image, the CSV, and the Markdown file and confirm each gets its own
-     viewer. Switch the app to Simplified Chinese and confirm the tree, viewer,
-     and context menu are localized. Switch projects and confirm the tree
-     updates without waiting on a poll.
+     the editor keeps the saved content. In dark appearance, press `Ctrl/Cmd+F`
+     and confirm the find text, replace text, and action labels remain readable
+     against their themed fields and buttons; repeat after switching to light
+     appearance. Change the same file outside the app, edit and save again, and
+     confirm the conflict is reported instead of the external change being
+     overwritten. Click the binary file and confirm it reports as unsupported
+     rather than printing replacement characters; open the image, the CSV, and
+     the Markdown file and confirm each gets its own viewer. Switch the app to
+     Simplified Chinese and confirm the tree, viewer, and context menu are
+     localized. Switch projects and confirm the tree updates without waiting on
+     a poll.
   6. Click a project file path in the conversation. Confirm it opens in this
      view on that file — a chat click now prefers the file view over the host
      `file:` tab.
@@ -9782,15 +9797,19 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   ADR 0169, ADR 0241, ADR 0249, ADR 0263, ADR 0330
 - **Acceptance**: G (plugins), D (workspace), Security, Quality
 - **Milestone**: M6+
-- **Status**: Unit coverage in `apps/desktop/test/bundled-plugins.test.mjs`
-  (manifest contract, public-bridge-only page, vendored checksums),
-  `apps/desktop/test/plugin-fs-scope.test.mjs` (`fs.openDefault`,
-  `fs.openInBrowser`, and `fs.reveal` guards),
-  `apps/desktop/test/browser-preview-tool.test.mjs` (Browser resource-tab event
-  routing), `apps/desktop/test/plugin-work-panel-views.test.mjs` (docked-view
-  event broadcast), and host-core
-  `bundled_plugins_refresh_from_disk_but_keep_user_state`; the packaged journey
-  is Draft (run only in a capable environment when this surface changes)
+- **Status**: `pnpm test:e2e:file-manager-theme` loads the shipped plugin view
+  in Electron, opens a text file through a fixture public bridge, invokes
+  `Ctrl/Cmd+F`, and checks the rendered find/replace fields and actions in dark
+  and light appearances. `apps/desktop/test/bundled-plugins.test.mjs` also
+  covers the manifest contract, public-bridge-only page, vendored checksums,
+  and themed CodeMirror controls. `apps/desktop/test/plugin-fs-scope.test.mjs`
+  covers `fs.openDefault`, `fs.openInBrowser`, and `fs.reveal` guards;
+  `apps/desktop/test/browser-preview-tool.test.mjs` covers Browser resource-tab
+  event routing; `apps/desktop/test/plugin-work-panel-views.test.mjs` covers
+  docked-view event broadcast; and host-core covers
+  `bundled_plugins_refresh_from_disk_but_keep_user_state`. The remaining
+  packaged journey is Draft (run only in a capable environment when this
+  surface changes).
 
 #### E2E-PLUGIN-file-view-collapse-persists
 
@@ -17410,12 +17429,15 @@ plugin-form fixtures in an isolated temporary directory at runtime.
   stay inside their groups and only ordinary assistant progress text splits a
   group, so the middle progress paragraph ends the preceding group and the
   following activity starts a new one. A group appears only with at least two
-  visible items; a singleton has no group. Active groups stay open while the turn
-  runs; after completion, groups with at most four visible items and Task topology
-  groups remain open, while larger ordinary groups start closed. Thinking rows
-  default expanded in every mode when `Show thinking` is on.
+  visible items; a singleton has no group. Every group stays open while its turn
+  runs; after completion, groups with at most four visible items, Task topology
+  groups and groups that still render a Thinking row remain open, while larger
+  ordinary groups of plain tool rows start closed. Thinking rows default
+  expanded in every mode when `Show thinking` is on.
   Explicit user choices persist and are restored when the enclosing disclosure is
-  reopened; group defaults do not depend on `Show thinking`. The header
+  reopened, and never pin an ancestor; an automatic close is deferred only while
+  focus or a selection remains inside. Apart from visible reasoning, group
+  defaults do not depend on `Show thinking`. The header
   reports running, finished, stopped, or failed with failure and stop outranking
   a normal finish, reads `Thinking` while the live step is reasoning, names
   compaction and recovery while those stages are live, omits a duration the
@@ -17445,10 +17467,14 @@ plugin-form fixtures in an isolated temporary directory at runtime.
   group presentation only; precise item-level transcript search targeting is out
   of scope and keeps the existing message-level search behavior.
 - **Automation:** `pnpm test:e2e:transcript` covers the command-first and
-  fully-folded layouts and active-to-completed process disclosure behavior;
-  `pnpm test:e2e:transcript-disclosure` verifies manual-open retention and
-  viewport anchoring; `apps/desktop/test/turn-process.test.mjs` covers mode
-  segmentation, `apps/desktop/test/transcript-display-modes-ui.test.mjs` covers
+  fully-folded layouts, active-to-completed process disclosure behavior, the
+  automatic folding and reading-hold transitions, and the activity issue
+  counter's inline layout at 320/800px and 100%/150% zoom in English and
+  Simplified Chinese; `pnpm test:e2e:transcript-disclosure` verifies manual-open
+  retention and viewport anchoring; `apps/desktop/test/turn-process.test.mjs`
+  covers mode segmentation, `apps/desktop/test/activity-group-folding.test.mjs`
+  covers the settled group defaults and the issue-counter contract,
+  `apps/desktop/test/transcript-display-modes-ui.test.mjs` covers
   the renderer's mode wiring, Thinking defaults and TextShimmer,
   `apps/desktop/test/turn-process-header.test.mjs` covers the top-level header's
   status/duration/tool-count composition and the absence of issue counts,

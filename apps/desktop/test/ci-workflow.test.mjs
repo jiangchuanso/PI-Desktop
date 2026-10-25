@@ -120,10 +120,15 @@ test("release artifacts bypass redundant Actions compression", () => {
 
 test("manual Linux package validation covers the RPM desktop identity", () => {
   assert.match(linuxPackageWorkflowSource, /^on:\s*\n\s+workflow_dispatch:/m);
-  assert.match(linuxPackageWorkflowSource, /runs-on: ubuntu-22\.04/);
+  assert.match(linuxPackageWorkflowSource, /runs-on: \$\{\{ matrix\.runner \}\}/);
+  assert.match(linuxPackageWorkflowSource, /runner: ubuntu-22\.04/);
   assert.match(
     linuxPackageWorkflowSource,
-    /run: pnpm --filter @pi-desktop\/desktop run dist:linux -- --x64/,
+    /Build host-core on glibc 2\.31 base[\s\S]*?docker run[\s\S]*?ubuntu:20\.04/,
+  );
+  assert.match(
+    linuxPackageWorkflowSource,
+    /pnpm --filter @pi-desktop\/desktop exec electron-builder --linux --publish never --\$\{\{ matrix\.arch \}\}/,
   );
   assert.match(
     linuxPackageWorkflowSource,
@@ -226,7 +231,11 @@ test("release matrix packages both native macOS architectures", () => {
   );
   assert.match(
     releaseWorkflowSource,
-    /name: Package installers \(\$\{\{ matrix\.dist \}\}\)[\s\S]*?if: matrix\.platform != 'macos'[\s\S]*?run: pnpm --filter @pi-desktop\/desktop run \$\{\{ matrix\.dist \}\} -- --\$\{\{ matrix\.arch \}\}/,
+    /name: Package installers \(\$\{\{ matrix\.dist \}\}\)[\s\S]*?if: matrix\.platform != 'macos'[\s\S]*?electron-builder --linux --publish never --\$\{\{ matrix\.arch \}\}/,
+  );
+  assert.match(
+    releaseWorkflowSource,
+    /name: Package installers \(\$\{\{ matrix\.dist \}\}\)[\s\S]*?pnpm --filter @pi-desktop\/desktop run \$\{\{ matrix\.dist \}\} -- --\$\{\{ matrix\.arch \}\}/,
   );
   assert.equal(
     JSON.parse(desktopPackageSource).build.mac.artifactName,
@@ -265,10 +274,16 @@ test("macOS release signing is required on tag pushes", () => {
     releaseWorkflowSource,
     /workflow_dispatch:\s+inputs:\s+sign_macos:[\s\S]*?default:\s*true[\s\S]*?type:\s*boolean/,
   );
+  // Tag pushes sign when the notarization secrets exist; a fork without them
+  // falls through to the unsigned lane instead of failing the release.
   assert.ok(
     releaseWorkflowSource.includes(
-      "MACOS_SIGN_RELEASE: ${{ github.event_name != 'workflow_dispatch' || inputs.sign_macos == true }}",
+      "MACOS_SIGN_RELEASE: ${{ (github.event_name != 'workflow_dispatch' || inputs.sign_macos == true) && secrets.CSC_LINK != '' && secrets.APPLE_TEAM_ID != '' }}",
     ),
+  );
+  assert.match(
+    releaseWorkflowSource,
+    /MACOS_SIGN_RELEASE[\s\S]*?secrets\.CSC_LINK != ''/,
   );
 
   const unsignedBlock = releaseWorkflowSource.match(

@@ -489,7 +489,7 @@ task-candidate E2E 从请求工作树运行，但使用主工作区已经准备�
 
 - **前提条件**：已配置一个 Base URL 不含 `deepseek.com` 的 OpenAI 兼容提供商，模型 ID 属于 DeepSeek 系（例如硅基流动 `deepseek-ai/DeepSeek-V3.2`），并开启思考模式。
 - **步骤**：1) 在思考模式下开始会话。2) 完成若干回合，其中至少一条助手回复没有思考文本。3) 再发一条提示，使历史被回放到提供商。
-- **预期**：后续 Completions 请求的每条 assistant 消息都带推理字段。官方 `api.deepseek.com` 行对无思考内容的回合仍可使用 `""`。非官方 DeepSeek 系中转在可用时回传保留的真实思考，否则使用 ADR 0256 文档化的非空占位符——压缩后不得静默回填空串。请求不会携带通用 OpenAI 的 `reasoning_effort` 字段，因为 DeepSeek 端点不接受它；已选的思考模式仍按端点自身线路发送。不会仅因模型 ID 含 `"deepseek"` 就把 `thinkingFormat` 改成 `"deepseek"`。官方 `api.deepseek.com` 行仍使用 pi-ai 按 URL 检测的 DeepSeek `thinkingFormat`。
+- **预期**：后续 Completions 请求的每条 assistant 消息都带推理字段。官方 `api.deepseek.com` 行对无思考内容的回合仍可使用 `""`。非官方 DeepSeek 系中转在可用时回传保留的真实思考，否则使用 ADR 0256 文档化的非空占位符——压缩后不得静默回填空串。中转请求不携带通用 OpenAI 的 `reasoning_effort` 字段，因为有中转被报告拒绝它（#1664）；官方 `api.deepseek.com` 请求同时发送 `thinking: {type: "enabled"}` 与所选的 `reasoning_effort`（#1821）。不会仅因模型 ID 含 `"deepseek"` 就把 `thinkingFormat` 改成 `"deepseek"`。官方 `api.deepseek.com` 行仍使用 pi-ai 按 URL 检测的 DeepSeek `thinkingFormat`。
 - **链接规格**：`03-runtime/11-provider-model-system.md`、
   `03-runtime/12-provider-config-schema.md`
 - **验收**：B（提供商 Completions 兼容）
@@ -1912,16 +1912,16 @@ task-candidate E2E 从请求工作树运行，但使用主工作区已经准备�
 - **里程碑**：M5
 - **状态**：单位覆盖（`main-process-errors.test.mjs`）；打包 Windows 代理旅程已记录
 
-#### E2E-195：Linux glibc 低于 2.35 时列出支持的发行版
+#### E2E-195：Linux glibc 低于 2.31 时列出支持的发行版
 
-- **先决条件**：Linux x64 或 arm64 打包应用；本机 glibc 低于 2.35（例如 Ubuntu 20.04 /
-  Debian 11 / Fedora 35），或测试将 `process.report` 设为 `2.31`。
+- **先决条件**：Linux x64 或 arm64 打包应用；本机 glibc 低于 2.31（例如 Ubuntu 18.04 /
+  Debian 10 / Fedora 32），或测试将 `process.report` 设为 `2.30`。
 - **步骤**：1) 启动 AppImage、deb 或 rpm。2) 观察主窗口和致命横幅。3) 确认
   host-core 没有进入重启循环。
 - **预期**：Electron 仍能打开。没有未捕获的 `write EPIPE` 对话框。致命横幅
-  说明构建需要 glibc 2.35 或更高版本，并列出 Ubuntu 22.04、Debian 12 和
-  Fedora 36+。监管重启不会空转。符号需要 glibc 2.39 的 host-core 二进制会
-  让 `scripts/check-linux-host-glibc.mjs` 失败。
+  说明构建需要 glibc 2.31 或更高版本，并列出 Ubuntu 20.04 / 银河麒麟 V10 SP1、
+  Ubuntu 22.04、Debian 12 和 Fedora 36+。监管重启不会空转。符号需要 glibc 2.39
+  的 host-core 二进制会让 `scripts/check-linux-host-glibc.mjs` 失败。
 - **链接规格**：`03-runtime/07-process-model.md`、
   `01-product/01-product-scope.md`、`06-delivery/06-release-runbook.md`
 - **验收**：H（诊断），质量（主路径无崩溃）

@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "local.searxng",
+  "name": "SearXNG (self-hosted)",
+  "version": "0.1.0",
+  "description": "Search the web through your self-hosted SearXNG instance via a local MCP server. Configure the instance URL either in the Plugins settings UI (searxngUrl) or by editing config.json after install.",
+  "main": "main.js",
+  "contributes": {
+    "mcpServers": [
+      {
+        "id": "searxng",
+        "label": "SearXNG",
+        "transport": "stdio",
+        "command": "node",
+        "args": ["server.js"],
+        "env": {
+          "SEARXNG_API_URL": { "setting": "searxngUrl" }
+        }
+      }
+    ],
+    "settings": [
+    {
+      "key": "searxngUrl",
+      "title": "SearXNG base URL",
+      "type": "string",
+      "default": "http://localhost:4607"
+    }
+    ]
+  },
+  "permissions": ["mcp.server.local"],
+  "engines": {
+    "piDesktop": ">=0.1.0"
+  },
+  "activationEvents": ["onStartup"]
+}

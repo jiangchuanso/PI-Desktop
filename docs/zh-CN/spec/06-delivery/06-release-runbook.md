@@ -544,10 +544,7 @@ electron PI-Desktop-<version>-linux-<arch>.asar
 ## 7. 已知限制
 
 - Linux deb/rpm 和 Windows 便携版 ZIP 仍保持通知和链接更新模式。打包的 macOS、Windows NSIS 和 Linux AppImage 使用应用内 `electron-updater`。
-- Linux x64 和 arm64 包在 Ubuntu 22.04 上构建（本机 `ubuntu-22.04` 和
-  `ubuntu-22.04-arm` 运行器），因此 host-core 需要 glibc 2.35 或更高版本
-  （Ubuntu 22.04、Debian 12、Fedora 36+）。每个标签作业都会运行
-  `scripts/check-linux-host-glibc.mjs`，拒绝需要更新 glibc 的二进制文件。
+- Linux x64/arm64 包在 Ubuntu 20.04 容器中构建 host-core，因此需要 glibc 2.31 或更高版本（Ubuntu 20.04 / 银河麒麟 V10 SP1、Ubuntu 22.04、Debian 12、Fedora 36+）；Electron 43 所需的新版 libstdc++ 由 `apps/desktop/scripts/after-pack-bundle-libstdc.mjs` 随包捆绑。标签作业运行 `scripts/check-linux-host-glibc.mjs`，拒绝需要更新 glibc 的二进制文件。
 - Linux arm64 的麦克风采集仅在 Raspberry Pi 板卡上可用：
   `@picovoice/pvrecorder-node` 按 `/proc/cpuinfo` 的 CPU part 判定 Linux
   arm64。语音转写（`transcribe-cpp` 随附 `linux-arm64-cpu-vulkan` 包）以及

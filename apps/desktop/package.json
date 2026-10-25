@@ -1,6 +1,6 @@
 {
   "name": "@pi-desktop/desktop",
-  "version": "0.21.0-beta.8",
+  "version": "0.21.0",
   "desktopName": "pi-desktop.desktop",
   "private": true,
   "description": "PI-Desktop Electron application",
@@ -82,6 +82,7 @@
   "build": {
     "appId": "net.aiuo.pi-desktop",
     "productName": "PI-Desktop",
+    "afterPack": "scripts/after-pack-bundle-libstdc.mjs",
     "directories": {
       "output": "release"
     },
@@ -253,7 +254,11 @@
     },
     "deb": {
       "packageName": "pi-desktop",
-      "artifactName": "pi-desktop_${version}_${arch}.${ext}"
+      "artifactName": "pi-desktop_${version}_${arch}.${ext}",
+      "depends": [
+        "hicolor-icon-theme",
+        "desktop-file-utils"
+      ]
     },
     "rpm": {
       "packageName": "pi-desktop",

@@ -522,7 +522,11 @@ The Plugins page shows agent extensions on the owning plugin's row:
 | v1.1 | Modules become `contributes.agentExtensions` with the `agent.extension` grant; import of pi CLI extensions as development plugins; the standalone registry and settings tab are removed | Shipped (D388) |
 | v1.1 amendment | Plugin-owned custom agents via `registerAgent`, provider compatibility alias, redacted model registry, idle-only session binding and restore through `extension-agent:` ids | Implemented (D426 / ADR 0258) |
 | v2 | Custom session entries (`sendMessage`, `appendEntry`) with a schema bump and a generic renderer, `sessionManager` read shim, `switchSession`, editor read and write, autocomplete providers, `registerShortcut`, markdown transformers | Planned, needs a decision on entry persistence and compaction |
-| v3 | `pi` package manifests and installation, read-only hints from the pi CLI's `settings.json`, unified skill and prompt discovery, remote-control routing for prompts, marketplace listing | Not scheduled |
+| v3 | Read-only hints from the pi CLI's `settings.json`, unified skill and prompt discovery, remote-control routing for prompts, marketplace listing | Not scheduled |
+
+Explicit local package import, including `pi.extensions` / `pi.skills` and bounded
+registry-only dependency preparation, is already implemented in §3.2. It is not
+a promise of a general pi package manager or automatic settings discovery.
 
 v1 delivery order: bundling spike (E2E-245), shared protocol types, then the
 runtime, main, and renderer tracks in parallel.

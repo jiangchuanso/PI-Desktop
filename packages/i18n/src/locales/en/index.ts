@@ -2104,6 +2104,8 @@ sklm: {
       open: "New",
     },
     closeTab: "Close {{name}}",
+    closeOtherTabs: "Close other tabs",
+    closeAllTabs: "Close all tabs",
     tabs: {
       review: "Review",
       browser: "Browser",

@@ -964,7 +964,9 @@ core set rather than the on-demand catalog of §7.1:
   reports when they finish, even if the parent already stopped calling tools.
   Only `TaskStop` or user Stop aborts a delegate.
 - `TaskList()` — reports every delegation of the session with status and a
-  running heartbeat.
+  running heartbeat, plus the resumable chains (`details.resumable`) the parent
+  can continue with `Task(resume: ...)`; this is the only read path for that
+  list (ADR 0337).
 - `TaskStop(delegationIds?)` — stops running delegations (defaults to all);
   waits for each abort to settle, then persists `status: "stopped"` with
   `completedAt` on `details.stopped[]`. Stopped delegations read as `stopped`.
@@ -1106,11 +1108,12 @@ a non-resumable status, an over-budget chain, and a chain whose rows are gone
 each return a tool error naming the reason and, for an unknown id, the reusable
 ids when there are any.
 
-The parent discovers reusable chains through the system prompt, which lists
+The parent discovers reusable chains through `TaskList`, whose result lists
 each chain's latest `delegationId`, its objective, and up to
 `MAX_RESUMABLE_LISTED_FILES` (8) of the files it read (with a `(+N more)`
-suffix past that). The list is recomposed when a delegation settles, around the
-existing prompt sections. A resumed run is an ordinary delegation for
+suffix past that). The list never enters the system prompt: it changes on every
+settlement, and rewriting instructions mid-session invalidates the request
+prefix providers cache on (ADR 0337). A resumed run is an ordinary delegation for
 `MAX_SUBAGENT_CONCURRENCY`, `TaskWait`, `TaskList`, `TaskStop`, and lifecycle
 snapshots. The immediate `Task` result and the lifecycle details add
 `resumedFrom` for audit; the transcript renders a chain as one continuous
@@ -1749,13 +1752,20 @@ merging to the user, and how to resolve a merge conflict).
 | tools | sequential by default |
 | `Task` calls in one assistant message | parallel; 10 running delegates per session (ADR 0089) |
 
-Tool concurrency is expressed through pi execution modes: every catalog tool is
-`sequential` and `Task` alone is `parallel`, and pi runs a batch sequentially as
-soon as it contains one sequential tool. So an all-`Task` batch is the only batch
-that fans out, and every other ordering guarantee is unchanged. Delegates issue
+Tool concurrency is expressed through pi execution modes. In the parallel read batches,
+`Read`, `Glob` and `Grep` are parallel candidates; all other catalog tools remain
+sequential. Task-only batches retain parallel fan-out, while a batch that mixes
+`Task` with any of those file-reading tools is kept sequential: a read before
+`Task` finishes before the delegate starts, and a read after a writable `Task`
+waits for that delegate to settle before dispatching to Host, while `Task` stays
+non-blocking inside that batch too (ADR 0089). Parent and delegate path
+instruction updates happen during ordered preparation before parallel execution,
+and mutate only their own prompt.
+Delegates issue
 host calls independently, and host-core's one-mutation-per-session admission
 keeps writes from tearing but leaves two same-path mutations unordered, so the
-sidecar serializes `Write`/`Edit` calls that target the same normalized path
+sidecar serializes `Write`/`Edit` calls (and coordinates `Read` against in-flight
+`Write`/`Edit` on the same workspace path) that target the same normalized path
 before they reach the host; calls on different paths never wait on each other.
 This is what keeps the per-path edit-recovery rules of
 `03-tools-and-permissions.md` §4d meaningful under fan-out.

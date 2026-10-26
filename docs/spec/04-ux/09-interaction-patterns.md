@@ -570,6 +570,10 @@ may be retained while exactly one workspace supplies the visible shell context.
   then the left. Selecting a launcher row replaces that New tab with the
   destination or activates its existing singleton. Shortcut labels appear only
   for bindings that actually exist.
+- Right-clicking a tab or invoking the context-menu key on the focused tab opens
+  Close Tab, Close Other Tabs, and Close All Tabs. Close Other Tabs activates the
+  targeted tab and closes every other tab; it is disabled for a single tab.
+  Close All Tabs closes Browser resources and leaves the panel open on New.
 - Activating a tool that is already open activates its existing resource instead
   of replacing it, so Browser keeps its URL and Files its selection (D173).
 - Every resource can be closed from its tab. Closing the active resource selects
@@ -759,6 +763,14 @@ may be retained while exactly one workspace supplies the visible shell context.
 - Background sessions continue without adding progress chrome to the visible
   session or moving focus. Reduced motion therefore has no progress-card
   transitions to preserve.
+- A restored reading range that has reached the canonical live tail presents
+  the session's running phase, elapsed time, and interaction waits normally.
+  Keeping its reading bookmark does not mean the turn has finished. Rejoining
+  live output preserves the viewport rather than acting like a new turn.
+  Explicit search, unread later pages, and disjoint snapshots remain historical.
+  Reading ranges require a non-empty canonical message identity, compared by
+  message id across history object copies. The ordinary canonical surface still
+  shows the first-event wait before its first message arrives.
 
 ### 2.5 Turn outcome closure
 

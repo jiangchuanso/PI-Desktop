@@ -2079,6 +2079,8 @@ sklm: {
       open: "新建",
     },
     closeTab: "关闭{{name}}",
+    closeOtherTabs: "关闭其他标签页",
+    closeAllTabs: "关闭所有标签页",
     tabs: {
       review: "审阅",
       browser: "浏览器",

@@ -1,4 +1,4 @@
-# 04. Data Storage (Schema v23)
+# 04. Data Storage (Schema v25)
 
 ## 0. Ownership decision
 
@@ -571,6 +571,7 @@ CREATE TABLE models (
   context_window    INTEGER,
   max_output_tokens INTEGER,
   deprecated        INTEGER NOT NULL DEFAULT 0,
+  discovery_state   TEXT CHECK (discovery_state IN ('published', 'unlisted')),
   updated_at        INTEGER NOT NULL,
   PRIMARY KEY (provider_id, model_id)
 ) WITHOUT ROWID;
@@ -579,6 +580,14 @@ CREATE TABLE models (
 Refresh (spec 13 §6/§9) upserts `discovered` rows and **never overwrites
 `source='user'`** rows. Recent-model MRU stays in `kv(cache)` — it is a
 bounded display list, not relational data.
+
+Schema v25 adds nullable `discovery_state`, distinct from metadata deprecation.
+The v24 upgrade backs up first, adds the field transactionally, and marks
+existing discovered rows as past publication evidence. User-owned rows remain
+unknown. No provider configuration, credentials, sessions, or turns are changed.
+Configured missing rows retain an `unlisted` marker across restart; an endpoint
+change clears it. Older apps refuse the newer schema rather than interpreting
+it incorrectly; rollback requires the pre-migration backup.
 
 ### 4.5 sessions
 
@@ -1582,7 +1591,7 @@ truncating at a guessed position.
   Sessions, providers, and settings from the old file are not carried over;
   the archive remains for manual recovery. All pre-v7 migration code
   (v1 `settings.sqlite` import, v2→v6 chain) is deleted.
-- Fresh installs run the full v23 DDL directly.
+- Fresh installs run the full v25 DDL directly.
 - **Schema v7 first reaches v8, then uses the guarded path.** The v7→v8
   migration is followed by the same guarded v8→v15 migration; schema-v9 and
   schema-v10 databases take the same guarded path and receive an exact readable

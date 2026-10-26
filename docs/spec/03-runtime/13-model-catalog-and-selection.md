@@ -148,20 +148,22 @@ Only the ids a save dropped are touched — the rest of the discovered list is t
 service's answer, and a model the service still publishes is recorded again by
 the next probe, described by the service rather than by a stale answer.
 
-The answer also replaces the previous one. A probe that no longer publishes a
-model drops that model's row, so the pane stops painting a model the endpoint
-retired and a hand-typed id stops inheriting its old limits; a row whose source
-is not discovery — the user's own — is never dropped this way, and a configured
-binding stays visible in the chosen-model pane even when the service stops
-listing it. After a live refresh, the service-model pane displays only rows
-actually served, excluding configured-only rows marked `source: "user"`.
-Catalog enrichment preserves that origin independently of published metadata;
-cache, catalog and manual fallbacks still expose configured rows for editing.
-Cached rows carry
-no endpoint of their own, so a save that moves the base URL or the wire format
-drops the answer the previous endpoint produced, and the next probe records the
-new one. A failed or empty probe is not an answer: it never reaches the cache,
-so it can neither replace nor narrow what is stored.
+A complete, nonempty discovery answer updates endpoint-list membership
+atomically. Previously published configured models missing from that answer
+remain saved and editable, but carry `discoveryState: "unlisted"` through live
+results, offline fallback, and restart hydration. Composer excludes these rows
+from ordinary and recent model choices; it never changes a session's current
+model or the saved default automatically. A missing id is not proof of failed
+inference. Manually configured ids never discovered are unknown, not unlisted,
+and remain selectable. Republishing a model restores its normal choices.
+
+Unconfigured missing discovered rows are pruned, and user-owned rows remain
+untouched. The settings service-model pane excludes unlisted and configured-only
+rows; the chosen pane retains bindings for editing. Changing the endpoint or
+wire format clears old discovery state. Failed, empty, explicitly paginated,
+truncated, or malformed-row answers do not invalidate missing rows. Partial
+answers may add/update the rows they actually contain. Unknown server-side
+truncation cannot be inferred from a successful response alone.
 
 The picker never dumps the raw host error into the model list. A failed probe
 that leaves no rows shows a one-line "the list is missing" label in the empty

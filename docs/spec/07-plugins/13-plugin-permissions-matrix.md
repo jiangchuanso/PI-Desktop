@@ -11,7 +11,7 @@ Provide a permission–capability–risk–default-policy reference table for re
 | `ui.panel` | low | Open the plugin panel | Granted at install | Needed by almost all UI plugins |
 | `ui.view` | low | `contributes.views` are listed in the work panel and may be opened | Granted at install | Same isolation as a panel window: sandboxed page, per-plugin partition, `net.domains` egress. Filtered by activation scope |
 | `ui.theme` | low | `contributes.themes` CSS is loaded and offered in Settings; runtime `pi.themes.upsert` / `remove` / `list` and `pi.app.setTheme` (ADR 0260) | Granted at install | CSS is sanitized by the host; it cannot script. Declared `assets` are served over the host's read-only `plugin-asset:` scheme. `setTheme` may only select a built-in preference or a currently registered plugin theme. There is no per-plugin theme count cap |
-| `ui.settings` | low | `contributes.settingsDestinations` adds a sandboxed Settings entry in Extensions | Granted at install | Rendered only in host Extensions group; isolated view host with same sandbox as panel views (ADR 0261) |
+| `ui.settings` | low | `contributes.scenicThemes` adds a host-rendered data-only Settings entry | Granted at install | Also needs `ui.theme`; no plugin Settings HTML, CSS, JavaScript, or bridge (ADR 0287) |
 | `ui.window.appearance` | low | `contributes.windowAppearance` sets the native window background and Windows main-window corner request while one of the plugin's themes is selected | Granted at install | `#rrggbb` / `#rrggbbaa` background and integer `cornerRadius` 0..24 DIP; restores host background and the 12 DIP default request when the theme is gone. Windows 11 maps 0 to square and positive values to the system-rounded preference (not exact DIP radii); alpha is composited over the built-in theme color on its opaque window. Earlier Windows builds retain the requested DIP radius. macOS keeps native corners; its default translucent vibrancy surface ignores the colour, and the `Translucent window` switch turned off applies it to the opaque native surface (ADR 0332) |
 | `clipboard.read` | medium | `clipboard.readText`, `clipboard.getHistory` | Confirm on first use | May read sensitive information and retained clipboard history |
 | `clipboard.write` | medium | `clipboard.writeText` | Confirm on first use | Prevents clipboard pollution |
@@ -23,7 +23,7 @@ Provide a permission–capability–risk–default-policy reference table for re
 | `fs.write.workspace` | high | — | Downgraded on load to `fs.write` with **no** scope | Legacy name; every write asks the user until the manifest declares scope |
 | `fs.delete.workspace` | high | — | Downgraded on load to `fs.delete` with `own: true` | Legacy name; only the plugin's own output goes without asking |
 | `agent.tool.register` | high | Register an agent tool | Confirm at install | Tool execution is audited separately |
-| `agent.prompt.inject` | high | Inject a system prompt; activates `contributes.skills` | Deny by default / strong confirmation | Easily leads to behavior hijacking |
+| `agent.prompt.inject` | high | Activate the catalog and on-demand bodies from `contributes.skills` | Deny by default / strong confirmation | Easily leads to behavior hijacking |
 | `composer.transform` | medium | `contributes.composerTransforms` and `onComposerTransform` | Confirm at install | Runs only after an explicit Composer action. Receives the draft and optional model key, not session history or separate attachment/file-reference metadata; request and result are capped at 100,000 characters and audited |
 | `composer.suggest` | medium | `pi.composer.suggest` / `pi.composer.clearSuggestion` | Confirm at install | Writes one dismissible line into the placeholder layer of the Composer for the session on screen, only while the draft is empty and only for the turn the plugin names. The user takes it with Tab, drops it with Esc, and typing, sending, a session switch, a new turn, the plugin stopping, a reload or a window close all end it. The plugin never sends it and never reads the draft. Text is folded to one line and cut at 200 characters; the lifetime defaults to 120 s and is capped at 10 minutes. Audited; a place that will not show it answers `{ shown: false, reason }` instead of throwing |
 | `agent.extension` | high | Run `contributes.agentExtensions` modules inside the agent process | Explicit confirmation; local imports and development plugins only in v1.1 | Same access as the agent's own tools; the plugin sandbox does not apply (spec 16) |
@@ -120,11 +120,15 @@ plugin, so it carries three bounds the other modes do not:
 
 ## 3A. Plan operating-state rule
 
-Every `agentTools` contribution is denied in Plan, regardless of this matrix's
-risk or default policy. `agent.tool.register` authorizes registration for
-Agent, not visibility in Plan. The host returns `PLUGIN_DISABLED_IN_PLAN` for a
-direct Plan call and records the denial. Plugin tools become eligible only
-after the same Agent is approved into Agent mode.
+Plugin tools are hidden and denied in Plan/Goal by default. A runtime tool
+registration may opt in with non-empty `planSafeActions`; only an `args.action`
+in that list may execute in those modes. The list is checked against the schema's
+action enum when present. Keep the manifest descriptor and runtime registration
+in sync: the runtime registration drives the executable tool. Risk `low`, session
+grants, and `auto` do not substitute for the declaration. Host policy and the
+plugin runner both check it; a disallowed runner action is `PERMISSION_DENIED`.
+The declaration is an author assertion of read-only behavior, not a side-effect
+sandbox (ADR 0211).
 
 ## 4. Permission display copy
 

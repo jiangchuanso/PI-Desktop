@@ -8,6 +8,23 @@
 
 ## 1. Goals
 
+### E2E model discovery membership
+
+- **Entry:** `node scripts/e2e-model-discovery-state.mjs` after building Host,
+  shared, agent-runtime and host-runtime in the task worktree.
+- **Environment:** Real isolated Host process and SQLite; production provider
+  IPC and Composer selection; simulated HTTP only, no credentials/live app.
+- **Sequence:** Discover two configured models and retain a never-discovered
+  manual id; remove one; refresh offline; restart Host; read cache; republish;
+  change id casing; send partial, malformed, and empty lists; change endpoint.
+- **Expected:** Missing previously published models leave normal/recent choices
+  without deleting bindings or changing defaults. Offline/restart cannot
+  resurrect them. Reappearance restores them. Manual ids and partial refreshes
+  remain safe; old endpoint state does not contaminate the new endpoint.
+- **Component coverage:** `provider-model-list-refresh.test.mjs` also renders
+  the actual settings panes and verifies saved bindings remain editable.
+
+
 ### E2E-PI-130-kernel-upgrade
 
 - **Preconditions:** Exact Pi 1.3.0 pins and migrated patches in a dedicated
@@ -73,6 +90,45 @@
   steering transcript path, parent settlement, ordinary-turn boundaries,
   compaction, and terminal Task snapshots through the real React rendering.
   The headless command does not replace the rendered Electron check above.
+
+### E2E-TOOLS-parallel-read-batches: ordered preparation and parallel reads
+
+- Isolate data/project paths; never run against production profiles.
+- A local provider fixture emits two Read calls. Gate real tool-execution
+  entrypoints until both enter, release them in reverse order, then inspect the
+  follow-up model request: results must retain source toolCallId order and final
+  sibling rules must follow preparation order. Repeat with a delegated reader
+  and verify parent instructions and permission scope are isolated.
+- Add Bash or Edit to the batch: all tools must execute sequentially. Stop
+  before execution must skip unstarted calls; running file calls must drain.
+- Add Task with a delegate that edits a fixture file alongside a parent Read;
+  the batch must stay sequential, Task keeps reporting a started delegation
+  (ADR 0089), and the parent Read must not enter Host until the writable
+  shared-workspace delegate settles its mutation. Task-only batches must still
+  fan out.
+- Automated coverage: runtime.test.ts uses the production Runtime and pi loop
+  with deterministic Host response barriers, including mixed Bash/Write/Edit
+  batches and Stop, plus the mixed Task/read regression in both model orders:
+  the Task result stays a started notice, the parent read waits for the writable
+  shared-workspace delegate's mutation to settle before entering Host, and a
+  failed delegate still releases the batch. `scripts/e2e-task-read-batches.mjs`
+  runs the same contract end to end with a real delegate loop: it asserts the
+  Host dispatch order `write:start`, `write:end`, `read:start`, `read:end`, that
+  the parent reads the written content, and that the Task tool result stays a
+  background acknowledgement. subagent.test.ts checks conservative policy
+  inheritance.
+- Run `node scripts/e2e-parallel-read-batches.mjs` after building agent-runtime,
+  shared and host-core. Set `PI_DESKTOP_HOST_BIN` when reusing a shared target.
+  It uses a local HTTP provider, real parent/delegate loops and a real Host in
+  temporary directories. A gated response proves overlapping Read dispatch;
+  actual Read/Glob/Grep results, source-order model results and parent prompt
+  isolation are checked. This does not measure blocking filesystem-body overlap,
+  production throughput or Electron UI behavior. UI-only project-edit E2E is
+  not evidence for agent Edit scheduling.
+- Run `node scripts/e2e-task-read-batches.mjs` under the same build and
+  `PI_DESKTOP_HOST_BIN` preconditions. Against the pre-fix implementation it
+  fails with `read:start` before `write:start`, which is the regression the
+  maintainer asked for.
 
 ### E2E-STORAGE-custom-location-and-maintenance
 
@@ -2103,6 +2159,27 @@ identify the platform validation still needed.
 - **Acceptance**: C (switch sessions)
 - **Milestone**: M2
 - **Status**: Source-level regression covered; full visual scenario Draft
+
+#### E2E-TRANSCRIPT-restored-live-tail-status
+
+- **Preconditions**: An isolated renderer with two retained session panes, a
+  running turn with tool output, and the real Composer and SessionPane.
+- **Steps**: Restore a bookmark during selection revalidation; append live
+  output; switch away and reveal the running pane; inspect an unread history
+  range and an explicit search at the tail; settle and abort the turn.
+- **Expected**: The restored live tail keeps a running process header while
+  Stop is available. Content updates and pane reveal do not falsely show
+  Finished. The restored range and scroll offset remain owned by the reader.
+  Another session, unread pages, and explicit search do not inherit live
+  status. Terminal completion and abort show Finished and Stopped respectively.
+  An empty restored range stays historical, an ordinary empty canonical range
+  shows the initial wait, and a restored navigation-parent copy with the same
+  message id keeps the running presentation.
+- **Automation**: `node scripts/e2e-transcript-reading-position.mjs`
+  (`transcriptLiveTailProbe`).
+- **Specs linked**: `04-ux/09-interaction-patterns.md` §2.4
+- **Acceptance**: C (session switching and running status)
+- **Status**: Automated isolated Electron regression
 
 #### E2E-207: Open large and long sessions through bounded transcript windows
 
@@ -4702,13 +4779,16 @@ window; opening a normal panel afterward must still work.
   context. 2) Open two distinct file artifacts, the same first file again,
   a URL preview, and a completed Bash row. 3) Verify the header is a tablist:
   open enough tabs to overflow it, confirm only the strip scrolls and the `+`
-  trigger stays visible, activate the scrolled-away tab, and close tabs with
-  hover/focus `×` and middle-click. Drag a tab across another tab and verify
-  the before/after drop indicator, resulting order, and unchanged active tab;
-  hold a drag at each strip edge until hidden tabs scroll into view, then verify
-  the indicator follows the newly visible targets. Repeat with
-  `Alt+ArrowLeft`/`Alt+ArrowRight`. With only one or two tabs, drag unused
-  header space to move the native window; tab and action clicks must still
+  trigger stays visible, and activate the scrolled-away tab. Right-click an
+  inactive tab and choose Close Other Tabs; verify the pointed-to tab remains
+  and becomes active, and that the action is disabled with one tab. Reopen
+  multiple artifacts, then right-click and choose Close All Tabs; confirm the
+  panel remains open on the New launcher. Reopen resources before checking
+  hover/focus `×`, middle-click, drag reorder, insertion indicators, and edge
+  auto-scroll. Open a tab menu with Shift+F10, navigate its items with arrows,
+  and press Escape to leave the tabs unchanged. With only one or two tabs, drag
+  unused header space to move the native window; tab and action clicks must
+  still work without moving it.
   work without moving it. 4) Click `+` twice and verify each click
   creates and activates a separate New launcher tab. Confirm the launcher body
   contains Review plus each in-scope plugin view exactly once as clickable rows;
@@ -4753,17 +4833,22 @@ window; opening a normal panel afterward must still work.
   opacity/slide, so MainChat reflows continuously without a pre-animation jump.
   Opening the panel, collapsing it, or committing a divider resize updates the
   presentation without a native-window jump. The header is a horizontally
+  Opening the panel, collapsing it, or committing a divider resize updates the
+  presentation without a native-window jump. The header is a horizontally
   scrollable tablist with stable `92px–180px` tabs, visible spacing, and a
   fixed `+`; labels stay readable instead of shrinking into one cluster, the
   strip alone scrolls, active tabs scroll into view, and close selects the
-  right neighbor then left. New launcher tabs expose Review and in-scope plugin
-  views as body buttons, with no popup to overlap or shift the panel. Dragging a
-  tab shows a before/after insertion indicator, edge-holding scrolls the strip
-  toward hidden tabs, and reorders only the tab array; the active resource stays
-  active. `Alt+ArrowLeft`/`Alt+ArrowRight` provides the same reorder path from
-  the focused tab. Clicking a launcher row replaces
-  that New tab with the destination or activates its existing singleton.
-  Closing the last tab leaves the panel open on New. Collapse
+  right neighbor then left. A localized, keyboard-navigable tab context menu
+  offers Close Tab, Close Other Tabs, and Close All Tabs. Close Other Tabs
+  retains and activates its target and is disabled for one tab; Close All Tabs
+  closes Browser resources and leaves the panel open on New. New launcher tabs
+  expose Review and in-scope plugin views as body buttons, with no popup to
+  overlap or shift the panel. Dragging a tab shows a before/after insertion
+  indicator, edge-holding scrolls the strip toward hidden tabs, and reorders
+  only the tab array; the active resource stays active. `Alt+ArrowLeft`/
+  `Alt+ArrowRight` provides the same reorder path from the focused tab. Clicking
+  a launcher row replaces that New tab with the destination or activates its
+  existing singleton.
   retains runtime tabs but hides the panel until another artifact reopens it.
   Width follows the shared three-column budget with no fixed pixel cap and
   previews its current/minimum/maximum values through the panel separator. The
@@ -4795,7 +4880,9 @@ window; opening a normal panel afterward must still work.
 - **Milestone**: M5
 - **Status**: Unit-covered (`work-panel-resize.test.mjs`,
   `work-panel-window.test.mjs`, `work-panel-presentation.test.mjs`,
-  `work-panel.test.mjs`); full UI scenario Draft
+  `work-panel-tabs.test.mjs`, `browser-tab-restore.test.mjs`,
+  `work-panel.test.mjs`); isolated Electron context-menu user path and close
+  geometry in `scripts/e2e-work-panel-tab-close.mjs`; full UI scenario Draft
 
 #### E2E-057: Message-owned review history survives commits and rolls back safely
 

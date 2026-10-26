@@ -100,9 +100,9 @@ fn a_new_database_carries_the_owner_column_at_the_current_schema_version() {
     // v17 added the owner column, v18 the turn-queue priority column,
     // v19 session omit, v21 the session Todo checklist, and v22 the
     // session-list index, v23 the session title source, and v24 the worktree
-    // registry. A fresh database is stamped with the newest version, so the
+    // registry; v25 adds model discovery state. A fresh database is stamped with the newest version, so the
     // column set is the current one.
-    assert_eq!(SCHEMA_VERSION, 24);
+    assert_eq!(SCHEMA_VERSION, 25);
     let version: i64 = db
         .conn()
         .query_row("PRAGMA user_version", [], |row| row.get(0))
@@ -190,6 +190,7 @@ fn empty_api_key_model_list_uses_the_cached_endpoint_discovery() {
             capabilities: vec!["text".to_string()],
             context_window: Some(128_000),
         }],
+        true,
     )
     .unwrap();
 
@@ -274,6 +275,7 @@ fn dropping_a_declared_model_forgets_its_cached_row() {
                 context_window: None,
             },
         ],
+        true,
     )
     .unwrap();
     assert_eq!(providers::list_models(&db, Some(row_id)).unwrap().len(), 3);
@@ -330,6 +332,7 @@ fn moving_a_declared_endpoint_forgets_the_discovered_answer() {
                 context_window: Some(8_000),
             },
         ],
+        true,
     )
     .unwrap();
     assert_eq!(providers::list_models(&db, Some(row_id)).unwrap().len(), 2);

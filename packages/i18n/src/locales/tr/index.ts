@@ -2094,6 +2094,8 @@ sklm: {
       open: "Yeni",
     },
     closeTab: "{{name}} öğesini kapat",
+    closeOtherTabs: "Diğer sekmeleri kapat",
+    closeAllTabs: "Tüm sekmeleri kapat",
     tabs: {
       review: "İnceleme",
       browser: "Tarayıcı",

@@ -196,3 +196,16 @@ test("a nested owner holds its own position and passes the hold outward", () => 
   // still in follow mode would drag the same title away.
   assert.match(anchorControl, /outerNotifier\?\.\(title\);/);
 });
+
+test("a level's reading protection is restricted to its body and excludes its title toggle", () => {
+  // Focus on the toggle header itself must not mark the level as 'reading'
+  // and force it open prematurely before click completes.
+  assert.match(
+    disclosure,
+    /const ownsReading = useCallback\(\s*\(\) => ownsReadingPosition\(bodyRef\.current\),\s*\[\],\s*\);/,
+  );
+  assert.match(
+    disclosure,
+    /const syncReading = useCallback\(\s*\(\) => setReading\(ownsReadingPosition\(bodyRef\.current\)\),\s*\[\],\s*\);/,
+  );
+});

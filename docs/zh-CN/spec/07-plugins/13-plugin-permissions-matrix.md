@@ -14,7 +14,7 @@
 | `ui.panel` | 低 | 打开插件面板 | 安装时授予 | 几乎所有 UI 插件都需要 |
 | `ui.view` | 低 | `contributes.views` 在工作面板中列出并可打开 | 安装时授予 | 与面板窗口同级隔离：沙箱页面、按插件划分的会话分区、`net.domains` 出口限制。按激活范围过滤 |
 | `ui.theme` | 低 | `contributes.themes` CSS 已在“设置”中加载并提供 | 安装时授予 | CSS 由主机清理；它无法编写脚本。已声明的 `assets` 通过主机的只读 `plugin-asset:` 协议提供 |
-| `ui.settings` | 低 | `contributes.settingsDestinations` 在“扩展”中添加沙盒设置项 | 安装时授予 | 仅在宿主“扩展”分组中呈现；使用与面板视图相同沙箱的隔离视图宿主（ADR 0261） |
+| `ui.settings` | 低 | `contributes.scenicThemes` 在“扩展”中添加沙盒设置项 | 安装时授予 | 仅在宿主“扩展”分组中呈现；使用与面板视图相同沙箱的隔离视图宿主（ADR 0261） |
 | `ui.window.appearance` | 低 | 该插件主题被选中时，用 `contributes.windowAppearance` 设置原生窗口背景 | 安装时授予 | 仅接受 `#rrggbb` / `#rrggbbaa`；按解析后的明暗生效，主题消失后回到宿主默认值。macOS 保持 vibrancy |
 | `clipboard.read` | 中等 | `clipboard.readText`、`clipboard.getHistory` | 首次使用时确认 | 可能会读取敏感信息和保留的剪贴板历史 |
 | `clipboard.write` | 中等 | `clipboard.writeText` | 首次使用时确认 | 防止剪贴板污染 |
@@ -114,13 +114,13 @@ manifest 里的字段负责回答「能做到多远」。两个字段都由主�
   `session:turnEnded` 和 `plugin:settingsChanged` 走既有的插件事件通道，
   订阅未知的事件名也不会报错
 
-## 3A。 Plan 操作状态规则
+## 3A. Plan 操作状态规则
 
-每个 `agentTools` 贡献都会在 Plan 中被拒绝，无论此矩阵的值如何
-风险或违约政策。 `agent.tool.register` 授权注册
-Agent，在 Plan 中不可见。主机返回 `PLUGIN_DISABLED_IN_PLAN`
-直接 Plan 调用并记录拒绝。仅插件工具符合资格
-在同一个 Agent 被批准进入 Agent 模式后。
+插件工具默认在 Plan/Goal 中隐藏并拒绝。运行时工具注册可通过非空 `planSafeActions`
+显式加入，只有 `args.action` 位于该列表时才允许执行。有 schema action enum 时会校验取值。
+清单描述符应与运行时注册保持一致，真正执行的工具由运行时注册决定。
+`risk: "low"`、会话授权和 `auto` 不能代替该声明。宿主策略与插件执行器都会校验，
+执行器对越界 action 返回 `PERMISSION_DENIED`。该列表是作者的只读承诺，不是副作用沙盒（ADR 0211）。
 
 ## 4. 权限显示副本
 
@@ -187,9 +187,9 @@ assertPermission(pluginId, perm) {
 
 ```ts
 assertFsAccess(pluginId, mode, requestedPath, sessionId) {
- assertPermission(pluginId, `fs.${mode}`)              // 已声明且已授予
+ assertPermission(pluginId, `fs.${mode}`)              // declared AND granted
  full = realpathWithinRoot(root(pluginId, mode, sessionId), requestedPath)
- if (!full) throw NOT_FOUND | INVALID_ARGUMENT         // 先解析软链
+ if (!full) throw NOT_FOUND | INVALID_ARGUMENT         // symlinks resolved first
  if (isDenied(full) || isHostReserved(full)) throw ERROR_PERMISSION_DENIED
  if (!inScope(full, declaredScope(pluginId, mode))) await confirmWithUser(...)
 }

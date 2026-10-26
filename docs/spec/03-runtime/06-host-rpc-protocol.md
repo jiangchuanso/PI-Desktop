@@ -791,7 +791,11 @@ against a live host, and replaying one after the final row would be wrong.
   deletes the stored key. Returns `{ provider }`, or `null` for an unknown id
 - `providers.getSecret` — main/host only, never reachable from the renderer
 - `providers.listModels` / `providers.cacheModels` — discovered model rows
-  and their host-side cache (ADR 0027 / ADR 0134)
+  and their host-side cache (ADR 0027 / ADR 0134). `cacheModels` accepts optional
+  `complete` (default false). Model rows expose optional `discoveryState`
+  (`published` / `unlisted`); omission is unknown. Only complete, nonempty
+  snapshots reconcile missing discovered rows, without changing configuration.
+  See provider-config schema for the conservative refresh and consumer rules.
 - `providers.testConnection`
 
 ### Agent capabilities (skills, subagents, MCP servers)

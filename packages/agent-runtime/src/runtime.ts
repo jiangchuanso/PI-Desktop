@@ -4,6 +4,8 @@ import {
   mutationTerminationAdvice, mutationTerminationMessage,
 } from "./mutation-recovery.js";
 import { resolveMcpToolSelection } from "./mcp-tool-selection.js";
+import { toolExecutionMode, withDynamicTaskExecutionMode } from "./tool-execution-policy.js";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { TOOL_ACTIVATION_SECTION, toolDeclarationPolicy, toolActivationSection, restoredToolActivation, syncToolActivation, type ToolDeclarationPolicy } from "./fixed-tool-declarations.js";
 import { orderSystemRows, SystemTranscriptJournal } from "./system-transcript-journal.js";
 import { planWorkspaceRequiredResult } from "./plan-workspace-error.js";
@@ -194,6 +196,7 @@ import { DelegationChainRegistry } from "./delegation-chain.js";
 import {
   extractReadFiles,
   isReadOnlyToolName,
+  listedReadFiles,
   originalTaskFromTranscript,
   rebuildChainsFromTranscript,
   selectChainRows,
@@ -517,6 +520,10 @@ export type DelegationStatus =
  */
 export type DelegationRecord = {
   delegationId: string;
+  /** Parent `Task` toolCallId that started this delegation. */
+  parentToolCallId?: string;
+  /** True when the delegate declares file-mutating tools (`Write` / `Edit`). */
+  writable?: boolean;
   /**
    * Chain id under which host-core keeps this Write/Edit subagent's own git
    * worktree in an isolated session (ADR 0329); absent otherwise.
@@ -1854,9 +1861,6 @@ export class DesktopAgentRuntime {
   /** The prompt this runtime composed last, so a mid-turn refresh can tell its
    * own prompt from a transient variant it must not clobber. */
   private composedSystemPrompt?: string;
-  /** Set when a refresh was skipped because a transient prompt variant owned the
-   * live prompt; that variant's cleanup applies it once the prompt is restored. */
-  private resumablePromptStale = false;
   /** Set by `abort` / `dispose` so a finishing delegate cannot restart the parent. */
   private runCancelled = false;
   /**
@@ -1887,6 +1891,10 @@ export class DesktopAgentRuntime {
   private commandShell: CommandShellOption;
   private baseProjectInstructions?: ProjectInstructions;
   private projectInstructions?: ProjectInstructions;
+  /** Weak argument identity binds preparation to the exact validated call, without retained IDs. */
+  private preparedPathToolArgs = new WeakMap<object, unknown>();
+  private builtinTools = new WeakSet<AgentTool>();
+  private instructionExecution = new AsyncLocalStorage<(instructions: ProjectInstructions | undefined) => void>();
   private projectMemory?: string;
   /** Per-prompt claims prevent repeated path-resolution RPCs for one directory. */
   private pathInstructionClaims = new Map<
@@ -2326,11 +2334,8 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       // Sequential execution also makes the host-confirmed mode change visible
       // before the next model request in the same run.
       beforeToolCall: (context) => this.beforeToolCall(context),
-      // Every tool except `Task` carries `executionMode: "sequential"`, and pi
-      // runs a batch sequentially as soon as it contains one such tool. So the
-      // only batch that actually runs concurrently is a batch of nothing but
-      // `Task` calls — subagent fan-out (ADR 0062) — and every existing tool
-      // ordering guarantee is untouched.
+      // pi prepares the entire parallel batch in source order before launching
+      // execution. Any sequential member still makes the whole batch sequential.
       toolExecution: "parallel",
       steeringMode: "all",
       // pi-agent-core 0.87 replaces shouldStopAfterTurn with finishTurn. A
@@ -2482,59 +2487,27 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
     const projectPrompt = projectInstructionsPrompt(this.projectInstructions);
     const memoryPrompt = projectMemoryPrompt(this.projectMemory);
     const optionalToolsPrompt = this.optionalToolsPrompt();
-    const resumablePrompt =
-      this.subagents.length > 0
-        ? this.delegationChains.promptBlock({
-            runningDelegationIds: this.runningDelegationIds(),
-          })
-        : "";
     this.composedSections = {
       runtime: this.baseSystemPrompt,
       ...(this.trackToolActivation && this.declarationPolicy ? {
         [TOOL_ACTIVATION_SECTION]: toolActivationSection(this.declarationPolicy.key, this.activeDeferredToolNames),
       } : {}),
       ...pluginSkillsPromptSections(this.pluginSkills),
+      // The resumable-delegation list deliberately stays out: it changes on
+      // every settlement, and a system-prompt change rewrites the request
+      // prefix provider prompt caches key on (ADR 0337). `TaskList` carries it
+      // instead, so the parent pays for it only when it reads it.
       context: composeModeSystemPrompt(this.mode, [
         ...(this.customSystemPrompt?.append ? [this.customSystemPrompt.append] : []),
         ...(optionalToolsPrompt ? [optionalToolsPrompt] : []),
         ...(projectPrompt ? [projectPrompt] : []),
         ...(memoryPrompt ? [memoryPrompt] : []),
-        ...(resumablePrompt ? [resumablePrompt] : []),
       ].join("\n\n")),
     };
     const composed = Object.values(this.composedSections).filter(Boolean).join("\n\n");
     this.composedSystemPrompt = composed;
     return composed;
   }
-
-  /**
-   * The resumable list changes when a delegation settles, so the prompt the
-   * parent reads on its next turn reflects it. Recomposing is only worth it
-   * when subagents exist at all, and only while the live prompt is still the
-   * one this runtime composed: a transient variant (the delegation nudge) owns
-   * it otherwise, and the next turn recomposes anyway.
-   */
-  private refreshResumablePrompt(): void {
-    if (this.subagents.length === 0) return;
-    if (!this.agent) return;
-    if (this.composedSystemPrompt === undefined) return;
-    if (this.agentSystemPromptContent() !== this.composedSystemPrompt) {
-      // A transient variant (the delegation nudge) owns the live prompt. Its
-      // own cleanup restores the composed text, and applies this refresh then,
-      // so a chain that settled mid-nudge is still listed on the next turn.
-      this.resumablePromptStale = true;
-      return;
-    }
-    this.setAgentSystemPrompt(this.composeSystemPrompt());
-  }
-
-  /** Apply a resumable-list refresh that a transient prompt variant deferred. */
-  private applyPendingResumablePrompt(): void {
-    if (!this.resumablePromptStale) return;
-    this.resumablePromptStale = false;
-    this.refreshResumablePrompt();
-  }
-
   /**
    * Host failures and mutation-failure termination are recorded per tool-call
    * id while the call runs; this is where they reach pi's tool-error channel.
@@ -2679,7 +2652,10 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       if (!this.isToolAllowedInMode(context.toolCall.name)) {
         return { block: true, reason: modeToolDenial(context.toolCall.name, this.mode) };
       }
-      return this.extensionToolCall(context);
+      const blocked = await this.extensionToolCall(context);
+      if (blocked?.block) return blocked;
+      await this.preparePathToolCall(context);
+      return undefined;
     }
     const enterKind = enterToolKind(context.toolCall.name);
     if (enterKind && this.mode !== "agent") {
@@ -3468,7 +3444,6 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
                 this.workspaceRoot ?? this.projectPath ?? this.scratchDir,
               )
           : undefined;
-        await this.loadPathInstructions(toolName, params);
         const isBash = toolName === "Bash";
         const timeoutMs = isBash ? commandTimeoutMs(params) : undefined;
         let progress = "";
@@ -3878,14 +3853,32 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
         // this line — the lock key, the host call, the transcript record — sees
         // canonical argument names only (D273).
         execute: async (toolCallId, rawParams, signal, onUpdate) => {
-          const params = normalizeToolParams(toolName, rawParams);
+          const prepared = typeof rawParams === "object" && rawParams !== null
+            && this.preparedPathToolArgs.has(rawParams);
+          const params = prepared
+            ? this.preparedPathToolArgs.get(rawParams as object)
+            : normalizeToolParams(toolName, rawParams);
+          if (prepared) this.preparedPathToolArgs.delete(rawParams as object);
           requireAliasedParams(toolName, params);
-          return PATH_MUTATING_TOOLS.has(toolName)
-            ? this.writeLocks.run(
-                isRecord(params) ? String(params.path ?? "") : "",
-                () => run(toolCallId, params, signal, onUpdate),
-              )
-            : run(toolCallId, params, signal, onUpdate);
+          if (READ_ONLY_CORE_TOOLS.has(toolName)) {
+            await this.waitForBatchWritableDelegations(toolCallId, signal);
+          }
+          // Direct/internal invocations retain preflight. pi invocations have
+          // already committed instructions in the ordered preparation phase.
+          if (!prepared) await this.loadPathInstructions(toolName, params, this.instructionExecution.getStore());
+          if (PATH_MUTATING_TOOLS.has(toolName)) {
+            return this.writeLocks.run(
+              this.pathLockKey(toolCallId, params),
+              () => run(toolCallId, params, signal, onUpdate),
+            );
+          }
+          if (toolName === "Read") {
+            return this.writeLocks.read(
+              this.pathLockKey(toolCallId, params),
+              () => run(toolCallId, params, signal, onUpdate),
+            );
+          }
+          return run(toolCallId, params, signal, onUpdate);
         },
       };
     };
@@ -3963,6 +3956,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       tools.push("PluginScaffold", "PluginPack", "GenerateImages", ...Object.keys(scheduledToolParameters));
     }
     const builtins = tools.map(exec);
+    for (const tool of builtins) this.builtinTools.add(tool);
     const jevTools: AgentTool[] =
       this.mode === "agent" && this.jevApiKey
         ? [createJevClassifierTool(this.jevApiKey)]
@@ -4035,6 +4029,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
             this.buildSubagentStopTool(),
           ]
         : [];
+    for (const tool of subagentTools) this.builtinTools.add(tool);
     const contextTools = this.compactionEnabled
       ? [this.buildContextCompactionTool()]
       : [];
@@ -4064,23 +4059,26 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
     for (const tool of this.buildToolDefinitions()) {
       if (!this.isToolAllowedInMode(tool.name) && !retainModeToolDeclaration(tool.name)) continue;
       // The execution mode is decided here, in one place, so no tool can grow
-      // an accidental parallel batch: everything is sequential except `Task`.
-      // pi runs a whole batch sequentially when it holds one sequential tool,
-      // so only an all-`Task` batch fans out.
+      // an accidental parallel batch: unknown tools remain sequential.
+      // pi runs a whole batch sequentially when it holds one sequential tool;
+      // the batch-level policy also keeps Task mixed with file reads behind
+      // the delegate completion boundary.
       // The provider-facing schema is settled here too, at the single origin of
       // every tool, so the session agent and a delegated `Task` run send the
       // same declaration (#864).
-      catalog.set(
-        tool.name,
+      const builtin = this.builtinTools.has(tool);
+      const catalogTool = withDynamicTaskExecutionMode(
         withModeExecutionGuard(
           withExplicitRequired({
             ...tool,
-            executionMode:
-              tool.name === SUBAGENT_TOOL_NAME ? "parallel" : "sequential",
+            executionMode: builtin ? toolExecutionMode(tool.name) : "sequential",
           }),
           () => this.isToolAllowedInMode(tool.name) ? undefined : modeToolDenial(tool.name, this.mode),
         ),
+        () => this.agent?.state.messages.at(-1),
       );
+      if (builtin) this.builtinTools.add(catalogTool);
+      catalog.set(tool.name, catalogTool);
     }
     this.toolCatalog = catalog;
     this.deferredToolNames = new Set(
@@ -4482,7 +4480,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
    * collaboration rules are deliberately left out — a delegate has no user to
    * talk to, and its report format is set by `composeSubagentSystemPrompt`.
    */
-  private subagentGuidance(definition: SubagentDefinition): string[] {
+  private subagentGuidance(definition: SubagentDefinition, instructions: ProjectInstructions | null | undefined = this.projectInstructions): string[] {
     const tools = new Set(
       resolveSubagentToolNames(definition, [...this.toolCatalog.keys()]),
     );
@@ -4509,7 +4507,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       const skillsPrompt = pluginSkillsPrompt(this.pluginSkills);
       if (skillsPrompt) blocks.push(skillsPrompt);
     }
-    const projectPrompt = projectInstructionsPrompt(this.projectInstructions);
+    const projectPrompt = projectInstructionsPrompt(instructions ?? undefined);
     if (projectPrompt) blocks.push(projectPrompt);
     return blocks;
   }
@@ -4750,7 +4748,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       // Set in `rebuildToolCatalog`, which owns every execution mode; repeated
       // here so the intent survives a tool built outside that path.
       executionMode: "parallel",
-      execute: async (toolCallId, params) => {
+      execute: async (toolCallId, params, signal) => {
         const requested = isRecord(params) ? String(params.agent ?? "") : "";
         const definition = this.subagents.find(
           (candidate) => candidate.name === normalizeSubagentName(requested),
@@ -4885,13 +4883,10 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
           ? this.seedResumedDelegate(resumedChain, provider)
           : undefined;
         if (resume && !initialMessages) {
-          // The chain resolved but has nothing left to replay. Drop it so the
-          // prompt stops advertising an id that can never be continued, and
-          // report the drop without listing that same id as reusable.
-          if (resumedChain) {
-            this.delegationChains.drop(resumedChain.delegateSessionId);
-            this.refreshResumablePrompt();
-          }
+          // The chain resolved but has nothing left to replay. Drop it so it
+          // stops being advertised as reusable, and report the drop without
+          // listing that same id as reusable.
+          if (resumedChain) this.delegationChains.drop(resumedChain.delegateSessionId);
           return this.subagentToolError(
             toolCallId,
             this.noHistoryResumeMessage(resume),
@@ -4957,6 +4952,8 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
         });
         const record: DelegationRecord = {
           delegationId,
+          parentToolCallId: toolCallId,
+          writable: declaredToolNames.some((name) => PATH_MUTATING_TOOLS.has(name)),
           taskTurnId: this.turnId,
           agentName: definition.name,
           modelId: provider.modelId,
@@ -4981,7 +4978,16 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
         this.delegations.set(delegationId, record);
         let subagentRun: SubagentRun;
         try {
-          const scopedTools = this.scopeDelegateTools(tools, definition, delegationId, worktreeKey);
+          const delegatePrompt = (instructions: ProjectInstructions | undefined) => composeSubagentSystemPrompt({
+            definition,
+            guidance: this.subagentGuidance(definition, instructions ?? null),
+            toolNames: declaredToolNames,
+          });
+          const applyInstructions = (instructions: ProjectInstructions | undefined) => {
+            subagentRun.setSystemPrompt(delegatePrompt(instructions));
+          };
+          const builtinToolNames = new Set(tools.filter((tool) => this.builtinTools.has(tool)).map((tool) => tool.name));
+          const scopedTools = this.scopeDelegateTools(tools, definition, delegationId, worktreeKey, applyInstructions);
           subagentRun = new SubagentRun({
             definition,
             sessionId: this.sessionId,
@@ -5013,6 +5019,10 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
               toolNames: declaredToolNames,
             }),
             tools: scopedTools,
+            beforeToolCall: async (context) => {
+              await this.preparePathToolCall(context, applyInstructions, builtinToolNames);
+              return undefined;
+            },
             onEvent: (envelope) => {
               this.noteDelegationActivity(record, envelope);
               this.onEvent(envelope);
@@ -5104,8 +5114,11 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
     tools: AgentTool[],
     definition: SubagentDefinition,
     mutationOwner: string,
-    worktreeKey?: string,
+    worktreeKeyOrApply?: string | ((instructions: ProjectInstructions | undefined) => void),
+    applyInstructions?: (instructions: ProjectInstructions | undefined) => void,
   ): AgentTool[] {
+    const worktreeKey = typeof worktreeKeyOrApply === "string" ? worktreeKeyOrApply : undefined;
+    const apply = typeof worktreeKeyOrApply === "function" ? worktreeKeyOrApply : applyInstructions;
     const scope = definition.permission ?? DEFAULT_SUBAGENT_PERMISSION;
     return tools.map((tool) => ({
       ...tool,
@@ -5116,7 +5129,10 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
         }
         if (worktreeKey) this.delegateWorktrees.set(toolCallId, worktreeKey);
         try {
-          return await tool.execute(toolCallId, args, signal, onUpdate);
+          return await this.instructionExecution.run(
+            apply ?? (() => undefined),
+            () => tool.execute(toolCallId, args, signal, onUpdate),
+          );
         } finally {
           this.delegatePermissionScopes.delete(toolCallId);
           this.delegateWorktrees.delete(toolCallId);
@@ -5222,7 +5238,9 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
     } finally {
       this.clearMutationRecovery(record.delegationId);
       this.refreshDelegationWait();
-      this.refreshResumablePrompt();
+      // The settlement reaches `TaskList` on its next read; nothing here may
+      // touch the system prompt, which would invalidate the provider's prompt
+      // cache mid-session (ADR 0337).
       this.pruneFinishedDelegations();
     }
   }
@@ -5760,22 +5778,42 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       name: SUBAGENT_LIST_TOOL_NAME,
       label: "Task List",
       description:
-        "List the subagents started by Task in this session with their status. Use it to check progress without waiting, or before TaskStop to choose what to stop.",
+        "List the subagents started by Task in this session with their status, plus the subagent sessions that `Task(resume: ...)` can continue. Use it to check progress without waiting, to find a resumable delegation id, or before TaskStop to choose what to stop.",
       parameters: Type.Object({}),
       executionMode: "sequential",
       execute: async () => {
         const delegations = [...this.delegations.values()].sort(
           (left, right) => left.startedAt - right.startedAt,
         );
-        const text =
+        // Resumability is reported here rather than in the system prompt
+        // (ADR 0337): the list changes on every settlement, and rewriting the
+        // instructions mid-session invalidates the provider's cached request
+        // prefix. A result the model reads on demand costs nothing otherwise.
+        const runningDelegationIds = this.runningDelegationIds();
+        const resumable = this.delegationChains.resumableList({
+          runningDelegationIds,
+        });
+        const text = [
           delegations.length === 0
             ? "No subagents have been started in this session."
             : delegations
                 .map((record) => `- ${formatDelegationHeartbeat(record)}`)
-                .join("\n");
+                .join("\n"),
+          this.delegationChains.resumableBlock({ runningDelegationIds }),
+        ]
+          .filter((part) => part.trim())
+          .join("\n\n");
         return {
           content: [{ type: "text", text }],
-          details: { delegations: delegations.map(delegationSummary) },
+          details: {
+            delegations: delegations.map(delegationSummary),
+            resumable: resumable.map((chain) => ({
+              agent: chain.agentName,
+              delegationId: chain.latestDelegationId,
+              objective: chain.latestObjective,
+              ...listedReadFiles(chain.readFiles),
+            })),
+          },
         };
       },
     };
@@ -6197,9 +6235,93 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
     }
   }
 
+  private pathLockKey(toolCallId: string, params: unknown): string {
+    const rawPath = isRecord(params) ? String(params.path ?? "") : "";
+    if (!rawPath) return "";
+    const worktreeKey = this.delegateWorktrees.get(toolCallId);
+    return worktreeKey ? `${worktreeKey}\0${rawPath}` : rawPath;
+  }
+
+  /**
+   * When a parent assistant message mixes `Task` with `Read`/`Glob`/`Grep`, any
+   * read ordered after a writable `Task` in that same message waits for the
+   * preceding writable delegation(s) from that message to settle before reading
+   * the workspace, while `Task` itself still returns its ADR 0089 started state.
+   */
+  private async waitForBatchWritableDelegations(
+    toolCallId: string,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    if (!toolCallId || this.mutationOwners.has(toolCallId)) return;
+    const messages = this.agent?.state.messages ?? [];
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      const message = messages[index];
+      if (message.role !== "assistant" || !Array.isArray(message.content)) continue;
+      const toolCalls = message.content.filter(
+        (block): block is Extract<AssistantMessage["content"][number], { type: "toolCall" }> =>
+          block.type === "toolCall",
+      );
+      const currentIndex = toolCalls.findIndex((call) => call.id === toolCallId);
+      if (currentIndex < 0) continue;
+      if (currentIndex === 0) return;
+      const precedingTaskIds = new Set(
+        toolCalls
+          .slice(0, currentIndex)
+          .filter((call) => call.name === SUBAGENT_TOOL_NAME)
+          .map((call) => call.id),
+      );
+      if (precedingTaskIds.size === 0) return;
+      const running = [...this.delegations.values()].filter(
+        (record) =>
+          record.status === "running" &&
+          record.writable === true &&
+          record.parentToolCallId !== undefined &&
+          precedingTaskIds.has(record.parentToolCallId),
+      );
+      if (running.length === 0) return;
+      const completions = Promise.all(running.map((record) => record.completion));
+      if (!signal) {
+        await completions;
+        return;
+      }
+      if (signal.aborted) return;
+      await new Promise<void>((resolve) => {
+        const onAbort = () => resolve();
+        signal.addEventListener("abort", onAbort, { once: true });
+        void completions.finally(() => {
+          signal.removeEventListener("abort", onAbort);
+          resolve();
+        });
+      });
+      return;
+    }
+  }
+
+  private async preparePathToolCall(
+    context: BeforeToolCallContext,
+    apply?: (instructions: ProjectInstructions | undefined) => void,
+    builtinToolNames?: ReadonlySet<string>,
+  ): Promise<void> {
+    const name = context.toolCall.name;
+    const selected = context.context?.tools?.find((tool) => tool.name === name);
+    const builtin = builtinToolNames ? builtinToolNames.has(name) : selected && this.builtinTools.has(selected);
+    if (!builtin) return;
+    if (!builtinToolNames && READ_ONLY_CORE_TOOLS.has(name)) {
+      await this.waitForBatchWritableDelegations(context.toolCall.id);
+    }
+    if (!PATH_SCOPED_INSTRUCTION_TOOLS.has(name)) return;
+    const params = normalizeToolParams(name, context.args);
+    requireAliasedParams(name, params);
+    await this.loadPathInstructions(name, params, apply);
+    if (typeof context.args === "object" && context.args !== null) {
+      this.preparedPathToolArgs.set(context.args, params);
+    }
+  }
+
   private async loadPathInstructions(
     toolName: string,
     params: unknown,
+    apply?: (instructions: ProjectInstructions | undefined) => void,
   ): Promise<void> {
     if (this.remoteWorkspace || !PATH_SCOPED_INSTRUCTION_TOOLS.has(toolName)) {
       return undefined;
@@ -6235,7 +6357,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
     // Rules are scoped to the file currently being accessed. Rebuild the
     // complete chain so sibling-directory rules never leak into one another
     // and edits to an existing instruction file take effect immediately.
-    this.applyProjectInstructions(
+    (apply ?? ((instructions) => this.applyProjectInstructions(instructions)))(
       resolved.fallback ? this.baseProjectInstructions : resolved.instructions,
     );
   }
@@ -6586,7 +6708,6 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       if (this.agentSystemPromptContent() === promptWithNudge) {
         this.setAgentSystemPrompt(promptBefore);
       }
-      this.applyPendingResumablePrompt();
       this.silentTurnRerunInProgress = false;
       this.suppressSilentTurnRunEnd = false;
     }
@@ -6697,7 +6818,6 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       if (this.agentSystemPromptContent() === promptWithNudge) {
         this.setAgentSystemPrompt(promptBefore);
       }
-      this.applyPendingResumablePrompt();
       this.progressTurnRerunInProgress = false;
       this.suppressProgressTurnRunEnd = false;
     }
@@ -8782,7 +8902,6 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
     // turn can be searched again when the new task actually needs it.
     this.subagentOverrideProviders = {};
     this.resetDeferredToolsForPrompt();
-    this.refreshResumablePrompt();
     // Claims are message-scoped: a later prompt must observe edited or newly
     // created instruction files instead of reusing a previous chain.
     this.pathInstructionClaims.clear();
@@ -8917,7 +9036,6 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       this.activateDeferredTools(selectedTools);
       this.setAgentTools(this.activeTools());
     }
-    this.refreshResumablePrompt();
     this.pathInstructionClaims.clear();
     this.pendingUserMessageId = userMessageId;
     this.resetRunRecoveryState();

@@ -675,6 +675,13 @@ export function listedReadFiles(
   return { files: files.slice(0, limit), omitted: files.length - limit };
 }
 
+/**
+ * Render the resumable chains for a tool result.
+ *
+ * This text used to ride in the parent's system prompt, which made every
+ * settlement rewrite the request prefix providers cache on (ADR 0337). It is
+ * now carried by `TaskList`, so the parent reads it when it needs the ids.
+ */
 export function formatResumableList(chains: readonly ResumableChain[]): string {
   if (chains.length === 0) return "";
   const lines = [

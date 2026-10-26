@@ -1297,6 +1297,11 @@ entirely inside the plugin's isolated page:
   the strip toward off-screen tabs. `Alt+ArrowLeft`/`Alt+ArrowRight` reorders
   the focused tab without changing its active state. The `+` trigger remains
   fixed beside the strip and creates a new launcher tab.
+- Tab context menu: right-clicking a tab or invoking its context-menu key while
+  focused opens a localized menu with Close Tab, Close Other Tabs, and Close All
+  Tabs. Close Other Tabs keeps and activates the pointed-to tab and is disabled
+  when it is the only tab. Close All Tabs releases Browser pages, empties the
+  strip, and leaves the panel open on the New launcher.
 - New launcher: each `+` click creates a unique, active New tab. Its body uses
   the Review-plus-plugin tool list as buttons. Selecting a row replaces the
   launcher tab with that destination or activates its existing singleton.
@@ -1359,6 +1364,8 @@ entirely inside the plugin's isolated page:
   `aria-controls`, roving `tabIndex`, and localized close buttons.
   ArrowLeft/ArrowRight/Home/End move through tabs; Delete/Backspace and
   middle-click close the focused tab. The `+` button is a direct action with a
+  Right-click, Shift+F10, or the context-menu key on a focused tab opens a
+  localized `role="menu"` with the shared arrow/Enter/Escape navigation.
   localized label and no popup state. A New tab's body is a labelled
   `role="tabpanel"` containing a labelled `role="group"` of ordinary buttons;
   the legacy no-tab reveal remains a plain labelled group. Each resource body

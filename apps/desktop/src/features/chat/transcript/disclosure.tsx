@@ -144,11 +144,11 @@ export function useAutomaticDisclosure(
   currentOpen.current = open;
 
   const ownsReading = useCallback(
-    () => ownsReadingPosition(titleRef.current, bodyRef.current),
+    () => ownsReadingPosition(bodyRef.current),
     [],
   );
   const syncReading = useCallback(
-    () => setReading(ownsReadingPosition(titleRef.current, bodyRef.current)),
+    () => setReading(ownsReadingPosition(bodyRef.current)),
     [],
   );
 

@@ -18729,20 +18729,24 @@ host-created files. The full app's file-preview viewer is covered separately.
   and an isolated profile. Only a local HTTPS fixture and local proxy are used;
   trust is confined to the test process/session and fixture certificate.
 - **Steps:** Run `node scripts/e2e-provider-client-certificate.mjs`. Confirm the
-  original `net.fetch` aborts before HTTP. Probe the model list and connection
-  through the real metadata service; repeat with an invalid fixture key and an
-  authenticated custom HTTP proxy. Return a cross-origin redirect, then cancel
-  a pending response. Every stage is bounded to its own deadline: Electron 43 can
-  leave the client-certificate request pending while ignoring its signal on
-  Linux, so the run records that before-HTTP pending state and drives the
-  recovery transport directly instead of waiting on the platform request.
+  original `net.fetch` aborts before HTTP, then drive the recovery transport the
+  composition falls back to: the fixture model with a valid key, HTTP 401 with an
+  invalid one, an authenticated custom proxy, localhost bypass, and cancellation
+  of a pending response. Only then probe the model list and connection through
+  the composed metadata service and return a cross-origin redirect. Every stage
+  is bounded to its own deadline and recorded in a stage trace, because Electron
+  43 can leave the client-certificate request pending - or freeze the process over
+  it - while ignoring the `AbortSignal` it was given on Linux. The security
+  assertions come first so a freeze in the trailing platform observation cannot
+  take them with it.
 - **Expected:** Valid credentials return the fixture model; invalid credentials
   reach HTTP 401. The retry follows the proxy route, sends no client identity,
   refuses cross-origin redirects and aborts with the original signal. A pending
-  platform request must leave the fixture at zero requests, and a composed probe
-  or composed cross-origin refusal is asserted whenever the platform aborts
-  before HTTP; the refusal is also pinned by
-  `provider-endpoint-probe.test.mjs`.
+  platform request must leave the fixture at the request count it started with,
+  and the composed probe and composed cross-origin refusal are asserted whenever
+  the platform aborts before HTTP; the refusal is also pinned by
+  `provider-endpoint-probe.test.mjs`. A probe killed after the transport stages
+  reports a warning with its stage trace instead of failing the step.
 - **Security coverage:** `provider-https-metadata.test.mjs` additionally checks
   mandatory client authentication, untrusted server certificates, hostname
   mismatch, compressed responses, and late-tunnel cleanup. The metadata policy

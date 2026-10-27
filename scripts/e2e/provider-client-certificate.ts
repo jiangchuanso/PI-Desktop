@@ -142,31 +142,12 @@ void app.whenReady().then(async () => {
     assert.equal(requests, 0, "the original Electron 43 failure precedes HTTP");
     console.log(`baseline: Electron 43 net.fetch ${baseline === DEADLINE ? "stalled" : "failed"} before HTTP`);
 
-    // The composed path is what users get, but the platform request underneath
-    // it is not deterministic. Record which behaviour this run observed instead
-    // of failing on platform timing: a recovery happens when the request aborts
-    // before HTTP, and a pending request proves only that nothing left the host.
-    enter("composed-probe");
-    const composed = await bounded(PLATFORM_DEADLINE_MS, () =>
-      probeModelList({ baseUrl, apiKey: "fixture", signal: AbortSignal.timeout(PROBE_BUDGET_MS) }));
-    const composedRecovers = composed !== DEADLINE;
-    if (composedRecovers) {
-      assert.deepEqual(composed.models, [{ modelId: "fixture-model", displayName: "fixture-model" }]);
-      enter("composed-endpoint");
-      const endpoint = await bounded(PLATFORM_DEADLINE_MS, () =>
-        probeProviderEndpoint({ baseUrl, apiKey: "fixture", signal: AbortSignal.timeout(PROBE_BUDGET_MS) }));
-      if (endpoint === DEADLINE) console.log("endpoint: the Chromium request stayed pending before HTTP");
-      else assert.equal(endpoint.status, 200);
-    } else {
-      assert.equal(requests, 0, "a pending platform request must not send HTTP");
-      console.log("platform: the Chromium request stayed pending before HTTP");
-    }
-
-    // Everything below drives the recovery transport the composition would have
-    // used, so the security assertions hold on every platform regardless of
-    // Chromium timing. It authenticates through the real loopback SOCKS relay and
-    // sends no client identity: the fixture asserts an empty peer certificate on
-    // every request it accepts.
+    // The recovery transport below is what the composition falls back to, and it
+    // is deterministic: real loopback SOCKS relay, real TLS, and no client
+    // identity (the fixture asserts an empty peer certificate on every request it
+    // accepts). Every security assertion is made here first: the Chromium request
+    // that would carry them through the composed path is the one that can freeze
+    // this process on this platform, and a frozen process cannot assert anything.
     const retry = (overrides: { apiKey?: string; signal?: AbortSignal } = {}) =>
       fetchProviderWithoutClientCertificate(`${baseUrl}/models`, {
         headers: { Authorization: `Bearer ${overrides.apiKey ?? "fixture"}` },
@@ -192,23 +173,8 @@ void app.whenReady().then(async () => {
     assert.equal(tunnels, beforeBypass, "localhost bypass must apply to the retry transport");
     await applyNetworkProxy({ mode: "direct" });
 
-    mode = "redirect";
-    enter("composed-redirect");
-    const redirect = await bounded(PLATFORM_DEADLINE_MS, () =>
-      probeModelList({ baseUrl, apiKey: "fixture", signal: AbortSignal.timeout(PROBE_BUDGET_MS) })
-        .then((probe) => ({ settled: probe }), (error: unknown) => ({ settled: error })));
-    if (redirect === DEADLINE) {
-      // Not reachable through the composition on this platform; the refusal is
-      // pinned deterministically by provider-endpoint-probe.test.mjs.
-      console.log("redirect: the Chromium request stayed pending; the refusal is covered by unit tests");
-    } else {
-      const refusal = redirect.settled;
-      assert.ok(refusal instanceof Error, "a cross-origin redirect must be refused");
-      assert.match(refusal.message, /left the configured origin/);
-    }
-
-    mode = "stall";
     enter("retry-abort");
+    mode = "stall";
     const controller = new AbortController();
     const started = new Promise<void>((resolve) => { requestStarted = resolve; });
     const pending = retry({ signal: controller.signal });
@@ -216,6 +182,47 @@ void app.whenReady().then(async () => {
     assert.notEqual(reached, DEADLINE, "the stalled request never reached the fixture");
     controller.abort();
     await assert.rejects(pending, { name: "AbortError" });
+    mode = "models";
+    // Everything the product owes a user is asserted at this point.
+    enter("transport-passed");
+
+    // What follows is the platform observation. The composed probe is what users
+    // get, but the Chromium request underneath it is not deterministic on Linux:
+    // it either aborts before HTTP (the recovery runs) or stays pending. Record
+    // which one this run saw instead of failing on platform timing.
+    const beforeComposed = requests;
+    enter("composed-probe");
+    const composed = await bounded(PLATFORM_DEADLINE_MS, () =>
+      probeModelList({ baseUrl, apiKey: "fixture", signal: AbortSignal.timeout(PROBE_BUDGET_MS) }));
+    if (composed === DEADLINE) {
+      assert.equal(requests, beforeComposed, "a pending platform request must not send HTTP");
+      console.log("platform: the Chromium request stayed pending before HTTP");
+    } else {
+      assert.deepEqual(composed.models, [{ modelId: "fixture-model", displayName: "fixture-model" }]);
+      enter("composed-endpoint");
+      const endpoint = await bounded(PLATFORM_DEADLINE_MS, () =>
+        probeProviderEndpoint({ baseUrl, apiKey: "fixture", signal: AbortSignal.timeout(PROBE_BUDGET_MS) }));
+      if (endpoint === DEADLINE) {
+        console.log("endpoint: the Chromium request stayed pending before HTTP");
+      } else {
+        assert.equal(endpoint.status, 200);
+        mode = "redirect";
+        enter("composed-redirect");
+        const redirect = await bounded(PLATFORM_DEADLINE_MS, () =>
+          probeModelList({ baseUrl, apiKey: "fixture", signal: AbortSignal.timeout(PROBE_BUDGET_MS) })
+            .then((probe) => ({ settled: probe }), (error: unknown) => ({ settled: error })));
+        if (redirect === DEADLINE) {
+          // Unreachable through the composition on this platform; the refusal is
+          // pinned deterministically by provider-endpoint-probe.test.mjs.
+          console.log("redirect: the Chromium request stayed pending; the refusal is covered by unit tests");
+        } else {
+          const refusal = redirect.settled;
+          assert.ok(refusal instanceof Error, "a cross-origin redirect must be refused");
+          assert.match(refusal.message, /left the configured origin/);
+        }
+        mode = "models";
+      }
+    }
 
     console.log("provider client certificate E2E passed");
     enter("passed");

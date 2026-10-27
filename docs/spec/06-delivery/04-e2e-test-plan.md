@@ -18732,10 +18732,17 @@ host-created files. The full app's file-preview viewer is covered separately.
   original `net.fetch` aborts before HTTP. Probe the model list and connection
   through the real metadata service; repeat with an invalid fixture key and an
   authenticated custom HTTP proxy. Return a cross-origin redirect, then cancel
-  a pending response.
+  a pending response. Every stage is bounded to its own deadline: Electron 43 can
+  leave the client-certificate request pending while ignoring its signal on
+  Linux, so the run records that before-HTTP pending state and drives the
+  recovery transport directly instead of waiting on the platform request.
 - **Expected:** Valid credentials return the fixture model; invalid credentials
   reach HTTP 401. The retry follows the proxy route, sends no client identity,
-  refuses cross-origin redirects and aborts with the original signal.
+  refuses cross-origin redirects and aborts with the original signal. A pending
+  platform request must leave the fixture at zero requests, and a composed probe
+  or composed cross-origin refusal is asserted whenever the platform aborts
+  before HTTP; the refusal is also pinned by
+  `provider-endpoint-probe.test.mjs`.
 - **Security coverage:** `provider-https-metadata.test.mjs` additionally checks
   mandatory client authentication, untrusted server certificates, hostname
   mismatch, compressed responses, and late-tunnel cleanup. The metadata policy

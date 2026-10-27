@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { X509Certificate } from "node:crypto";
 import { once } from "node:events";
-import { readFileSync } from "node:fs";
+import { appendFileSync, readFileSync } from "node:fs";
 import { createServer as createHttpsServer } from "node:https";
 import { createServer as createHttpServer } from "node:http";
 import { connect, type Socket } from "node:net";
@@ -66,6 +66,27 @@ const PLATFORM_DEADLINE_MS = 6_000;
 const DEADLINE = Symbol("deadline");
 
 /**
+ * Stage trace on disk.
+ *
+ * A stalled platform request can block this process while its buffered stdout
+ * never flushes, so the captured log cannot say how far the probe got. Every
+ * stage boundary and a one-second heartbeat are appended synchronously; the
+ * parent reads the file after the child exits and prints it beside the output.
+ */
+const trace = join(process.argv[2], "stages.log");
+function mark(line: string): void {
+  try { appendFileSync(trace, `${new Date().toISOString()} ${line}\n`); } catch { /* profile already removed */ }
+}
+let stage = "start";
+function enter(name: string): void {
+  stage = name;
+  mark(`stage ${name}`);
+}
+enter("start");
+const heartbeat = setInterval(() => mark(`tick ${stage}`), 1_000);
+heartbeat.unref();
+
+/**
  * Race one stage against its own deadline.
  *
  * Electron 43 leaves its client certificate responder unimplemented, and the
@@ -106,6 +127,7 @@ void app.whenReady().then(async () => {
 
     // The original failure has to precede HTTP. Whether the platform request
     // aborts or stays pending, the fixture must have seen no request at all.
+    enter("baseline");
     const baseline = await bounded(PROBE_BUDGET_MS, () =>
       net.fetch(`${baseUrl}/models`).then(() => "response" as const, (error: unknown) => error));
     if (baseline === "response") {
@@ -124,11 +146,13 @@ void app.whenReady().then(async () => {
     // it is not deterministic. Record which behaviour this run observed instead
     // of failing on platform timing: a recovery happens when the request aborts
     // before HTTP, and a pending request proves only that nothing left the host.
+    enter("composed-probe");
     const composed = await bounded(PLATFORM_DEADLINE_MS, () =>
       probeModelList({ baseUrl, apiKey: "fixture", signal: AbortSignal.timeout(PROBE_BUDGET_MS) }));
     const composedRecovers = composed !== DEADLINE;
     if (composedRecovers) {
       assert.deepEqual(composed.models, [{ modelId: "fixture-model", displayName: "fixture-model" }]);
+      enter("composed-endpoint");
       const endpoint = await bounded(PLATFORM_DEADLINE_MS, () =>
         probeProviderEndpoint({ baseUrl, apiKey: "fixture", signal: AbortSignal.timeout(PROBE_BUDGET_MS) }));
       if (endpoint === DEADLINE) console.log("endpoint: the Chromium request stayed pending before HTTP");
@@ -149,15 +173,19 @@ void app.whenReady().then(async () => {
         redirect: "manual",
         signal: overrides.signal ?? AbortSignal.timeout(PROBE_BUDGET_MS),
       });
+    enter("retry-models");
     const served = await retry();
     assert.equal(served.status, 200);
     assert.deepEqual(await served.json(), { data: [{ id: "fixture-model" }] });
+    enter("retry-unauthorized");
     assert.equal((await retry({ apiKey: "wrong" })).status, 401);
 
+    enter("retry-proxy");
     await applyNetworkProxy({ mode: "custom", url: `http://fixture:password@127.0.0.1:${proxyAddress.port}`, bypass: "<-loopback>" });
     const before = tunnels;
     assert.equal((await retry()).status, 200);
     assert.ok(tunnels > before, "the retry must use the configured authenticated proxy");
+    enter("retry-bypass");
     await applyNetworkProxy({ mode: "custom", url: `http://fixture:password@127.0.0.1:${proxyAddress.port}` });
     const beforeBypass = tunnels;
     assert.equal((await retry()).status, 200);
@@ -165,6 +193,7 @@ void app.whenReady().then(async () => {
     await applyNetworkProxy({ mode: "direct" });
 
     mode = "redirect";
+    enter("composed-redirect");
     const redirect = await bounded(PLATFORM_DEADLINE_MS, () =>
       probeModelList({ baseUrl, apiKey: "fixture", signal: AbortSignal.timeout(PROBE_BUDGET_MS) })
         .then((probe) => ({ settled: probe }), (error: unknown) => ({ settled: error })));
@@ -179,6 +208,7 @@ void app.whenReady().then(async () => {
     }
 
     mode = "stall";
+    enter("retry-abort");
     const controller = new AbortController();
     const started = new Promise<void>((resolve) => { requestStarted = resolve; });
     const pending = retry({ signal: controller.signal });
@@ -188,11 +218,13 @@ void app.whenReady().then(async () => {
     await assert.rejects(pending, { name: "AbortError" });
 
     console.log("provider client certificate E2E passed");
+    enter("passed");
     await disposeSystemProxyRelay();
     for (const socket of sockets) socket.destroy();
     await Promise.all([new Promise<void>((resolve) => server.close(() => resolve())), new Promise<void>((resolve) => proxy.close(() => resolve()))]);
     app.exit(0);
   } catch (error) {
+    mark(`failed ${String(error)}`);
     console.error(error);
     app.exit(1);
   }

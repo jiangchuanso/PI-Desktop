@@ -2,7 +2,7 @@
 /** Real Electron net.fetch + model discovery against an isolated TLS fixture. */
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -36,11 +36,16 @@ try {
   // the job's 30-minute budget and is cancelled with no failing step to read
   // (#1751 hit exactly this). Escalate to SIGKILL after a short grace period.
   const { code, killedBy } = await waitForChildExitWithEscalation(child);
+  // The probe records every stage boundary and a heartbeat on disk, because a
+  // stalled platform request can freeze the child while its buffered stdout
+  // never arrives. Read it after the exit so a hang names its stage.
+  const stages = await readFile(join(temp, "stages.log"), "utf8").catch(() => "");
+  if (stages) process.stdout.write(`--- stages ---\n${stages}`);
   assert.equal(
     killedBy,
     null,
-    `provider client certificate E2E hung and was killed by ${killedBy} after ${killedBy === "SIGKILL" ? 65 : 60}s: ${output}`,
+    `provider client certificate E2E hung and was killed by ${killedBy} after ${killedBy === "SIGKILL" ? 65 : 60}s: ${output}\n--- stages ---\n${stages}`,
   );
-  assert.equal(code, 0, output);
+  assert.equal(code, 0, `${output}\n--- stages ---\n${stages}`);
   assert.match(output, /provider client certificate E2E passed/);
 } finally { await rm(temp, { recursive: true, force: true }); }

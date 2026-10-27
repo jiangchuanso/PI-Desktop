@@ -4297,18 +4297,18 @@ window; opening a normal panel afterward must still work.
 - **Status**: Unit-covered (`main-process-errors.test.mjs`); packaged Windows
   proxy journey Documented
 
-#### E2E-195: Linux glibc below 2.31 names supported distros
+#### E2E-195: Linux glibc below 2.35 names supported distros
 
 - **Preconditions**: Linux x64 or arm64 packaged app; the machine glibc is older than
-  2.31 (for example Ubuntu 18.04 / Debian 10 / Fedora 32), or a test doubles
-  `process.report` to `2.30`.
+  2.35 (for example Ubuntu 20.04 / Debian 11 / Fedora 35), or a test doubles
+  `process.report` to `2.31`.
 - **Steps**: 1) Launch the AppImage, deb, or rpm. 2) Observe the main window and
   fatal banner. 3) Confirm host-core is not restarted in a loop.
 - **Expected**: Electron still opens. There is no uncaught `write EPIPE`
-  dialog. The fatal banner says the build needs glibc 2.31 or newer and names
-  Ubuntu 20.04 / 银河麒麟 V10 SP1, Ubuntu 22.04, Debian 12, and Fedora 36+.
-  Restart supervision does not spin. A host-core binary whose symbols need glibc
-  2.39 fails `scripts/check-linux-host-glibc.mjs`.
+  dialog. The fatal banner says the build needs glibc 2.35 or newer and names
+  Ubuntu 22.04, Debian 12, and Fedora 36+. Restart supervision does not spin.
+  A host-core binary whose symbols need glibc 2.39 fails
+  `scripts/check-linux-host-glibc.mjs`.
 - **Specs linked**: `03-runtime/07-process-model.md`,
   `01-product/01-product-scope.md`, `06-delivery/06-release-runbook.md`
 - **Acceptance**: H (diagnostics), Quality (main path no crash)
@@ -18770,25 +18770,15 @@ host-created files. The full app's file-preview viewer is covered separately.
 - **Preconditions:** The locked Electron 43 runtime, built workspace packages,
   and an isolated profile. Only a local HTTPS fixture and local proxy are used;
   trust is confined to the test process/session and fixture certificate.
-- **Steps:** Run `node scripts/e2e-provider-client-certificate.mjs`. Confirm the
-  original `net.fetch` aborts before HTTP, then drive the recovery transport the
-  composition falls back to: the fixture model with a valid key, HTTP 401 with an
-  invalid one, an authenticated custom proxy, localhost bypass, and cancellation
-  of a pending response. Only then probe the model list and connection through
-  the composed metadata service and return a cross-origin redirect. Every stage
-  is bounded to its own deadline and recorded in a stage trace, because Electron
-  43 can leave the client-certificate request pending - or freeze the process over
-  it - while ignoring the `AbortSignal` it was given on Linux. The security
-  assertions come first so a freeze in the trailing platform observation cannot
-  take them with it.
+- **Steps:** Run `node scripts/e2e-provider-client-certificate.mjs`. Confirm one
+  real `net.fetch` fails or stalls before HTTP. Replay that isolated fixture
+  failure for subsequent probes to avoid a second Chromium TLS handshake, then
+  exercise model discovery and connection through the real metadata fallback;
+  repeat with an invalid fixture key and an authenticated custom HTTP proxy.
+  Return a cross-origin redirect, then cancel a pending response.
 - **Expected:** Valid credentials return the fixture model; invalid credentials
   reach HTTP 401. The retry follows the proxy route, sends no client identity,
-  refuses cross-origin redirects and aborts with the original signal. A pending
-  platform request must leave the fixture at the request count it started with,
-  and the composed probe and composed cross-origin refusal are asserted whenever
-  the platform aborts before HTTP; the refusal is also pinned by
-  `provider-endpoint-probe.test.mjs`. A probe killed after the transport stages
-  reports a warning with its stage trace instead of failing the step.
+  refuses cross-origin redirects and aborts with the original signal.
 - **Security coverage:** `provider-https-metadata.test.mjs` additionally checks
   mandatory client authentication, untrusted server certificates, hostname
   mismatch, compressed responses, and late-tunnel cleanup. The metadata policy

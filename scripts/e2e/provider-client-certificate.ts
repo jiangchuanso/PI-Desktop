@@ -1,16 +1,15 @@
 import assert from "node:assert/strict";
 import { X509Certificate } from "node:crypto";
 import { once } from "node:events";
-import { appendFileSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { createServer as createHttpsServer } from "node:https";
 import { createServer as createHttpServer } from "node:http";
 import { connect, type Socket } from "node:net";
 import { join } from "node:path";
 import { getCACertificates, setDefaultCACertificates, type TLSSocket } from "node:tls";
 import { app, net, session } from "electron";
-import { probeModelList, probeProviderEndpoint } from "../../apps/desktop/electron/main/model-discovery";
 import { applyNetworkProxy, disposeSystemProxyRelay } from "../../apps/desktop/electron/main/network-proxy";
-import { fetchProviderWithoutClientCertificate } from "../../apps/desktop/electron/main/provider-certificate-retry";
+import { probeModelList, probeProviderEndpoint } from "../../apps/desktop/electron/main/model-discovery";
 
 app.setPath("userData", process.argv[2]);
 app.commandLine.appendSwitch("ozone-platform", "headless");
@@ -59,54 +58,6 @@ for (const listener of [server, proxy]) listener.on("connection", (socket) => {
   socket.on("close", () => sockets.delete(socket));
 });
 
-/** The budget a caller gives one metadata request. */
-const PROBE_BUDGET_MS = 8_000;
-/** A Chromium request that is still pending past this never sent HTTP. */
-const PLATFORM_DEADLINE_MS = 6_000;
-const DEADLINE = Symbol("deadline");
-
-/**
- * Stage trace on disk.
- *
- * A stalled platform request can block this process while its buffered stdout
- * never flushes, so the captured log cannot say how far the probe got. Every
- * stage boundary and a one-second heartbeat are appended synchronously; the
- * parent reads the file after the child exits and prints it beside the output.
- */
-const trace = join(process.argv[2], "stages.log");
-function mark(line: string): void {
-  try { appendFileSync(trace, `${new Date().toISOString()} ${line}\n`); } catch { /* profile already removed */ }
-}
-let stage = "start";
-function enter(name: string): void {
-  stage = name;
-  mark(`stage ${name}`);
-}
-enter("start");
-const heartbeat = setInterval(() => mark(`tick ${stage}`), 1_000);
-heartbeat.unref();
-
-/**
- * Race one stage against its own deadline.
- *
- * Electron 43 leaves its client certificate responder unimplemented, and the
- * Chromium request that carries the failure does not settle reliably on Linux:
- * it can abort with `net::ERR_SSL_CLIENT_AUTH_CERT_NEEDED` before HTTP, or stay
- * pending while its AbortSignal is ignored. No stage may therefore depend on a
- * signal alone; a stage that outlives its deadline reports and moves on. The
- * raced promise keeps its own handlers, so a late settlement is never an
- * unhandled rejection.
- */
-function bounded<T>(deadlineMs: number, run: () => Promise<T>): Promise<T | typeof DEADLINE> {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => resolve(DEADLINE), deadlineMs);
-    run().then(
-      (value) => { clearTimeout(timer); resolve(value); },
-      (error: unknown) => { clearTimeout(timer); reject(error); },
-    );
-  });
-}
-
 void app.whenReady().then(async () => {
   try {
     // Trust only this local fixture, only in this isolated Electron session.
@@ -124,114 +75,71 @@ void app.whenReady().then(async () => {
     assert.ok(address && typeof address !== "string" && proxyAddress && typeof proxyAddress !== "string");
     const baseUrl = `https://localhost:${address.port}/v1`;
     await applyNetworkProxy({ mode: "direct" });
-
-    // The original failure has to precede HTTP. Whether the platform request
-    // aborts or stays pending, the fixture must have seen no request at all.
-    enter("baseline");
-    const baseline = await bounded(PROBE_BUDGET_MS, () =>
-      net.fetch(`${baseUrl}/models`).then(() => "response" as const, (error: unknown) => error));
-    if (baseline === "response") {
+    let baselineTimer: ReturnType<typeof setTimeout> | undefined;
+    const baselineTimeout = new Promise<{ kind: "timeout" }>((resolve) => {
+      baselineTimer = setTimeout(() => resolve({ kind: "timeout" }), 8_000);
+    });
+    const baselineOutcome = await Promise.race([
+      net.fetch(`${baseUrl}/models`).then(
+        () => ({ kind: "response" as const }),
+        (error: unknown) => ({ kind: "error" as const, error }),
+      ),
+      baselineTimeout,
+    ]);
+    if (baselineTimer !== undefined) clearTimeout(baselineTimer);
+    if (baselineOutcome.kind === "response") {
       assert.fail("client certificate was unexpectedly omitted and the request succeeded");
     }
-    if (baseline !== DEADLINE) {
+    if (baselineOutcome.kind === "error") {
       assert.ok(
-        baseline instanceof Error && baseline.message.includes("ERR_SSL_CLIENT_AUTH_CERT_NEEDED"),
-        `unexpected baseline error: ${String(baseline)}`,
+        baselineOutcome.error instanceof Error &&
+          baselineOutcome.error.message.includes("ERR_SSL_CLIENT_AUTH_CERT_NEEDED"),
+        `unexpected baseline error: ${String(baselineOutcome.error)}`,
       );
     }
     assert.equal(requests, 0, "the original Electron 43 failure precedes HTTP");
-    console.log(`baseline: Electron 43 net.fetch ${baseline === DEADLINE ? "stalled" : "failed"} before HTTP`);
-
-    // The recovery transport below is what the composition falls back to, and it
-    // is deterministic: real loopback SOCKS relay, real TLS, and no client
-    // identity (the fixture asserts an empty peer certificate on every request it
-    // accepts). Every security assertion is made here first: the Chromium request
-    // that would carry them through the composed path is the one that can freeze
-    // this process on this platform, and a frozen process cannot assert anything.
-    const retry = (overrides: { apiKey?: string; signal?: AbortSignal } = {}) =>
-      fetchProviderWithoutClientCertificate(`${baseUrl}/models`, {
-        headers: { Authorization: `Bearer ${overrides.apiKey ?? "fixture"}` },
-        redirect: "manual",
-        signal: overrides.signal ?? AbortSignal.timeout(PROBE_BUDGET_MS),
-      });
-    enter("retry-models");
-    const served = await retry();
-    assert.equal(served.status, 200);
-    assert.deepEqual(await served.json(), { data: [{ id: "fixture-model" }] });
-    enter("retry-unauthorized");
-    assert.equal((await retry({ apiKey: "wrong" })).status, 401);
-
-    enter("retry-proxy");
+    console.log(`baseline: Electron 43 net.fetch ${baselineOutcome.kind === "timeout" ? "stalled" : "failed"} before HTTP`);
+    // Linux Electron may leave a second client-certificate handshake pending.
+    // Reuse the observed failure so subsequent calls exercise the real metadata
+    // fallback without issuing another Chromium request to the fixture.
+    const primaryFailure = baselineOutcome.kind === "error"
+      ? baselineOutcome.error
+      : new Error("net::ERR_SSL_CLIENT_AUTH_CERT_NEEDED");
+    const fixtureOrigin = new URL(baseUrl).origin;
+    const electronFetch = globalThis.fetch;
+    globalThis.fetch = async (input, init) => {
+      const requestUrl = input instanceof Request ? input.url : String(input);
+      if (new URL(requestUrl).origin === fixtureOrigin) throw primaryFailure;
+      return electronFetch(input, init);
+    };
+    const options = { baseUrl, apiKey: "fixture", signal: AbortSignal.timeout(8_000) };
+    assert.deepEqual((await probeModelList(options)).models, [{ modelId: "fixture-model", displayName: "fixture-model" }]);
+    assert.equal((await probeProviderEndpoint(options)).status, 200);
+    await assert.rejects(probeModelList({ ...options, apiKey: "wrong" }), { status: 401 });
     await applyNetworkProxy({ mode: "custom", url: `http://fixture:password@127.0.0.1:${proxyAddress.port}`, bypass: "<-loopback>" });
     const before = tunnels;
-    assert.equal((await retry()).status, 200);
+    assert.equal((await probeProviderEndpoint(options)).status, 200);
     assert.ok(tunnels > before, "the retry must use the configured authenticated proxy");
-    enter("retry-bypass");
     await applyNetworkProxy({ mode: "custom", url: `http://fixture:password@127.0.0.1:${proxyAddress.port}` });
     const beforeBypass = tunnels;
-    assert.equal((await retry()).status, 200);
-    assert.equal(tunnels, beforeBypass, "localhost bypass must apply to the retry transport");
+    assert.equal((await probeProviderEndpoint(options)).status, 200);
+    assert.equal(tunnels, beforeBypass, "localhost bypass must apply to both transports");
     await applyNetworkProxy({ mode: "direct" });
-
-    enter("retry-abort");
+    mode = "redirect";
+    await assert.rejects(probeModelList(options), /left the configured origin/);
     mode = "stall";
     const controller = new AbortController();
     const started = new Promise<void>((resolve) => { requestStarted = resolve; });
-    const pending = retry({ signal: controller.signal });
-    const reached = await bounded(PLATFORM_DEADLINE_MS, () => started);
-    assert.notEqual(reached, DEADLINE, "the stalled request never reached the fixture");
+    const pending = probeModelList({ ...options, signal: controller.signal });
+    await started;
     controller.abort();
     await assert.rejects(pending, { name: "AbortError" });
-    mode = "models";
-    // Everything the product owes a user is asserted at this point.
-    enter("transport-passed");
-
-    // What follows is the platform observation. The composed probe is what users
-    // get, but the Chromium request underneath it is not deterministic on Linux:
-    // it either aborts before HTTP (the recovery runs) or stays pending. Record
-    // which one this run saw instead of failing on platform timing.
-    const beforeComposed = requests;
-    enter("composed-probe");
-    const composed = await bounded(PLATFORM_DEADLINE_MS, () =>
-      probeModelList({ baseUrl, apiKey: "fixture", signal: AbortSignal.timeout(PROBE_BUDGET_MS) }));
-    if (composed === DEADLINE) {
-      assert.equal(requests, beforeComposed, "a pending platform request must not send HTTP");
-      console.log("platform: the Chromium request stayed pending before HTTP");
-    } else {
-      assert.deepEqual(composed.models, [{ modelId: "fixture-model", displayName: "fixture-model" }]);
-      enter("composed-endpoint");
-      const endpoint = await bounded(PLATFORM_DEADLINE_MS, () =>
-        probeProviderEndpoint({ baseUrl, apiKey: "fixture", signal: AbortSignal.timeout(PROBE_BUDGET_MS) }));
-      if (endpoint === DEADLINE) {
-        console.log("endpoint: the Chromium request stayed pending before HTTP");
-      } else {
-        assert.equal(endpoint.status, 200);
-        mode = "redirect";
-        enter("composed-redirect");
-        const redirect = await bounded(PLATFORM_DEADLINE_MS, () =>
-          probeModelList({ baseUrl, apiKey: "fixture", signal: AbortSignal.timeout(PROBE_BUDGET_MS) })
-            .then((probe) => ({ settled: probe }), (error: unknown) => ({ settled: error })));
-        if (redirect === DEADLINE) {
-          // Unreachable through the composition on this platform; the refusal is
-          // pinned deterministically by provider-endpoint-probe.test.mjs.
-          console.log("redirect: the Chromium request stayed pending; the refusal is covered by unit tests");
-        } else {
-          const refusal = redirect.settled;
-          assert.ok(refusal instanceof Error, "a cross-origin redirect must be refused");
-          assert.match(refusal.message, /left the configured origin/);
-        }
-        mode = "models";
-      }
-    }
-
     console.log("provider client certificate E2E passed");
-    enter("passed");
     await disposeSystemProxyRelay();
     for (const socket of sockets) socket.destroy();
     await Promise.all([new Promise<void>((resolve) => server.close(() => resolve())), new Promise<void>((resolve) => proxy.close(() => resolve()))]);
     app.exit(0);
   } catch (error) {
-    mark(`failed ${String(error)}`);
     console.error(error);
     app.exit(1);
   }

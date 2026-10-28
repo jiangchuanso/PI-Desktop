@@ -774,8 +774,19 @@ may be retained while exactly one workspace supplies the visible shell context.
 - Sending a new prompt, retrying, or regenerating always re-pins follow mode and jumps to the bottom before the turn continues, even if the user had scrolled up
 - "Scroll to bottom" floating button appears as soon as manual upward scrolling
   releases follow mode
-- Click "Scroll to bottom" button: resumes auto-scroll and snaps to bottom
-- Stream completion: if user was auto-scrolling, keep at bottom; if manual, stay at position
+- Click "Scroll to bottom" button: resumes auto-scroll and snaps to bottom.
+  Record the pinned bookmark synchronously, before any smooth-scroll event:
+  immediately switching sessions or projects must preserve this follow intent
+  even if the original pane is hidden or unmounted before scrolling finishes.
+  Returning follows the latest output rather than restoring the old reading
+  offset. Manual upward reading without that click still retains its position.
+- Stream completion (D676): if the user was following a turn that completes,
+  its prompt scrolls to 16px below the titlebar band at the top of the
+  viewport so the answer reads from its start, follow mode is released, and
+  jump-to-latest appears. The view does not move when the prompt is already in
+  view, the turn failed or was aborted, the pane is hidden, or a queued
+  follow-up starts at once. If the user had scrolled manually, the view stays
+  at their position.
 - An asynchronously completed diagram height update follows the same rule:
   ResizeObserver keeps a pinned transcript at the bottom, while a user who has
   scrolled upward remains at their reading position.
@@ -883,7 +894,9 @@ may be retained while exactly one workspace supplies the visible shell context.
   under a different permission mode stays queued for the next turn. Promoted
   rows retain Remove until delivery and show Waiting to send. Removal
   waits for Host acknowledgement; if delivery wins the race, report that the
-  message has already started and direct the user to Stop.
+  message has already started and direct the user to Stop. With the composer
+  empty, the steering shortcut in §3.5 promotes the first waiting row the same
+  way, so Send now never requires the pointer.
 - Without Send now, the next FIFO row starts automatically after the active
   turn completes, fails, or is aborted. A terminal event can arrive before
   persistence releases the session; finalization must wake the queue again
@@ -897,6 +910,14 @@ may be retained while exactly one workspace supplies the visible shell context.
 - `Alt+Enter` submits the visible draft to the current turn immediately. On
   macOS this is `Option+Enter`. It works with Enter-to-send on or off and takes
   precedence over an open autocomplete menu. An idle composer sends normally.
+- With an empty composer the same shortcut sends the first waiting follow-up
+  now, exactly as that row's Send now action does, so a prompt queued during the
+  turn is not stranded above the composer. Rows still awaiting Host admission
+  and already promoted rows are skipped. A visible draft always takes
+  precedence over the queue, and a blocked composer promotes nothing. Like the
+  row action, this does not depend on the session's steering capability: where
+  steering is unavailable the Host keeps the promoted row queued, so the
+  shortcut sends the next queued follow-up as soon as the turn ends.
 - `Shift+Enter` and `Alt+Shift+Enter` insert a newline. An Enter confirming an
   IME candidate (`isComposing` or key code 229) never sends or steers.
 - Steering appears as a user message in the current transcript, clears the

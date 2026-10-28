@@ -1,4 +1,32 @@
-# 04. Data Storage (Schema v25)
+# 04. Data Storage (Schema v26)
+
+
+### Lossless tool-image storage (#1868)
+
+Transcript format 2 uses an optional storage-private `binaryStorage` version 1
+envelope. Each recognized image/blob string appears once in its record; typed
+JSON paths and exact text templates reconstruct the original structured result
+and JSON mirror. Templates preserve key order, whitespace and escape spelling. Nested proven
+mirrors share text references when their outer JSON string token has canonical
+JSON spelling, as produced by `JSON.stringify`; other spellings stay literal.
+Arbitrary narrative text is never inferred to be an image or a result mirror.
+The public `UiMessage`, plugin card inputs, extension context, model history and
+existing RPC request/response objects contain the complete decoded values.
+
+Live transcripts, revisions, checkpoints, compaction tails and the Desktop
+outbox share the lossless representation. A first append/update converts an
+existing legacy file through a verified sibling temporary file and atomic
+replacement. Reading alone never converts files. Conversion failure preserves
+the original and propagates an error. Invalid references/unknown codec versions
+are errors; restoration must not continue with an empty history.
+
+New code reads both plain legacy records and encoded records. Database schema
+26 is a version-only migration with a schema-25 backup: it stops older applications
+from misreading a new encoded file. It does not alter user configuration or
+rewrite transcripts at startup. Downgrading to an old application requires a
+complete compatible backup, not merely swapping the SQLite file. No external
+blob directory, new file cleanup lifecycle or lossy image transform is added.
+
 
 ## 0. Ownership decision
 
@@ -237,7 +265,7 @@ commit does not remove historical review evidence.
 per message; `seq` is implied by line order:
 
 ```jsonl
-{"type":"session","schema":1,"sessionId":"0b0e…","createdAt":"2026-07-26T09:00:00.000Z"}
+{"type":"session","schema":2,"sessionId":"0b0e…","createdAt":"2026-07-26T09:00:00.000Z"}
 {"type":"message","id":"m1","role":"user","createdAt":"…","blocks":[{"type":"text","text":"…"}]}
 {"type":"message","id":"m2","role":"tool","toolName":"Write","blocks":[{"type":"tool_call","callId":"c1","args":{},"result":{},"status":"success"}]}
 {"type":"message","id":"m3","role":"assistant","createdAt":"…","blocks":[{"type":"thinking","text":"…"},{"type":"text","text":"…"}],"meta":{"usage":{},"modelId":"…"}}
@@ -1193,6 +1221,14 @@ CREATE INDEX idx_message_revisions_root
   tool line appended by the persistence outbox in the meantime survives. A
   whole-transcript rewrite from a snapshot taken outside the host lock would
   delete it (ADR 0060).
+- Electron acknowledges the stamped root with `user_message_persisted`, using
+  the root's current message `id` as `optimisticMessageId`. This updates the
+  pager only where that exact user row is already loaded: the active transcript,
+  retained pane, and session cache. A root outside the current history window
+  must not be appended after the latest reply. Archive completion is not a new
+  user-message lifecycle event and does not change the loaded history boundary.
+  If no projection exists, the acknowledgement leaves the cache absent and
+  does not mark the session live, so later prefetch still loads durable history.
 - A branch keeps growing after its archive: later prompts append to it and an
   error-ended turn never reaches `agent_end`. So every operation that discards
   the live branch first writes it back over the revision it belongs to (D307):

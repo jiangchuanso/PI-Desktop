@@ -112,6 +112,7 @@ pi 消费排队输入时保留渲染器提供的消息 id；即使补充输入�
 6. 在 Electron main 的会话绑定路径边界上校验结构化附件，按 SHA-256 持久化
    图片字节，持久用户消息中只保留附件引用。只有处于视觉模型 10 MB 内联上限
    之内的图片才会被读进内存；更大的图片走流式哈希/复制以及既有的安全路径回退。
+   文件头显示最长边超过 8000 px 的图片（D675）同样走路径回退。
    草稿内联命名过位置的图片会把那段 `@path` 文本作为 `inlinePath` 随持久消息和
    sidecar 附件传递；运行时据此把图片块放在用户写下的位置，而不是统一追加在提示文本之后
    草稿里的 `pi-desktop://session/<id>` 链接在同一步骤里解析成有界摘录附件：只限
@@ -147,7 +148,7 @@ pi 消费排队输入时保留渲染器提供的消息 id；即使补充输入�
 ### 5d。有界提供商流恢复和诊断（D186、D245、D259、ADR 0091、ADR 0128）
 
 提供程序请求设置和流式传输交付是两个独立的故障阶段，但
-HTTP 429 处理是一个响应恢复策略。此路径禁用了 pi-ai 的嵌套
+吞吐限流 HTTP 429 使用同一个响应恢复策略。此路径禁用了 pi-ai 的嵌套
 适配器重试，因此运行时可以在两个阶段之间共享一个预算。
 
 `PROVIDER_RATE_LIMITED` 在初始尝试之后最多重试 10 次，总共 11 次
@@ -156,7 +157,9 @@ HTTP 429 处理是一个响应恢复策略。此路径禁用了 pi-ai 的嵌套
 回合中调用 `continue()`。两个阶段占用同一个计数器，因此设置阶段的
 429 后跟流阶段的 429 无法重置或倍增该预算。在两个阶段中，
 捕获的响应状态都会在对提供商消息进行分类之前应用，因此通用的
-429 正文仍会进入 429 预算，而已知的不可重试分类仍然是终止的。
+429 正文仍会进入 429 预算，而已知的不可重试分类仍然是终止的。明确的
+账单/账户额度耗尽（包括 `insufficient_quota` 和消费限额代码）即使状态为
+HTTP 429，也会成为终止的 `PROVIDER_ERROR`。
 主会话和内置子代理使用相同的控制器和策略。
 
 429 重试在转录生命周期上是静默的：没有中间助手错误、生命周期 `error`、
@@ -623,7 +626,9 @@ Goal 批准所承诺的内容与 Plan 批准所承诺的内容完全相同：`mo
   同样的重复还会让下一个边界的估算翻倍，并让备用模型拿到的末行无法被 `continue()` 续跑（D620）。
 - 视觉运行时只从会话绑定的附件、scratch 与项目根目录中水合持久化的图片引用。
   处于 10 MB 内联安全上限之内的图片会成为临时的 pi-ai 图片块；超限或不可用的
-  图片则退化为安全的 `@path` 回退。消息里内联命名过位置的图片（`inlinePath`）
+  图片则退化为安全的 `@path` 回退；文件头显示最长边超过 8000 px 的图片（D675）
+  同样如此。每次提供商请求还会把超过该像素上限的图片块（用户提示与工具结果都算）
+  替换成写明尺寸的文本说明，因此已经带着这种图片的会话也能恢复。消息里内联命名过位置的图片（`inlinePath`）
   会按那个位置拼回提示内容，重启后仍是用户写下的顺序。超限历史的水合会直接复制文件，不会先把内容
   读进内存。Base64 绝不会被还原进持久的 UI 消息或转录记录。
 - 失败的助理消息仍然是持久的诊断记录条目，但
@@ -1285,3 +1290,22 @@ retries and images retain physical account/model attribution. Nested immediate
 parent and owning Task remain distinct. The migration does not add coding-agent
 AgentSession, Codemode or virtual routing. See the coding-agent design review for
 future adoption conditions.
+
+
+Complete assistant responses are checked for malformed tool calls before any
+call in that response can execute. Missing or blank names/IDs, an empty
+Responses wire ID, and non-JSON-object arguments produce the existing terminal
+local `context-validation` error. The unexecuted batch is excluded from model
+context; visible text/thinking and the error remain available in the transcript.
+This does not guess a tool identity, repair arguments into an executable call,
+or spend the transport retry budget. Ordinary tool-schema failures still return
+tool feedback through Pi's existing validation path.
+
+Continue must also recover a runtime retained from an earlier failure. Model
+context projection removes malformed tool calls and their associated results,
+including retained compaction tails and resumed delegates, while preserving
+valid sibling calls/results, system updates, user messages and useful assistant
+content. The durable transcript is unchanged and completed tools are not
+re-executed. Other malformed context remains subject to strict validation.
+Tool token estimates are optional telemetry: an invalid call identity must not
+prevent the corresponding terminal tool event from being delivered.

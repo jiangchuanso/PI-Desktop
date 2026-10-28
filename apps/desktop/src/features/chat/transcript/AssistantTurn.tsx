@@ -56,6 +56,7 @@ import { AssistantTurnParts } from "./AssistantTurnParts";
 import { TurnProcess } from "./TurnProcess";
 import { ActionSlotSide } from "./ActionBarSlots";
 import { EntryExtraStack } from "./EntryExtraStack";
+import { TurnChangesCard } from "./TurnChangesCard";
 import { slotMessage } from "../../../plugins/renderer-slots/slot-message";
 
 type AssistantTurnProps = {
@@ -419,6 +420,9 @@ export const AssistantTurn = memo(function AssistantTurn({
             produced, not part of what it did. */}
         <AssistantTurnParts parts={responses} {...partContext} />
         {generatedImages}
+        {/* Mounted with the reply slots, so a streaming turn never grows it;
+            plugin entry extras stay beneath it. */}
+        {slotReply ? <TurnChangesCard tools={tools} /> : null}
         {!isActive && metaMessage ? (
           <MessageMeta
             modelId={modelId}

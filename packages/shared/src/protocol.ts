@@ -39,6 +39,16 @@ export const NATIVE_MENU_ACTIONS = [
 
 export type NativeMenuAction = (typeof NATIVE_MENU_ACTIONS)[number];
 
+export type WorkPanelTabMenuAction = "closeTab" | "closeOtherTabs" | "closeAllTabs";
+export type WorkPanelTabMenuRequest = {
+  closeTabLabel: string;
+  closeOtherTabsLabel: string;
+  closeAllTabsLabel: string;
+  canCloseOthers: boolean;
+  x: number;
+  y: number;
+};
+
 export const WINDOW_CONTROL_ACTIONS = [
   "getState",
   "minimize",
@@ -166,6 +176,8 @@ export const IPC = {
     sessionImportRun: "pi-desktop/session/importRun",
     modelConfigImportScan: "pi-desktop/modelConfig/importScan",
     modelConfigImportRun: "pi-desktop/modelConfig/importRun",
+    sessionDeleteMessage: "pi-desktop/session/deleteMessage",
+    sessionRetractPendingPrompt: "pi-desktop/session/retractPendingPrompt",
     sessionReplaceMessages: "pi-desktop/session/replaceMessages",
     sessionSaveRevision: "pi-desktop/session/saveRevision",
     sessionListRevisions: "pi-desktop/session/listRevisions",
@@ -436,6 +448,7 @@ export const IPC = {
     lifecycleDialogReady: "pi-desktop/window/lifecycleDialog/ready",
     lifecycleDialogRespond: "pi-desktop/window/lifecycleDialog/respond",
     menuRendererReady: "pi-desktop/menu/rendererReady",
+    workPanelTabMenu: "pi-desktop/workPanel/tabMenu",
     traySetSessionPreferences: "pi-desktop/tray/setSessionPreferences",
     nativeMenuAction: "pi-desktop/menu/nativeAction",
   },

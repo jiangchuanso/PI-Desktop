@@ -139,7 +139,8 @@ transcript-read API. The core runs no title completion of its own.
    boundary, persist image bytes by SHA-256, and retain only attachment refs in
    the durable user message. Only an image that is within the 10 MB inline
    bound for a vision model is read into memory; larger images use streamed
-   hashing/copying and the existing safe path fallback
+   hashing/copying and the existing safe path fallback. An image whose header
+   reports a longest edge above 8000 px (D675) also takes the path fallback
    A `pi-desktop://session/<id>` link in the draft is resolved in the same step
    into a bounded excerpt attachment: the same project only, the current
    conversation dropped before any read, and the runtime quotes it to the model
@@ -181,8 +182,9 @@ host-confirmed transition.
 ### 5d. Bounded provider recovery and diagnostics (D186, D245, D259, D378, ADR 0091, ADR 0128, ADR 0206)
 
 Provider request setup and stream delivery are separate failure phases, but
-HTTP 429 handling is one response-recovery policy. pi-ai's nested adapter retry is
-disabled for this path so the runtime can share one budget across both phases.
+throughput-limit HTTP 429s use one response-recovery policy. pi-ai's nested
+adapter retry is disabled for this path so the runtime can share one budget
+across both phases.
 
 `PROVIDER_RATE_LIMITED` receives at most ten retries after the initial
 attempt, for eleven provider attempts total. A setup 429 is retried inside the
@@ -191,8 +193,10 @@ the next model context and calls `continue()` in the same turn. Both phases
 claim the same counter, so a setup 429 followed by a stream 429 cannot reset or
 multiply the budget. The captured response status is applied before classifying
 the provider message in both phases, so a generic 429 body still enters the
-429 budget while known non-retryable classifications remain terminal. The main
-session and builtin subagents use the same controller and policy.
+429 budget while known non-retryable classifications remain terminal. Explicit
+billing/account exhaustion (including `insufficient_quota` and spend-limit
+codes) is terminal `PROVIDER_ERROR` even with HTTP 429. The main session and
+builtin subagents use the same controller and policy.
 
 429 retries are silent at the transcript lifecycle: no intermediate assistant
 error, lifecycle `error`, `turn_end`, `agent_end`, or duplicate assistant
@@ -235,6 +239,24 @@ retained user message, a retry uses that current compacted transcript. It
 removes any trailing assistant rows if present, but does not require an
 assistant message at the transcript tail before calling `continue()` (issue
 #1768).
+
+Complete assistant responses are checked for malformed tool calls before any
+call in that response can execute. Missing or blank names/IDs, an empty
+Responses wire ID, and non-JSON-object arguments produce the existing terminal
+local `context-validation` error. The unexecuted batch is excluded from model
+context; visible text/thinking and the error remain available in the transcript.
+This does not guess a tool identity, repair arguments into an executable call,
+or spend the transport retry budget. Ordinary tool-schema failures still return
+tool feedback through Pi's existing validation path.
+
+Continue must also recover a runtime retained from an earlier failure. Model
+context projection removes malformed tool calls and their associated results,
+including retained compaction tails and resumed delegates, while preserving
+valid sibling calls/results, system updates, user messages and useful assistant
+content. The durable transcript is unchanged and completed tools are not
+re-executed. Other malformed context remains subject to strict validation.
+Tool token estimates are optional telemetry: an invalid call identity must not
+prevent the corresponding terminal tool event from being delivered.
 
 Before surfacing a pre-stream `PROVIDER_ERROR` for HTTP 400/422 whose message
 ends in `(no body)`, the runtime makes at most one silent repair attempt with
@@ -817,7 +839,10 @@ attachment, scratch, and project roots. Each image remains subject to the 10 MB
 safety bound, and restored history has a 30 MB aggregate raw-byte budget.
 The newest refs are considered first; all eligible images remain image blocks
 when the history fits, while over-budget or oversized images become safe
-`@path` fallbacks. An image whose message names it inline (`inlinePath`) is
+`@path` fallbacks; so do images whose header reports a longest edge above
+8000 px (D675). Every provider request also replaces any image block past that
+pixel limit, in user prompts and tool results alike, with a text notice naming
+its size, so a session that already holds one recovers. An image whose message names it inline (`inlinePath`) is
 spliced back into the prompt at that position, so a restored turn keeps the
 order the user wrote. Reads are bounded by the admitted file size. Base64 is
 transient and never restored into durable UI messages or transcript records.

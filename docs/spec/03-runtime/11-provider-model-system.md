@@ -127,6 +127,10 @@ Non-official DeepSeek endpoints also set `requiresNonEmptyReasoningReplay` so
 missing reasoning is filled with a documented placeholder instead of `""`
 (OpenCode / third-party relays reject empty echoes after compaction; see
 ADR 0256 / #296). Official `deepseek.com` rows keep empty-string fill (#223).
+Every replayed assistant row carries one reasoning field, named after the
+newest row with real reasoning; real reasoning under another name is moved to
+it, so only rows with no reasoning are filled, and a leading echo of the
+placeholder in stored thinking is neither shown nor replayed (D677, #1945).
 Relay rows set `supportsReasoningEffort: false` because DeepSeek-family relays
 were reported rejecting the generic OpenAI `reasoning_effort` field (#1664).
 Official `deepseek.com` rows leave the flag to pi-ai, which sends

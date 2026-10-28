@@ -335,6 +335,10 @@ Gold source: local Codex electron captures; latest row wins where rows conflict.
 | D668 | One process disclosure per turn, with three transcript display modes | **Amend D661 / the `turn-process-and-thinking-display` ADR. A turn renders exactly one top-level process disclosure holding every pre-answer row; the answer stays outside it. `AppSettings.transcriptDisplayMode` selects the layout: `flat` renders no nested activity groups, `command-first` renders `Bash`/run rows as standalone rows beside activity groups, and `fully-folded` (the default for absent or invalid values) keeps commands inside their groups and lets only ordinary assistant progress text split them. The mode is read while rendering, so switching repaints immediately - the projection cache is keyed by messages and compactions only. The disclosure header reports failed / stopped / running / finished with precedence in that order and never echoes the current item, and the disclosure shares one left edge with the levels it reveals. `transcriptDisplayMode` joins the portable application fields; `keepCommandsExpanded` is deprecated, retained only for persisted-settings compatibility, and no longer exposed or read for rendering. No host protocol, persistence schema, permission, or plugin contract change. See the amended ADR, `04-ux/06-settings-ia.md`, `04-ux/08-component-spec.md`, `04-ux/09-interaction-patterns.md`, and E2E-CHAT-turn-process-and-thinking-display.** | Chronological segmentation split one turn into several sibling disclosures above the answer, and the boolean command-folding preference could only express two layouts; a three-mode setting covers flat, command-first, and the released grouped view without changing what a tool received or stored. |
 | D669 | `@` queries search past a truncated file index | **Amend D124: while the 8000-entry `fs/index` snapshot is truncated, a non-empty `@` query is also searched over the root's full listing through the read-only Electron channel `pi-desktop/fs/search` once typing pauses, and its best 50 rows merge with the local matches. A complete index never searches. Remote sessions keep their snapshot. No host RPC, storage, or schema change.** | The shallowest-8000-entry index left a script several folders down matching no query at all, even though the truncation note invited the reader to refine it (issue #1781). |
 | D671 | Inline generative UI visualizations | **Amend D114: local sessions get a second host-owned contained root `<data_dir>/visualizations/<sessionId>/` for `.html` fragments only (Read/Write/Edit, auto-allowed like scratch, never in remote or contract sessions). A standalone `::visualize{"path","title"}` reply line renders the fragment inline through a sandboxed `pi-genui://session/<sid>/<file>` iframe (`sandbox="allow-scripts"`, strict CSP, no network). Builtin skill `pi-desktop/visualize`. No schema change.** | Interactive explanations need an embedded page; ADR gen-ui-inline-visualization. |
+| D674 | Per-turn changed-files summary under a finished reply | **A completed reply whose turn recorded workspace review changes renders one read-only `TurnChangesCard` below its answer and above `entryExtra`, built only from that turn's message-owned `details.review` records (no new capture, IPC, or persistence). Rows merge edits per path (`D` if the turn ends by deleting, else `A` if any edit created the file, else `M`; counts summed; rolled-back files stay listed and struck through). Up to four files use relaxed rows, more use dense rows, and rows past 12 fold into `+N more`. Clicking a row opens Review on that file's recorded changes; the per-call review rows and the Review tab are unchanged.** | Issue #1891, design 10 (adaptive density): the per-call review rows answer "what did this call change", and Review answers it for the whole session, but nothing answered "what did this turn change" without counting rows. |
+| D675 | Inline images are admitted by pixel size as well as bytes | **Amend D361: an image whose PNG/JPEG/GIF/WebP header reports a longest edge above `MAX_INLINE_IMAGE_EDGE_PX` (8000) is never inlined. Host Read refuses it with `TOOL_FAILED`; prompt attachments and restored history take the existing `@path` fallback; and the runtime's last provider view replaces any such image block (user or tool result) with a text notice naming its size. The probe reads headers only (no decoder); unknown dimensions keep the byte-only rule. No protocol, schema, or persisted-format change.** | Issue #1913: a 1.89 MB, 780 x 14182 full-page screenshot passed every byte check, the provider rejected it with a non-retriable 400, and replay made every later request in that session fail. Dropping is deterministic for the same bytes, so the request prefix and prompt caching stay stable; resampling would need an image decoder and is deferred. |
+| D676 | A completed turn the reader followed ends at its prompt | **Amend the stream-completion rule: when a turn completes while the transcript is visible and still following the stream, the renderer scrolls that turn's newest user message to 16px below the titlebar band the transcript reserves at its top (smooth unless reduced motion), releases follow mode, and shows jump-to-latest. Nothing moves when the prompt is already in view, the reply failed or was aborted, the pane is hidden or in a reading window, a disclosure position is held, or a new run starts before the move. Renderer only; no setting, IPC, or persistence change.** | Issue #1889: after a long reply the reader sat at its last line and had to scroll back up to find where it began. |
+| D677 | DeepSeek reasoning replay uses one field per row and never covers real reasoning | **Amend ADR 0256 decision 3: the pi-ai fill pass takes the reasoning field from the newest assistant row that has real reasoning, normalizes every assistant row to that single field (moving real reasoning from another field name, deleting the others), and fills the placeholder only on rows with no reasoning. History rebuild and the thinking panel drop a leading echo of the placeholder (`withoutReasoningReplayPlaceholder`); stored text is not rewritten. No schema, IPC, or setting change.** | Issue #1945: rebuilt rows are stamped `reasoning_content` while a relay streams `reasoning_text`; the fill pass picked `reasoning_content` and wrote the placeholder over the live row's real reasoning, the model echoed it as its own thinking (13.6% of assistant rows in affected sessions), and the echo was persisted and replayed. |
 
 
 ## M0. Model catalog decisions
@@ -7996,3 +8000,85 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   `turn-process-and-thinking-display`, `04-ux/08-component-spec.md` §9,
   `04-ux/09-interaction-patterns.md` §4.2, and
   E2E-CHAT-turn-process-and-thinking-display.
+
+## 2026-10-28 — Per-turn changed-files summary (D674)
+
+- D674 adds a read-only `TurnChangesCard` under every completed reply whose
+  turn recorded at least one workspace review change (issue #1891, design 10).
+  It mounts with the reply plugin slots, so it never appears while streaming or
+  after a failed turn, and `entryExtra` blocks stay beneath it.
+- The card reads only the turn's message-owned `details.review` records through
+  `reviewChangeFromMessage`; no capture, IPC, persistence, or host-core change.
+  Rows merge edits per path: `D` when the turn ends by deleting the file, else
+  `A` when any edit created it, else `M`; counts add up; a file whose every edit
+  was rolled back stays listed and struck through.
+- Adaptive density: up to four files use relaxed 25px rows; more switch to dense
+  21px rows with a directory count; rows past 12 fold into `+N more` with a link
+  to Review. The card is one `--ds-tile` surface with no border (D297).
+- Clicking a row opens the originating session's Review tab, scrolls to that
+  file's first recorded change, and expands it, through a transient renderer
+  focus request (`lib/review-focus-request.ts`) rather than app-store state.
+  The per-call review rows and the Review tab otherwise keep their behavior.
+- Covered by `apps/desktop/test/turn-changes-card.test.mjs`. See
+  `04-ux/08-component-spec.md` §4.4 and E2E-CHAT-turn-changed-files-summary.
+
+## 2026-10-28 — Pixel-size image admission (D675)
+
+- D675 adds a header-only pixel-size probe (`packages/shared/src/image-dimensions.ts`,
+  mirrored in `crates/host-core/src/tools/image_dimensions.rs`) for PNG, JPEG,
+  GIF, and WebP. An image whose longest edge exceeds 8000 px is not inlined
+  (issue #1913).
+- Host Read refuses such a file with `TOOL_FAILED` and a message naming its
+  size, so it never enters history. Prompt attachments and restored history
+  keep the image ref and send the existing `@path` fallback instead of bytes.
+- `convertToLlm` replaces any remaining oversized image block (older sessions,
+  plugin or MCP results) with `[Image omitted: WxH px exceeds the 8000 px
+  longest-edge limit for model input.]`, which recovers a session that already
+  fails every request. The same bytes always produce the same notice, so
+  prompt caching is unaffected.
+- Images whose dimensions cannot be read keep the previous byte-only rule.
+  Resampling an oversized image instead of dropping it needs a decoder and is
+  not part of this change.
+- Covered by `packages/shared/src/image-dimensions.test.ts`,
+  `packages/agent-runtime/src/image-admission.test.ts`,
+  `packages/agent-runtime/src/attachment-history.test.ts`,
+  `apps/desktop/test/prompt-inline-attachments.test.mjs`, and host-core
+  `tools::image_dimensions` / `read_refuses_images_past_the_pixel_limit` tests.
+
+## 2026-10-28 — Completed turns end at their prompt (D676)
+
+- D676 replaces "stream completion keeps a following reader at the bottom":
+  when a followed turn completes, its prompt scrolls to the top of the
+  viewport and jump-to-latest appears (issue #1889). A reader who scrolled
+  away keeps their position.
+- The move waits for the reply's final status, runs one frame after the
+  settled reply lays out, and is skipped for failed or aborted turns, a prompt
+  already in view, a hidden pane or reading window, a held disclosure
+  position, and a queued follow-up that starts first.
+- Logic lives in `apps/desktop/src/lib/turn-completion-scroll.ts` and the
+  `useTurnCompletionScroll` hook beside `useTranscriptScroll`. Covered by
+  `apps/desktop/test/turn-completion-scroll.test.mjs` and
+  `pnpm test:e2e:transcript-turn-completion`
+  (E2E-CHAT-completed-turn-scrolls-to-prompt).
+
+## 2026-10-28 — One DeepSeek reasoning field per replayed row (D677)
+
+- D677 amends ADR 0256 decision 3 (issue #1945). The pi-ai fill pass in
+  `patches/@earendil-works__pi-ai@1.3.0.patch` picks the reasoning field of the
+  newest assistant row with real reasoning instead of the first field in a
+  fixed list, and normalizes every assistant row to it. Real reasoning stored
+  under another field name moves there; the other fields are removed, so a
+  row never carries two (relays reject duplicate reasoning fields).
+- The placeholder now fills only rows with no reasoning at all, so a live row
+  with real reasoning is never sent the placeholder in the field the model
+  reads.
+- `withoutReasoningReplayPlaceholder` (shared) drops a leading echo of the
+  placeholder, and its observed `[reasoning retained for this turn]` rewrite,
+  from stored thinking in session and delegate history rebuild and in
+  `messageThinking`, which feeds the thinking panel. Existing transcripts are
+  not rewritten; the echo simply stops being shown or replayed.
+- Not changed: strict relays still receive the non-empty placeholder for rows
+  with no reasoning (#296), and official DeepSeek keeps `""`.
+- Covered by `reasoning-content-backfill.test.ts`, `runtime.test.ts`,
+  `provider-presets.test.ts`, and `apps/desktop/test/assistant-turns.test.mjs`.
+  See E2E-005E.

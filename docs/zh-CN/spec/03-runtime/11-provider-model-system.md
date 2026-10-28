@@ -117,7 +117,9 @@ OpenAI 风格的 Copilot 线路 API 仍将令牌作为请求密钥签名；所�
 存成 `model.provider`，因此聚合网关与自定义端点会在无思考内容的助手回合漏掉
 `reasoning_content`。非官方 DeepSeek 端点还会设置 `requiresNonEmptyReasoningReplay`，
 用文档化的非空占位符而不是 `""` 填补缺失推理（OpenCode / 第三方中转在压缩后拒绝空回传；
-见 ADR 0256 / #296）。官方 `deepseek.com` 行仍使用空串回填（#223）。该覆盖不改
+见 ADR 0256 / #296）。官方 `deepseek.com` 行仍使用空串回填（#223）。每条回放的 assistant
+行只带一个推理字段，字段名取最新一条带真实推理的行；其他字段名下的真实推理会被移过去，
+因此只有没有推理的行才会被填充，已存储思考开头回显的占位符也不会被显示或回放（D677，#1945）。该覆盖不改
 `thinkingFormat`。中转行设置 `supportsReasoningEffort: false`，因为有 DeepSeek 系中转
 被报告拒绝通用 OpenAI 的 `reasoning_effort` 字段（#1664）。官方 `deepseek.com` 行把该标志
 交给 pi-ai，按 DeepSeek 文档在 `thinking: {type: "enabled"}` 旁发送 `reasoning_effort`

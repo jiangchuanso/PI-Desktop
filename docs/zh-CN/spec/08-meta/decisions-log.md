@@ -338,6 +338,10 @@
 | D668 | 每回合一个过程披露，并提供三种转录显示模式 | **修订 D661 / `turn-process-and-thinking-display` ADR：每个回合渲染一个顶层过程披露，包含回答前的全部行；回答留在披露之外。`AppSettings.transcriptDisplayMode` 选择布局：`flat` 不渲染嵌套活动组，`command-first` 将 `Bash`／run 行作为活动组旁的独立行，`fully-folded`（缺失或无效值的默认）让命令留在所属组内，且只有普通助手进度文字会拆分活动组。该模式在渲染时读取，因此切换后立即重绘——投影缓存只以消息和压缩为键。披露标题按失败／停止／执行中／已完成的优先级报告，且绝不回显当前条目；披露与它展开的层级共用一条左边缘。`transcriptDisplayMode` 加入可移植应用字段；`keepCommandsExpanded` 已弃用，仅为持久化设置兼容性保留，不再暴露，也不再参与渲染读取。无 Host 协议、持久化 schema、权限或插件契约变更。见修订后的 ADR、`04-ux/06-settings-ia.md`、`04-ux/08-component-spec.md`、`04-ux/09-interaction-patterns.md` 与 E2E-CHAT-turn-process-and-thinking-display。** | 按时间顺序的分段把同一回合拆成答案上方多个并列披露，而布尔命令折叠偏好只能表达两种布局；三种模式覆盖平铺、命令优先与已发布的分组视图，且不改变工具收到的内容或持久化内容。 |
 | D669 | `@` 查询越过被截断的文件索引 | **修订 D124：8000 条的 `fs/index` 快照被截断时，非空的 `@` 查询会在输入停顿后，通过只读的 Electron 通道 `pi-desktop/fs/search` 在该根目录的完整清单中搜索，最好的 50 行与本地匹配合并。完整的索引从不搜索。远程会话保持使用快照。不改变主机 RPC、存储或 schema。** | 只保留最浅 8000 条的索引，会让深几层目录里的脚本对任何查询都匹配不到，而截断提示还在邀请用户细化查询（issue #1781）。 |
 | D671 | 对话内联生成式 UI 可视化 | **修订 D114：本地会话新增第二个由宿主拥有的受控根目录 `<data_dir>/visualizations/<sessionId>/`，仅用于 `.html` 片段（Read/Write/Edit，与 scratch 一样免确认，远程会话和合约会话中不提供）。回复中单独一行 `::visualize{"path","title"}` 会通过沙箱化的 `pi-genui://session/<sid>/<file>` iframe（`sandbox="allow-scripts"`、严格 CSP、无网络）内联渲染该片段。内置 skill `pi-desktop/visualize`。不改变 schema。** | 交互式讲解需要内嵌页面；见 ADR gen-ui-inline-visualization。 |
+| D674 | 已完成回复下方的按轮文件变更汇总 | **回合记录了工作区审核变更的已完成回复，会在回答下方、`entryExtra` 上方渲染一张只读的 `TurnChangesCard`，只由该回合消息拥有的 `details.review` 记录构建（不新增采集、IPC 或持久化）。按路径合并多次编辑（回合以删除结束为 `D`，否则有创建即为 `A`，其余为 `M`；计数累加；已回滚文件保留并显示删除线）。不超过四个文件用宽松行，更多用密集行，超过 12 行折叠为 `+N more`。点击一行会在审阅中打开该文件的记录变更；逐次调用的审核行和审阅选项卡保持不变。** | Issue #1891，设计 10（自适应密度）：逐次调用的审核行回答“这次调用改了什么”，审阅回答整个会话的问题，但回答“这一轮改了什么”仍需自己数工具行。 |
+| D675 | 内联图片同时按像素尺寸与字节准入 | **修订 D361：PNG/JPEG/GIF/WebP 文件头显示最长边超过 `MAX_INLINE_IMAGE_EDGE_PX`（8000）的图片永不内联。Host Read 以 `TOOL_FAILED` 拒绝；提示附件与恢复的历史走既有的 `@path` 回退；运行时在最后的提供商视图中把这类图片块（用户或工具结果）替换为写明尺寸的文本说明。探测只读文件头（无解码器）；读不出尺寸时保留仅按字节的规则。不改变协议、schema 或持久化格式。** | Issue #1913：一张 1.89 MB、780 x 14182 的整页截图通过了所有字节检查，提供商以不可重试的 400 拒绝，重放使该会话此后每个请求都失败。同样的字节总是被同样地丢弃，请求前缀与提示缓存保持稳定；重采样需要图像解码器，留待以后。 |
+| D676 | 读者跟随的已完成回合停在它的提示处 | **修订流完成规则：转录可见且仍在跟随流时回合完成，渲染层会把该回合最新的用户消息滚动到转录顶部预留的标题栏带下方 16px 处（除非减少动态效果，否则平滑滚动），退出跟随模式并显示“滚动到底部”。提示已在视野内、回复失败或被中止、面板隐藏或处于阅读窗口、披露位置被保持、或在移动前开始了新的运行时，都不移动。仅渲染层；不新增设置，不改变 IPC 或持久化。** | Issue #1889：长回复结束后读者停在最后一行，得自己往上滑才能找到回答的开头。 |
+| D677 | DeepSeek 推理回放每行只用一个字段，且永不覆盖真实推理 | **修订 ADR 0256 第 3 条：pi-ai 的补全过程从最新一条带真实推理的 assistant 行取推理字段，把每条 assistant 行归一到这一个字段（真实推理从其他字段名移过来，并删除其余字段），只在没有任何推理的行上填充占位符。历史重建与思考面板会去掉开头回显的占位符（`withoutReasoningReplayPlaceholder`）；不改写已存储的文本。不改变 schema、IPC 或设置。** | Issue #1945：重建行被标为 `reasoning_content`，而中转流式返回的是 `reasoning_text`；补全过程选了 `reasoning_content`，把占位符写在了 live 行真实推理之上、也就是模型读取的字段里，模型把它当作自己的思考复读（受影响会话中 13.6% 的 assistant 行），回显又被持久化并回放。 |
 
 ## M0. 模型目录决策
 
@@ -5567,3 +5571,71 @@ Markdown 源码，不是 `text/html` 负载；对禁用行内 HTML 的外部编�
   `packages/agent-runtime/src/provider-binding.test.ts` 的请求抓取测试，以及
   `packages/agent-runtime/src/provider-reasoning-effort.test.ts` 的官方线路用例覆盖。见
   `03-runtime/11-provider-model-system.md` 与 E2E-005E。
+
+## 2026-10-28 — 按轮文件变更汇总（D674）
+
+- D674 在每条回合记录了至少一条工作区审核变更的已完成回复下方，新增只读的
+  `TurnChangesCard`（issue #1891，设计 10）。它与回复插件槽一起挂载，因此流式期间
+  和失败回合都不会出现，`entryExtra` 块始终在它下方。
+- 卡片只通过 `reviewChangeFromMessage` 读取该回合消息拥有的 `details.review`
+  记录；不改变采集、IPC、持久化或 host-core。按路径合并多次编辑：回合以删除该文件
+  结束时为 `D`，否则只要有一次创建即为 `A`，其余为 `M`；计数累加；所有编辑都已
+  回滚的文件保留在列表中并显示删除线。
+- 自适应密度：不超过四个文件用 25px 宽松行；更多时切换为 21px 密集行并显示目录数；
+  超过 12 行折叠为 `+N more`，并附打开审阅的链接。卡片是一个无边框的 `--ds-tile`
+  平面（D297）。
+- 点击一行会打开来源会话的审阅选项卡，滚动到该文件的第一条记录变更并展开；
+  通过渲染层的临时聚焦请求（`lib/review-focus-request.ts`）实现，而不是 app-store
+  状态。逐次调用的审核行和审阅选项卡的其他行为不变。
+- 由 `apps/desktop/test/turn-changes-card.test.mjs` 覆盖。见
+  `04-ux/08-component-spec.md` §4.4 与 E2E-CHAT-turn-changed-files-summary。
+
+## 2026-10-28 — 按像素尺寸准入图片（D675）
+
+- D675 新增只读文件头的像素尺寸探测（`packages/shared/src/image-dimensions.ts`，
+  在 `crates/host-core/src/tools/image_dimensions.rs` 中镜像），支持 PNG、JPEG、
+  GIF 与 WebP。最长边超过 8000 px 的图片不会内联（issue #1913）。
+- Host Read 以 `TOOL_FAILED` 拒绝这类文件，并在消息中写明尺寸，因此它不会进入
+  历史。提示附件与恢复的历史保留图片引用，但发送既有的 `@path` 回退而不是字节。
+- `convertToLlm` 会把剩余的超限图片块（旧会话、插件或 MCP 结果）替换为
+  `[Image omitted: WxH px exceeds the 8000 px longest-edge limit for model
+  input.]`，从而恢复已经每次请求都失败的会话。同样的字节总是产生同样的说明，
+  提示缓存不受影响。
+- 读不出尺寸的图片保留原先仅按字节的规则。把超限图片重采样而不是丢弃需要解码器，
+  不在本次改动范围内。
+- 由 `packages/shared/src/image-dimensions.test.ts`、
+  `packages/agent-runtime/src/image-admission.test.ts`、
+  `packages/agent-runtime/src/attachment-history.test.ts`、
+  `apps/desktop/test/prompt-inline-attachments.test.mjs` 以及 host-core 的
+  `tools::image_dimensions` / `read_refuses_images_past_the_pixel_limit` 测试覆盖。
+
+## 2026-10-28 — 已完成回合停在它的提示处（D676）
+
+- D676 取代“流完成时保持跟随的读者在底部”：被跟随的回合完成时，它的提示滚动到
+  视口顶部并出现“滚动到底部”（issue #1889）。滚动离开的读者保持原位。
+- 移动会等待回复的最终状态，在完成后的回复布局好之后再等一帧执行；回合失败或被
+  中止、提示已在视野内、面板隐藏或处于阅读窗口、披露位置被保持、以及排队的后续
+  提示先开始时都会跳过。
+- 逻辑位于 `apps/desktop/src/lib/turn-completion-scroll.ts` 以及
+  `useTranscriptScroll` 旁的 `useTurnCompletionScroll` hook。由
+  `apps/desktop/test/turn-completion-scroll.test.mjs` 与
+  `pnpm test:e2e:transcript-turn-completion`
+  （E2E-CHAT-completed-turn-scrolls-to-prompt）覆盖。
+
+## 2026-10-28 — DeepSeek 回放每行一个推理字段（D677）
+
+- D677 修订 ADR 0256 第 3 条（issue #1945）。`patches/@earendil-works__pi-ai@1.3.0.patch`
+  中的 pi-ai 补全过程不再按固定列表取第一个字段，而是取最新一条带真实推理的
+  assistant 行所用的字段，并把每条 assistant 行归一到该字段。存放在其他字段名下的
+  真实推理会移过去；其余字段被删除，因此一行永远不会带两个推理字段（中转会拒绝
+  重复的推理字段）。
+- 占位符现在只填充完全没有推理的行，带真实推理的 live 行再也不会在模型读取的字段
+  里收到占位符。
+- 共享的 `withoutReasoningReplayPlaceholder` 会在会话与委托历史重建、以及供思考面板
+  使用的 `messageThinking` 中，去掉已存储思考开头回显的占位符及其被观察到的
+  `[reasoning retained for this turn]` 改写。现有转录不会被改写；回显只是不再显示、
+  不再回放。
+- 不变：严格中转对没有推理的行仍收到非空占位符（#296），官方 DeepSeek 仍使用 `""`。
+- 由 `reasoning-content-backfill.test.ts`、`runtime.test.ts`、
+  `provider-presets.test.ts` 与 `apps/desktop/test/assistant-turns.test.mjs` 覆盖。
+  见 E2E-005E。

@@ -28,12 +28,7 @@ export class FixtureLiveSocket extends EventEmitter {
   }
 
   receive(value) { this.emit("message", typeof value === "string" ? value : JSON.stringify(value)); }
-  // `ws` always delivers the close reason as a Buffer (empty on an abrupt
-  // close); the adapters' close handlers read it as one.
-  close(code = 1000, reason) {
-    this.readyState = 3;
-    this.emit("close", code, reason === undefined ? Buffer.alloc(0) : Buffer.from(reason));
-  }
+  close(code = 1000, reason = "") { this.readyState = 3; this.emit("close", code, Buffer.from(reason)); }
   terminate() { this.terminated = true; this.close(); }
   settleReceipt(error) { this.receiptCallbacks.shift()?.(error); }
 

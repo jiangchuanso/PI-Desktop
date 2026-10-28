@@ -1485,6 +1485,29 @@ menu/nativeAction({ action: NativeMenuAction })
   -> { maximized: boolean; fullScreen: boolean }
 ```
 
+活动插件 `WebContentsView` 时，渲染器通过一个受限的 Main 通道发送标签菜单文案
+和指针锚点。Main 校验请求，按发送方当前缩放比例把 CSS 坐标换算成 DIP，限制在
+窗口内容区域内，并且只生成固定的关闭操作。取消菜单或窗口关闭时返回 `null`；
+跨越异步边界后，渲染器会重新检查会话和目标标签：
+
+```ts
+type WorkPanelTabMenuAction = "closeTab" | "closeOtherTabs" | "closeAllTabs";
+type WorkPanelTabMenuRequest = {
+  closeTabLabel: string;
+  closeOtherTabsLabel: string;
+  closeAllTabsLabel: string;
+  canCloseOthers: boolean;
+  x: number; // 渲染器 CSS 像素
+  y: number; // 渲染器 CSS 像素
+};
+
+workPanel/tabMenu(request: WorkPanelTabMenuRequest)
+  -> WorkPanelTabMenuAction | null
+```
+
+标签只用于显示文案，不能指定任意 Main 操作。使用操作系统原生菜单样式是为了
+保证菜单显示在原生视图上方。
+
 开发人员工具使用专用的 Main 拥有的门，而不是通用的本机
 菜单操作：
 

@@ -23,6 +23,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { toolExecutionMode, withDynamicTaskExecutionMode } from "./tool-execution-policy.js";
+import { DESKTOP_AGENT_IDENTITY } from "./agent-identity.js";
 import { initialSystemTranscript, replaceSystemPrompt } from "./system-transcript.js";
 import {
   Agent,
@@ -52,6 +53,7 @@ import {
 } from "@pi-desktop/shared";
 import { classifyAgentError } from "./agent-errors.js";
 import { readLocalRequestErrorDetails } from "./local-request-errors.js";
+import { recoverMalformedToolCalls } from "./tool-call-recovery.js";
 import { withProviderFetchFailure } from "./provider-transport-recovery.js";
 import {
   assistantContent,
@@ -282,12 +284,14 @@ export class SubagentRun {
 
   constructor(opts: SubagentRunOptions) {
     this.opts = opts;
-    this.uniqueToolCalls = createToolCallIdentity(opts.initialMessages ?? []);
+    const initialMessages = recoverMalformedToolCalls(opts.initialMessages ?? []);
+    this.uniqueToolCalls = createToolCallIdentity(initialMessages);
     this.provider = opts.provider;
     this.thinkingLevel = opts.thinkingLevel;
     this.attemptedModels.add(`${opts.provider.id}/${opts.provider.modelId}`);
     const binding = this.modelBinding();
     this.agent = new Agent({
+      identity: DESKTOP_AGENT_IDENTITY,
       streamFn: binding.streamFn,
       getApiKey: binding.getApiKey,
       convertToLlm: (messages) =>
@@ -317,7 +321,7 @@ export class SubagentRun {
           ),
         ),
         thinkingLevel: binding.agentThinkingLevel,
-        messages: initialSystemTranscript(opts.systemPrompt, opts.tools, opts.initialMessages ? [...opts.initialMessages] : []),
+        messages: initialSystemTranscript(opts.systemPrompt, opts.tools, [...initialMessages]),
       },
       toolExecution: "parallel",
     });

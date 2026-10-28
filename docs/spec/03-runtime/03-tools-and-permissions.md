@@ -361,7 +361,16 @@ visualization lives as long as its session:
   suffix and never sends the absolute path to Main. Host Core reads only regular
   non-symlink fragments up to 2 MB using pinned native directory capabilities.
   Main validates the private byte response, rejects full documents, and wraps
-  the fragment in a host shell with a strict CSP.
+  the fragment in a host shell with a strict CSP. The shell preloads the
+  bundled D3 and the `viz` chart helpers before the fragment and drops a
+  fragment's own pinned D3 tag. The guest runtime reports the first uncaught
+  fragment script error to the card, which keeps the frame and shows a notice
+  with the bounded message as plain text. A successful `Write` of an `.html`
+  file directly in the session's visualization directory also gets a static
+  check in its result: inline scripts are compiled without running, and
+  literal element ids passed to `viz.render`, `viz.chart`, `getElementById`,
+  or `querySelector("#…")` must exist; problems are listed so the model can fix
+  them with one `Edit`.
   Both the iframe and the response CSP header enforce `sandbox allow-scripts`,
   so omitting the caller's sandbox cannot enable cross-session DOM reads.
   Unix uses relative `openat` and a nonblocking leaf; Windows uses relative

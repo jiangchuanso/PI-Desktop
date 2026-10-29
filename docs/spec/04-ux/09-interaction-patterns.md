@@ -686,13 +686,16 @@ may be retained while exactly one workspace supplies the visible shell context.
 
 ### 1.11 Transcript background radial menu (opt-in)
 
-- **Settings → AI → Radial context menu** carries one switch and four
+- **Settings → General → Radial context menu** carries one switch and four
   direction pickers. The switch is off unless `AppSettings.radialMenu.enabled`
   is true, so an upgrade keeps the vertical menu every earlier build shipped.
 - With the switch on, a right-click on the empty transcript background opens a
   four-sector ring centred on the pointer instead of the vertical conversation
-  menu. Message rows, markdown links, file references, tool rows, the sidebar,
-  and the work panel keep their vertical menus.
+  menu. Each sector shows its action's icon and label at rest, so the ring is
+  readable without hovering; the sector under the pointer or keyboard focus
+  fills with the hover tone, and the hub at the centre is a recessed well that
+  marks the click point. Message rows, markdown links, file references, tool
+  rows, the sidebar, and the work panel keep their vertical menus.
 - The vocabulary is: copy conversation, select conversation text, copy the last
   answer, scroll to top, jump to latest, open the built-in browser, toggle the work
   panel (Open work panel, or Close work panel while it is open), open the
@@ -703,10 +706,14 @@ may be retained while exactly one workspace supplies the visible shell context.
   folder also before the session has a project path). There is no terminal
   action: the work panel ships no terminal surface.
 - The sector under the pointer highlights; clicking it runs the action and
-  closes the ring. A click on the hub or outside closes without running.
-  Arrow keys move the highlight clockwise and counter-clockwise, Enter runs the
-  highlighted action, and Escape or Tab dismisses. Focus returns through the
-  same outside-press, scroll, resize, and blur listeners as `ContextMenu`.
+  closes the ring. A click on the hub or outside closes without running. The
+  standard marking gesture works too: a right-press that starts while the ring
+  is open runs the sector it is released on, and releasing in the hub dismisses
+  without running — the release trailing the right-click that opened the ring
+  is inert. Arrow keys move the highlight clockwise and counter-clockwise,
+  Enter runs the highlighted action, and Escape or Tab dismisses. Focus returns
+  through the same outside-press, scroll, resize, and blur listeners as
+  `ContextMenu`.
 - Placement follows the shared floating-layer contract: a viewport-fixed portal
   measured before reveal, clamped inside the window with the same 8px margin,
   so a right-click near an edge moves the ring rather than clipping it.

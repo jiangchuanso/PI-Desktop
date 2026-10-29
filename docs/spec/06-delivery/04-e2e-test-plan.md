@@ -5357,25 +5357,32 @@ window; opening a normal panel afterward must still work.
 
 #### E2E-CHAT-radial-background-menu: Radial menu on the empty transcript background
 
-- **Preconditions**: Settings → AI → Radial context menu is available. A
+- **Preconditions**: Settings → General → Radial context menu is available. A
   session has a completed user prompt, a completed assistant answer, and enough
   history to scroll.
 - **Steps**: 1) With the switch off, right-click empty space below the last
   turn and confirm the vertical conversation menu. 2) Turn the switch on and
-  right-click the same space; inspect the four sectors. 3) Move the pointer
-  through each sector and click Copy conversation. 4) Set Up to Copy last
+  right-click the same space; inspect the four sectors and their at-rest
+  icon-and-label stacks. 3) Move the pointer through each sector and click
+  Copy conversation; reopen, press the right button over a sector and release
+  it there, and confirm the action runs. 4) Set Up to Copy last
   answer and Right to Leave empty, then reopen the ring. 5) Click the hub
   without moving, then reopen and press Escape; repeat with an outside click,
-  a scroll, and a window resize. 6) Reopen with Shift+F10, walk the sectors
-  with the arrow keys, and run one with Enter. 7) Restart the app, confirm the
-  switch and the four directions persist, then write an unknown action for one
-  direction into the settings file and confirm that direction resolves to its
-  default.
+  a scroll, and a window resize; reopen and right-press on a sector, then
+  release over the hub and confirm nothing runs. 6) Reopen with Shift+F10, walk
+  the sectors with the arrow keys, and run one with Enter. 7) Restart the app,
+  confirm the switch and the four directions persist, then write an unknown
+  action for one direction into the settings file and confirm that direction
+  resolves to its default.
 - **Expected**: With the switch off the vertical menu opens unchanged. With it
   on, a four-sector ring centred on the pointer replaces it and stays fully
-  inside the window near an edge. Each sector highlights under the pointer;
-  clicking runs that action, closes the ring, and shows the usual toast where
-  the action copies. A **Leave empty** direction renders a disabled sector and
+  inside the window near an edge. Every sector shows its action's icon and
+  label before any hover; the sector under the pointer highlights as a filled
+  sector, with no focus rectangle over it. Clicking runs that action, closes
+  the ring, and shows the usual toast where the action copies. A right-press
+  started while the ring is open runs the sector it is released on; releasing
+  over the hub dismisses without running, and the release trailing the
+  right-click that opened the ring runs nothing. A **Leave empty** direction renders a disabled sector and
   runs nothing; Copy last answer is disabled until an answer exists.
   Open browser reveals the work panel on a blank browser tab, the work panel
   direction toggles — it reads Open work panel while the panel is collapsed and
@@ -5393,8 +5400,9 @@ window; opening a normal panel afterward must still work.
 - **Acceptance**: C (chat stream), Quality
 - **Milestone**: M5
 - **Status**: Chromium component check (`node scripts/e2e-radial-menu.mjs`:
-  sector labels, pointer highlight, click/hub/disabled/Escape paths, arrow-key
-  focus, and viewport clamping) plus unit coverage (`radial-menu.test.mjs`,
+  at-rest sector labels, pointer highlight, click/hub/disabled/Escape paths,
+  the right-press marking release paths, arrow-key focus, and viewport
+  clamping) plus unit coverage (`radial-menu.test.mjs`,
   `settings-roundtrip.test.mjs`); full desktop journey Draft
 
 ### E2E-CHAT-delete-turn-preserves-other-live-outputs

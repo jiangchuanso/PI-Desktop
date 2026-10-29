@@ -632,6 +632,7 @@ export const zhTW = {
     processCompletedFor: "執行完成，{{time}}",
     processStopped: "已停止",
     processStoppedFor: "已停止，{{time}}",
+    processUnsettled: "結果未知",
     processFailed: "失敗",
     processFailedFor: "失敗，{{time}}",
     waitingForModel: "等待模型響應",

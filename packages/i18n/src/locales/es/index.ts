@@ -627,6 +627,7 @@ export const es = {
     "processCompletedFor": "Completado en {{time}}",
     "processStopped": "Detenido",
     "processStoppedFor": "Detenido tras {{time}}",
+    "processUnsettled": "Resultado desconocido",
     "processFailed": "Fallido",
     "processFailedFor": "Fallido tras {{time}}",
     "waitingForModel": "Esperando modelo",

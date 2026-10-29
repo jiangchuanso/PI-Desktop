@@ -8537,15 +8537,16 @@ runner 会在运行时的隔离临时目录中生成六个插件形态 fixture�
 
 - **前提条件**：可用中文输入法；输入框草稿为空；至少存在一条斜杠条目（内置别名、模板、插件命令或 Skill）。
 - **步骤**：
-  1. 保持草稿为空，输入「、」并观察输入框。
+  1. 保持草稿为空，开始组字「、」，观察临时文本，再提交组合输入。
   2. 继续输入命令名并确认高亮行。
   3. 输入一段在其他字符之间包含「、」的草稿。
   4. 发送一段首字符为「、」且未确认任何行的草稿。
-- **预期**：「、」被就地改写为 `/`，普通斜杠菜单以与直接输入 `/` 相同的过滤和键盘行为打开，光标停留在替换后的字符之后。出现在草稿其他位置的「、」保持原样，`@` 文件菜单不会对该标点作出反应。
+  5. 取消组字后再次输入 `/`；另模拟丢失 `compositionend` 后删除文本，确认斜杠菜单仍能打开。
+- **预期**：提交的「、」被就地改写为 `/`，普通斜杠菜单以与直接输入 `/` 相同的过滤和键盘行为打开，光标停留在替换后的字符之后。出现在草稿其他位置的「、」保持原样，`@` 文件菜单不会对该标点作出反应。组字期间「、」保持原样，提交后结果为 `/`，不会出现 `/、`；普通中文组字和已有草稿中的标点不变。取消组字留下空白草稿，替换草稿会清除原有的空草稿组字起始状态。
 - **链接规格**：`04-ux/04-builtin-commands.md`（§9）、`04-ux/08-component-spec.md`（§11）、`08-meta/decisions-log.md`（D405）、ADR 0024、ADR 0231
 - **验收**：C（对话与流）、本地化、品质
 - **里程碑**：M2
-- **状态**：单元覆盖（`packages/shared/src/composer-trigger.test.ts`、`apps/desktop/test/composer-ime.test.mjs`）；渲染桌面旅程为草稿（除非明确要求，不本地运行 E2E）
+- **状态**：部分自动化。单元覆盖：`packages/shared/src/composer-trigger.test.ts`、`apps/desktop/test/composer-ime.test.mjs`。`node scripts/e2e-composer-ime-stack.mjs` 挂载生产输入框、草稿和补全组件，通过 CDP 驱动 Chromium 组合输入，覆盖别名提交、普通中文、取消组字、草稿替换、补全确认及丢失结束事件后的恢复。发送流程和真实操作系统输入法候选窗口仍需手动验证。
 
 #### E2E-CLONE-accepts-a-lan-remote-and-rejects-metadata
 
@@ -8843,10 +8844,21 @@ runner 会在运行时的隔离临时目录中生成六个插件形态 fixture�
 | E2E-MCP-MARKET-NET-BOUNDARY | URL guard 拒绝凭据、云元数据、unspecified、multicast、reserved 及尾点绕过形态——即使由用户自己填写；对**第三方跳**（重定向目标、目录正文）拒绝回环、私网、special-use IPv4、v4-mapped、ULA、site-local 与 link-local；同一形态由用户填进源地址字段时被接受，明文 `http` 需 `networkPolicy.allowInsecureUserEndpoints`；direct/unknown 默认固定已检查的地址，完整 proxied 线路使用 session 传输，显式 `allowFakeIp` 可覆盖透明路由器 fake-IP 源但不允许真实私网答案 | 确定性 guard 断言；DNS pin、代理线路选择、fake-IP 选项范围与响应上限 source-contract 覆盖 |
 | E2E-MCP-MARKET-SEMANTICS | Registry 记录映射为安装模板时保留包版本、named/positional runtime/package 参数与 required/optional 环境变量语义；远端 header 变量同时识别注册表的 `{name}` 与目录的 `${NAME}` 两种写法，仅为已声明的可编辑值显示输入，保留未声明花括号字面量，并按各 header 的作用域处理默认值、固定值与可选标记，不合并不同 header 的同名输入（ADR registry-header-variable-spelling） | 确定性映射断言 |
 | E2E-MCP-MARKET-INSTALL | 内置目录条目经 `resolveCatalogEntry` 解析并通过宿主 `mcp.upsert` RPC 安装；记录落盘 `~/.agents/servers/` | 真实宿主二进制，隔离临时 HOME |
+| E2E-MCP-MARKET-explicit-project-owner | 在 MCP 页选择 Project，打开市场并安装内置条目；请求携带所选项目，返回后显示项目记录。All 和 Global 保持全局安装，其他层级中的同名条目不阻止安装 | 隔离 Electron 中的真实 React 页面和市场；IPC 边界模拟（`apps/desktop/test/mcp-market-owner-user-path.test.mjs`） |
 | E2E-MCP-MARKET-HEADER-SCOPE | Registry header-local `{token}` resolves only in its header; same-named URL path/query tokens remain literal through mapping, resolution, host upsert/list and persistence. URL templates retain only legacy `${NAME}` substitution. When `headerBindings` exists (even empty or partial), unbound tokens in every header stay literal and never consume another header's input or default | shared regressions plus real host binary with isolated temporary storage; remote entry disabled, no network call |
 | E2E-MCP-MARKET-partial-header-bindings-stay-literal | Resolve a catalog with only Authorization bound and another header using the same `{token}` / `${token}`; an undeclared `${UNBOUND}` in a third header also remains literal through host upsert/list and disk persistence | real host binary, disabled remote entry, synthetic input and isolated temporary storage; no network call |
 | E2E-MARKET-CATALOG-RETRY | 技能市场和 MCP 市场查询全部失败后、以及部分来源失败时都显示重试；点击后播报加载、重跑当前查询，并在来源恢复后清除失败状态 | Electron 中的真实 React 组件使用确定性的模拟市场 API 响应；不访问公网 |
 
+
+#### E2E-MCP-MARKET-explicit-project-owner：市场安装遵循明确选择的 Project 筛选
+
+- **前提条件**：MCP 设置已选择项目；使用隔离 Electron 配置和确定性 IPC 响应，不访问真实市场或调用 MCP。
+- **步骤**：选择 Project，打开市场，安装内置条目后重新打开市场。分别验证 All、Global、All 下未选择项目，以及另一层级已存在同名条目的情况。未选择项目时选择 Project，再通过面板公开接口尝试安装。
+- **预期**：Project 请求携带 `level: "project"` 和所选 `projectPath`；All、Global 请求携带 `level: "global"`，不传项目归属。返回后显示已安装记录，重新打开市场时仅按目标层级标记已安装。其他层级中的记录不阻止安装。未选择项目时，Project 市场入口禁用，面板保护逻辑提示缺少项目且不写入。
+- **关联规格**：`04-ux/06-settings-ia.md`、ADR 0112。
+- **验收**：质量。
+- **里程碑**：M6+。
+- **状态**：已自动化（`node --test apps/desktop/test/mcp-market-owner-user-path.test.mjs`）。
 
 #### E2E-SKILL-MARKET-NET-BOUNDARY：用户自填源可达局域网，第三方内容不行
 

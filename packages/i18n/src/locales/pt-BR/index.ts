@@ -626,6 +626,7 @@ export const ptBR = {
     processCompletedFor: "Concluído em {{time}}",
     processStopped: "Interrompido",
     processStoppedFor: "Interrompido após {{time}}",
+    processUnsettled: "Resultado desconhecido",
     processFailed: "Falhou",
     processFailedFor: "Falhou após {{time}}",
     waitingForModel: "Aguardando o modelo…",

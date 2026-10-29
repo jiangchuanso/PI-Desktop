@@ -636,6 +636,7 @@ export const ko = {
     processCompletedFor: "실행 완료, {{time}}",
     processStopped: "중지됨",
     processStoppedFor: "중지됨, {{time}}",
+    processUnsettled: "결과 미확인",
     processFailed: "실패",
     processFailedFor: "실패, {{time}}",
     waitingForModel: "모델 대기 중",

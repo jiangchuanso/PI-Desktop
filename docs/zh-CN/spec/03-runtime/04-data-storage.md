@@ -810,6 +810,22 @@ meta.agentName?: string         // the definition name, e.g. "code-reviewer"
 无列、无表、无迁移：属性是有关消息的元数据，并且
 推广它会引起没人提出的疑问。
 
+assistant 行还可以带 `meta.providerReplay = { version: 1, blocks: [...] }`
+（#1972）。每个块按内容顺序记录为 `{ type: "thinking", length, signature?, redacted? }`
+或 `{ type: "text", length, signature? }`；`length` 是该块文本在行内拼接后的
+`thinking` 或正文中的 UTF-16 长度，文本本身不重复保存。签名就是 pi-ai 挂在内容块上
+的 provider 回放数据（Anthropic thinking 签名与 redacted 载荷、Responses 的
+reasoning item 与 message id、Gemini thought signature、Completions 推理字段名）。
+只有块上确实带签名时才写入；不渲染、不参与搜索、无需迁移，旧版本会忽略它。
+runtime 从转录重建时按原块和签名还原，使重放请求与在线请求一致，保住 provider 的
+prompt cache。长度对不上，或推理文本在回放时被清理过，就退回原来的纯文本重建。
+
+`meta.providerReplay.toolCalls = [{ id, signature }]` 按工具调用 id 保存 provider
+挂在函数调用上的签名（Gemini `thoughtSignature`）。工具调用从带同一 id 的工具行重建，
+并据此补回签名，这一步不依赖文本长度。只有函数调用、但带这类签名的回复即使没有文本
+也会持久化。来自不同 provider 或模型的行，pi-ai 仍会丢弃其签名。序列化后的回放数据
+超过 64 KiB 的行不保存该字段，改用纯文本重建，避免不透明载荷让转录无限增长。
+
 这两个字段都可以在重新加载后保存下来，这就是恢复会话嵌套的原因
 就像现场一样（`04-ux/08-component-spec.md` §9.9）。两位消费者阅读了它们：
 

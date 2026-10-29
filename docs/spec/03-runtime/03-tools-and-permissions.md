@@ -159,7 +159,9 @@ instead of starting after Stop. `Bash` and `GenerateImages` use the existing
 process cancellation path; the runtime waits up to 10s for the host to return
 output collected before termination. Local `Read`, `Glob`, and `Grep` calls may
 end the runtime's wait immediately and return `TOOL_ABORTED`; their results are
-discarded. A blocking filesystem worker may continue until it returns, but
+discarded. This local stop does not wait for the `tools.abort` acknowledgement;
+late success or failure of either Host request cannot affect a subsequent turn.
+A blocking filesystem worker may continue until it returns, but
 these tools do not mutate the workspace. For a mutating, MCP, or plugin call
 that has already started, the runtime waits for the host result before it
 settles the turn, so Stop cannot hide a write or extension action that is still

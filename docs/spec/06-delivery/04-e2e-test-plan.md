@@ -18255,6 +18255,26 @@ the latest destination. These assertions measure work counts, not device FPS.
 - **Status:** Unit-covered (`context-calibration.test.ts`, including the CJK and
   boundary cases); desktop E2E pending
 
+### E2E-CONTEXT-reported-occupancy-drives-compaction
+
+- **Preconditions:** A production sidecar, isolated Host fixture and localhost
+  Responses gateway. The gateway reports cached input separately from a total
+  that omits it; no real provider credentials are used.
+- **Steps:** Send a turn whose input, output and cache buckets exceed the
+  automatic threshold, then send another prompt. Repeat with ordinary
+  under-budget usage and with an incomplete bucket breakdown whose reported
+  total exceeds the threshold.
+- **Expected:** The first session summarizes and persists one checkpoint before
+  the next provider request, which includes the summary and new prompt. The
+  under-budget session continues without a checkpoint. A larger reported total
+  still triggers the guard when bucket details are missing; billing totals
+  remain unchanged.
+- **Automation:** `node scripts/e2e-context-usage-compaction.mjs` after building
+  shared and the production sidecar bundle. The real Agent-loop tests in
+  `context-usage-compaction.test.ts` also cover restored sessions and compaction
+  between a tool result and the next request.
+- **Specs:** `03-runtime/02-agent-runtime.md` §5.1.
+
 ### E2E-RUNTIME-unique-tool-call-ids-per-request
 
 - **Preconditions:** A session transcript that carries the same tool call twice
@@ -19338,3 +19358,27 @@ their separate platform acceptance.
   event/result agreement, batch rejection and delegate restoration.
 - **Status**: Automated offline; native UI clicking and live providers are
   outside this fixture's coverage.
+
+### E2E-PLUGIN-PROJECTS: Enumerate durable projects without switching workspace
+
+- **Preconditions**: An isolated Host profile with a standalone project and a
+  multi-folder group, plus a session with no project. A plugin with no granted
+  permissions registers a command that calls `pi.projects.list()`.
+- **Steps**:
+  1. Run the command through the plugin process and read the same list through
+     the panel bridge's `projects.list` channel.
+  2. Compare the entries with the Host's durable `projects.list` rows and group
+     roots, and verify that the visible workspace remains unset.
+  3. Restart the Host and run the command again.
+  4. Stop the Host and run the command again.
+- **Expected**: Exactly one entry per durable row, including ungrouped and
+  secondary-folder rows; non-empty decimal database ids; most recently opened
+  first regardless of pins; every entry has its own primary path first in
+  non-empty roots. A primary group row includes its additional roots in order.
+  Identities survive restart. No workspace is opened or switched, no filesystem
+  grant is added, and a stopped Host returns `[]`. No Host credentials appear.
+- **Automation**: `pnpm test:e2e:plugin-projects` runs a real isolated Rust Host
+  and plugin child process without provider calls. The companion
+  `apps/desktop/test/plugin-projects.test.mjs` covers pin-independent ordering,
+  group lookup failure, missing project providers, failed/malformed lookup,
+  rename identity, and stale results after Host replacement.

@@ -586,6 +586,13 @@ estimate and the calibrated message estimate. This is a hard floor before the
 first calibration sample and prevents counting overhead twice after an
 unanchored residual has learned it.
 
+For a usage anchor, the runtime takes the larger of the reported total and the
+request's input, output, cache-read and cache-write buckets. The inspector
+shows the bucket sum; reasoning is already included in output. This prevents a
+gateway's total that omits cached input from delaying compaction, while keeping
+the total-based guard when bucket details are incomplete. Billing totals remain
+unchanged.
+
 The calibration still measures the two errors separately — per-character bias
 as a scale-free ratio over the guessed tail, and an unanchored residual as a
 ratio only for observations taken at a comparable scale (0.5×–2× of the

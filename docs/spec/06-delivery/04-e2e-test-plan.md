@@ -40,6 +40,24 @@
 
 ## 1. Goals
 
+### E2E-SCHEDULED-settings-switch
+
+- **Preconditions:** Candidate Desktop, Host and reused local dependencies;
+  isolated profile/data/project and the local scheduled-model fixture.
+- **Steps:** With a saved task, open Settings → General, observe the default-on
+  Scheduled tasks switch, turn it off, return to the app and search.
+  Reload the renderer, verify the saved off state, re-enable and run the task.
+- **Expected:** The footer and page-search entry disappear while off; the
+  settings row remains searchable. New runs are rejected, task configuration
+  and history survive, reload preserves the choice and re-enabling restores
+  the same task and normal execution. Host tests also cover due admission,
+  stale tools, restart and completion of an already-admitted run while off.
+- **Coverage:** `node scripts/e2e-scheduled.mjs --settings-switch-only`,
+  `apps/desktop/test/scheduled-settings.test.mjs`, Host scheduled settings tests.
+- **Specs:** `04-ux/06-settings-ia.md`, `04-ux/01-ui-ia.md` §3.3.
+- **Acceptance:** No data/schema migration; default-on backwards compatibility.
+- **Milestone:** Maintenance. **Status:** Automated.
+
 ### E2E-PROVIDER-retry-backoff-is-not-idle
 
 - **Entry:** Build shared and the production sidecar bundle, then run
@@ -3862,6 +3880,24 @@ identify the platform validation still needed.
 - **Milestone**: M4
 - **Status**: Draft
 
+#### E2E-PLUGIN-command-ownership: Command registration respects plugin ownership
+
+- **Preconditions**: Two plugins run in separate plugin host processes.
+- **Steps**: 1) Register a command from one plugin. 2) Attempt to replace and
+  unregister it from the other plugin. 3) Update and unregister it from the
+  owner. 4) Repeat with a load-time collision and concurrent registrations.
+- **Expected**: Cross-plugin replacement rejects with `CONFLICT`; cross-plugin
+  removal rejects with `PERMISSION_DENIED`. Rejected calls leave the original
+  handler runnable. Same-owner updates preserve the ID; repeated removal is
+  harmless; released IDs can be reused. A failed plugin load or unloading a
+  losing registrant does not remove the winning command. Concurrent calls
+  admit exactly one owner.
+- **Specs linked**: `07-plugins/03-plugin-api.md`, `07-plugins/12-plugin-ipc-and-host-services.md`
+- **Acceptance**: G (plugin command isolation)
+- **Milestone**: M4
+- **Status**: Automated — `pnpm test:e2e:plugin-command-ownership` exercises
+  the public plugin API through real plugin host processes and the host broker.
+
 #### E2E-024: Plugin registers and calls agent tool
 
 - **Preconditions**: Plugin loaded; plugin declares an agent tool.
@@ -4959,7 +4995,10 @@ window; opening a normal panel afterward must still work.
   still work without moving it.
   4) Click `+` twice and verify each creates and activates a separate New
   launcher tab. Confirm its body lists Review and each in-scope plugin view
-  exactly once. Open Browser and confirm its native surface opens at unchanged
+  exactly once. Shrink the window (or install enough plugins) so the launcher
+  rows exceed the panel height: the New title stays pinned, the row list
+  scrolls, the bottom rows stay reachable by wheel, scrollbar, and Tab focus
+  (#2026). Open Browser and confirm its native surface opens at unchanged
   bounds. Open its context menu and verify the native popup appears above Browser
   chrome while the page remains visible. With Browser active, right-click another
   tab and confirm it still uses the native menu. Repeat at 50% and 150% app zoom;

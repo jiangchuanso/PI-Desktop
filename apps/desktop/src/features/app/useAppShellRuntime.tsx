@@ -17,6 +17,7 @@ import { StartupAnimation } from "../../components/StartupAnimation";
 import { StartupSplash } from "../../components/StartupSplash";
 import { api } from "../../lib/api";
 import { composerSuggestion } from "../chat/composer/plugins/suggestion-bridge";
+import { usePluginBrowseState } from "../plugins/browse-state";
 import { subscribeRemoteInteractions } from "../../lib/remote-interactions";
 import { playNotificationChime } from "../../lib/notification-sound";
 import {
@@ -24,6 +25,7 @@ import {
   loadSidebarWidth,
   saveSidebarWidth,
 } from "../../lib/sidebar-preferences";
+import { DEFAULT_SETTINGS_TAB } from "../../lib/settings-search";
 import { sidebarWidthBudget } from "../../lib/sidebar-resize";
 import { commitWorkPanelPresentation } from "../../lib/work-panel-presentation";
 import {
@@ -430,7 +432,7 @@ export function useAppShellRuntime() {
             await store.openProject();
             break;
           case "openSettings":
-            store.setSettingsTab("general");
+            store.setSettingsTab(DEFAULT_SETTINGS_TAB);
             break;
           case "openSearch":
             setSearchOpen(true);
@@ -446,6 +448,12 @@ export function useAppShellRuntime() {
             break;
           case "openLogs":
             await api.openLogs();
+            break;
+          case "openPluginMarket":
+            // Sent by the launcher's empty state: land on the marketplace tab
+            // of the plugins page instead of the installed list.
+            store.setPage("plugins");
+            usePluginBrowseState.getState().setTab("market");
             break;
           case "checkForUpdates": {
             const updateState = await api.updatesCheck();
@@ -813,6 +821,17 @@ export function useAppShellRuntime() {
           }
           if (event.selectSessionId) {
             await useAppStore.getState().selectSession(event.selectSessionId);
+          } else if (event.sessionId) {
+            // A plugin message write named the session it changed. The sidebar
+            // refresh above cannot repaint an open transcript, so re-read it —
+            // but only when the user is looking at it and no turn owns it.
+            const current = useAppStore.getState();
+            if (
+              current.activeSessionId === event.sessionId &&
+              current.runningSessions[event.sessionId] !== true
+            ) {
+              await current.selectSession(event.sessionId, { record: false });
+            }
           }
         })
         .catch(() => undefined);
@@ -1041,6 +1060,7 @@ export function useAppShellRuntime() {
         ? (
             <StartupAnimation
               playing={startupAnimation.playing}
+      videoRef={startupAnimation.videoRef}
               revealing={startupAnimation.phase === "reveal"}
               holdingLong={startupAnimation.holdingLong}
               onFirstFrame={startupAnimation.onFirstFrame}

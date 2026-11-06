@@ -3825,6 +3825,9 @@ describe("DesktopAgentRuntime deferred tool catalog", () => {
       "Skill",
       "EnterPlanMode",
       "EnterGoalMode",
+      "TaskWait",
+      "TaskList",
+      "TaskStop",
       "new_context",
       "ToolSearch",
     ]);
@@ -10245,6 +10248,184 @@ describe("DesktopAgentRuntime subagents", () => {
     },
   );
 
+  it("waits for a steered Bash call to settle before requesting the next model response", async () => {
+    let finish!: (value: unknown) => void;
+    const host = { call: vi.fn((method: string) => {
+      if (method === "tools.execute") return new Promise((resolve) => { finish = resolve; });
+      return Promise.resolve({ ok: true });
+    }) };
+    const requests: AgentMessage[][] = [];
+    const runtime = createRuntime({ host });
+    (runtime as any).models = { streamSimple: scriptedStream([
+      [{ type: "toolCall", id: "long-bash", name: "Bash", arguments: { command: "sleep 600" } }],
+    ], requests) };
+    const running = runtime.prompt("Run the command", "initial-user", "active-turn");
+    try {
+      await vi.waitFor(() => expect(finish).toBeDefined());
+      runtime.steer({ text: "Change direction" }, "active-turn", {
+        id: "steer-user", role: "user", content: "Change direction", createdAt: new Date().toISOString(), steering: true,
+      });
+      await vi.waitFor(() => expect(host.call).toHaveBeenCalledWith("tools.abort", expect.objectContaining({ toolCallId: "long-bash" })));
+      runtime.steer({ text: "Another constraint" }, "active-turn", {
+        id: "steer-user-2", role: "user", content: "Another constraint", createdAt: new Date().toISOString(), steering: true,
+      });
+      expect(host.call.mock.calls.filter(([method]) => method === "tools.abort")).toHaveLength(1);
+      vi.useFakeTimers();
+      await vi.advanceTimersByTimeAsync(11_000);
+      expect(requests).toHaveLength(1);
+      finish({ ok: false, content: "Interrupted", errorCode: "TOOL_ABORTED" });
+      vi.useRealTimers();
+      await running;
+      expect(requests).toHaveLength(2);
+      expect(JSON.stringify(requests[1])).toContain("Change direction");
+      expect(requests[1].filter((message) => message.role === "user" && JSON.stringify(message.content).includes("Another constraint"))).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+      finish?.({ ok: false, content: "Stopped" });
+      await runtime.abort();
+      await running;
+      await runtime.dispose();
+    }
+  });
+
+  it.each(["remote", "background"] as const)("does not cancel a %s command on steering", async (kind) => {
+    let finish!: (value: unknown) => void;
+    const host = { call: vi.fn((method: string) => method === "tools.execute"
+      ? new Promise((resolve) => { finish = resolve; }) : Promise.resolve({ ok: true })) };
+    const requests: AgentMessage[][] = [];
+    const runtime = createRuntime({ host, ...(kind === "remote" ? { remoteWorkspace: { hostKey: "ssh", path: "/remote" } } : {}) });
+    (runtime as any).models = { streamSimple: scriptedStream([[
+      { type: "toolCall", id: "keep-running", name: "Bash", arguments: { command: "sleep 600", ...(kind === "background" ? { runInBackground: true } : {}) } },
+    ]], requests) };
+    const running = runtime.prompt("Run command", "initial-user", "active-turn");
+    try {
+      await vi.waitFor(() => expect(finish).toBeDefined());
+      runtime.steer({ text: "Change direction" }, "active-turn", {
+        id: "steer-user", role: "user", content: "Change direction", createdAt: new Date().toISOString(), steering: true,
+      });
+      expect(host.call.mock.calls.some(([method]) => method === "tools.abort")).toBe(false);
+      expect(runtime.getStatus().activity?.phase).toBe("waiting-tool-stop");
+      expect(requests).toHaveLength(1);
+      finish({ ok: true, content: "done" });
+      await running;
+      expect(JSON.stringify(requests[1])).toContain("Change direction");
+    } finally {
+      finish?.({ ok: false, content: "Stopped" });
+      await runtime.abort();
+      await running;
+      await runtime.dispose();
+    }
+  });
+
+  it.each(["local", "remote"] as const)("waits for Stop when a %s shell reports an unconfirmed failure", async (kind) => {
+    let finish!: (value: unknown) => void;
+    const host = { call: vi.fn((method: string) => method === "tools.execute"
+      ? new Promise((resolve) => { finish = resolve; }) : Promise.resolve({ ok: true })) };
+    const requests: AgentMessage[][] = [];
+    const runtime = createRuntime({ host, ...(kind === "remote" ? { remoteWorkspace: { hostKey: "ssh", path: "/remote" } } : {}) });
+    (runtime as any).models = { streamSimple: scriptedStream([[
+      { type: "toolCall", id: "uncertain", name: "Bash", arguments: { command: "sleep 600" } },
+    ]], requests) };
+    const running = runtime.prompt("Run command", "initial-user", "active-turn");
+    try {
+      await vi.waitFor(() => expect(finish).toBeDefined());
+      runtime.steer({ text: "Change direction" }, "active-turn", {
+        id: "steer-user", role: "user", content: "Change direction", createdAt: new Date().toISOString(), steering: true,
+      });
+      finish({ ok: false, content: "lifecycle failed", errorCode: "TOOL_FAILED" });
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(requests).toHaveLength(1);
+      await runtime.abort();
+      await running;
+      expect(requests).toHaveLength(1);
+    } finally {
+      finish?.({ ok: false, content: "Stopped" });
+      await runtime.abort();
+      await running;
+      await runtime.dispose();
+    }
+  });
+
+  it("skips a write when steering arrives during tool preparation", async () => {
+    let finishPreparation!: (value: unknown) => void;
+    const host = { call: vi.fn((method: string) => method === "project.instructions.resolve"
+      ? new Promise((resolve) => { finishPreparation = resolve; }) : Promise.resolve({ ok: true })) };
+    const requests: AgentMessage[][] = [];
+    const runtime = createRuntime({ host, projectPath: "/root" });
+    (runtime as any).models = { streamSimple: scriptedStream([[
+      { type: "toolCall", id: "prepared-write", name: "Write", arguments: { path: "file.txt", content: "new" } },
+    ]], requests) };
+    const running = runtime.prompt("Write file", "initial-user", "active-turn");
+    try {
+      await vi.waitFor(() => expect(finishPreparation).toBeDefined());
+      runtime.steer({ text: "Do not write" }, "active-turn", {
+        id: "steer-user", role: "user", content: "Do not write", createdAt: new Date().toISOString(), steering: true,
+      });
+      finishPreparation({ entries: [] });
+      await running;
+      expect(host.call.mock.calls.some(([method]) => method === "tools.execute")).toBe(false);
+      expect(JSON.stringify(requests[1])).toContain("Do not write");
+    } finally {
+      finishPreparation?.({ entries: [] });
+      await runtime.abort();
+      await running;
+      await runtime.dispose();
+    }
+  });
+
+  it("settles each parallel read before delivering steering", async () => {
+    const fixture = gatedHost();
+    const requests: AgentMessage[][] = [];
+    const runtime = createRuntime({ host: fixture.host });
+    (runtime as any).models = { streamSimple: scriptedStream([[
+      { type: "toolCall", id: "read-a", name: "Read", arguments: { path: "a.txt" } },
+      { type: "toolCall", id: "read-b", name: "Read", arguments: { path: "b.txt" } },
+    ]], requests) };
+    const running = runtime.prompt("Read files", "initial-user", "active-turn");
+    try {
+      await vi.waitFor(() => expect(fixture.entered).toEqual(["read-a", "read-b"]));
+      runtime.steer({ text: "Change direction" }, "active-turn", {
+        id: "steer-user", role: "user", content: "Change direction", createdAt: new Date().toISOString(), steering: true,
+      });
+      await running;
+      const aborted = fixture.host.call.mock.calls.filter(([method]) => method === "tools.abort");
+      expect(aborted.map(([, args]) => args.toolCallId).sort()).toEqual(["read-a", "read-b"]);
+      expect(toolResults(requests[1]).map((result) => result.id)).toEqual(["read-a", "read-b"]);
+      expect(JSON.stringify(requests[1])).toContain("Change direction");
+    } finally {
+      fixture.drain();
+      await runtime.abort();
+      await running;
+      await runtime.dispose();
+    }
+  });
+
+  it("does not start later sequential tools after steering", async () => {
+    const fixture = gatedHost();
+    const requests: AgentMessage[][] = [];
+    const runtime = createRuntime({ host: fixture.host });
+    (runtime as any).models = { streamSimple: scriptedStream([[
+      { type: "toolCall", id: "first", name: "Bash", arguments: { command: "sleep 600" } },
+      { type: "toolCall", id: "second", name: "Bash", arguments: { command: "echo unexpected" } },
+    ]], requests) };
+    const running = runtime.prompt("Run commands", "initial-user", "active-turn");
+    try {
+      await vi.waitFor(() => expect(fixture.entered).toEqual(["first"]));
+      runtime.steer({ text: "Change direction" }, "active-turn", {
+        id: "steer-user", role: "user", content: "Change direction", createdAt: new Date().toISOString(), steering: true,
+      });
+      await running;
+      expect(fixture.entered).toEqual(["first"]);
+      expect(JSON.stringify(requests[1])).toContain("Skipped because new user input is waiting");
+      expect(JSON.stringify(requests[1])).toContain("Change direction");
+    } finally {
+      fixture.drain();
+      await runtime.abort();
+      await running;
+      await runtime.dispose();
+    }
+  });
+
   it.each(["during", "before"] as const)("handles steering %s TaskWait while its delegate continues running", async (timing) => {
     subagentRuns.calls.length = 0;
     subagentRuns.instances.length = 0;
@@ -14428,5 +14609,65 @@ describe("parallel policy tool provenance", () => {
       expect(host.call.mock.calls.some(([method]) =>
         ["project.instructions.resolve", "tools.prepareFileCall"].includes(method))).toBe(false);
     } finally { internal.extensionRunner = undefined; await runtime.dispose(); }
+  });
+});
+
+
+describe("background Bash job waits in the production runtime", () => {
+  it.each(["steer", "abort"] as const)("releases a wait on %s without stopping the process", async action => {
+    let entered!: () => void;
+    const waiting = new Promise<void>(resolve => { entered = resolve; });
+    let finish!: (value: unknown) => void;
+    const host = { call: vi.fn(async (method: string) => {
+      if (method === "backgroundJobs.capabilities") return { version: 1, supported: true };
+      if (method === "backgroundJobs.wait") {
+        entered();
+        return new Promise(resolve => { finish = resolve; });
+      }
+      return {};
+    }) };
+    const runtime = createRuntime({ host, subagents: [] });
+    const requests: AgentMessage[][] = [];
+    const internals = runtime as unknown as {
+      models: { streamSimple: (model: unknown, context: { messages: AgentMessage[] }) => ReturnType<typeof createAssistantMessageEventStream> };
+    };
+    internals.models = { streamSimple: (_model, context) => {
+      requests.push([...context.messages]);
+      const first = requests.length === 1;
+      const message = assistantMessage({
+        content: first
+          ? [{ type: "toolCall", id: "wait-bash", name: "TaskWait", arguments: { job: { kind: "bash", id: "process" } } }]
+          : [{ type: "text", text: "Handled new input." }],
+        stopReason: first ? "toolUse" : "stop",
+      }) as unknown as AssistantMessage;
+      const stream = createAssistantMessageEventStream();
+      queueMicrotask(() => {
+        stream.push({ type: "start", partial: message });
+        stream.push({ type: "done", reason: first ? "toolUse" : "stop", message });
+        stream.end(message);
+      });
+      return stream;
+    } };
+    const running = runtime.prompt("Wait for the background test.", "user", "job-turn");
+    try {
+      await waiting;
+      if (action === "steer") {
+        runtime.steer({ text: "Handle this correction." }, "job-turn", {
+          id: "new-user", role: "user", content: "Handle this correction.",
+          createdAt: "2026-11-05T00:00:00.000Z", steering: true,
+        });
+      } else {
+        await runtime.abort();
+      }
+      await running;
+      if (action === "steer") {
+        expect(JSON.stringify(requests.at(-1))).toContain("Interrupted by new user input");
+        expect(JSON.stringify(requests.at(-1))).toContain("Handle this correction.");
+      }
+      expect(host.call.mock.calls.some(([method]) => method === "backgroundJobs.stop")).toBe(false);
+      finish({ state: "running" });
+    } finally {
+      await runtime.dispose();
+    }
   });
 });

@@ -9529,6 +9529,30 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   Electron renderer. The full desktop journey against a large real tree is
   Draft (run only in a capable environment when this surface changes).
 
+#### E2E-102k: `@agent` mention delegates to a named subagent
+
+- **Preconditions**: An Agent session in a project with the builtin
+  `explorer` subagent enabled and no workspace-root entry named `explorer`.
+- **Steps**: Type `look @expl`, accept the `@explorer` row from the **Agents**
+  group, finish the sentence and send. Repeat in Plan mode. Add a root file
+  named `explorer` and type `@` again.
+- **Expected**: The chip is atomic; the user row shows the typed text with
+  `@explorer` chipped; the model is instructed to call `Task` with
+  `explorer` and a Task card appears. Plan mode lists no Agents group and sends
+  the text literally. A same-named root file hides the agent row. Stop before
+  any reply restores the typed text, not the model instruction.
+- **Spec**: `04-ux/08-component-spec.md` §11.8, ADR 0346
+- **Acceptance**: C (conversation & stream)
+- **Milestone**: M5
+- **Status**: The renderer journey (group, shadowing, Plan omission, chip,
+  serialization) runs in `apps/desktop/test/composer-agent-mention-user-path.test.mjs`
+  in a real Electron renderer; send-time rewriting, mode gating, file
+  precedence and Skill composition in `composer-agent-mention.test.mjs`;
+  transcript chips in `session-message-presentation.test.mjs`; persistence in
+  `host-core` `agent_mentions_round_trip_through_record_meta`; Stop restoration
+  in `composer-smart-stop.test.mjs`. The live Task card against a real
+  provider is Draft (requires a configured model).
+
 #### E2E-102b: Unanswered Stop restores compact file-reference drafts
 
 - **Preconditions**: An Agent session can delay its first assistant event. The
@@ -17315,6 +17339,12 @@ plugin-form fixtures in an isolated temporary directory at runtime.
 
 #### E2E-AGENT-alt-enter-steers-active-turn: Enter follows up and Alt+Enter steers the active turn
 
+Steer a long-running local foreground command. Verify cancellation, partial
+output and the waiting status, and require confirmed settlement before the next
+model request. Repeat with delayed settlement beyond the Stop grace period, an
+unconfirmed shell failure, a remote tool, parallel and queued calls, a background
+command, a delegate, and an explicit Stop. Accepted input is delivered once.
+
 - **Preconditions**: A session with a configured model and a controllable
   streaming response/tool; an image-capable model for the attachment case.
 - **Steps**:
@@ -20102,3 +20132,26 @@ Scenario: E2E-REVIEW-ROUNDS (local desktop, implemented)
 - Specs: ADR 0043; runtime RPC/storage specs; component spec Round review reader.
 - Milestone: maintenance. Traceability: acceptance criteria 1–9 of the approved
   native round-review enhancement map to this scenario and the tests above.
+
+
+### E2E-TOOLS-session-background-jobs
+
+- Entry: build shared/agent-runtime/host-runtime and Host, then run
+  `PI_DESKTOP_HOST_BIN=<candidate-host> node scripts/e2e-session-background-jobs.mjs`.
+- Environment: isolated Host data and workspace, production runtime and pi tool
+  loop, deterministic localhost HTTP provider. No external model account.
+- Sequence: start a background test, list it, wait for failure and Unicode
+  output tails; start a service, time out waiting, call default stop, then
+  explicitly stop and wait for the same job.
+- Expected: correct exit code and both final tails, per-stream UTF-8 limits,
+  cross-session list/read/stop isolation, timeout and default stop preserve Bash,
+  explicit stop reaches terminal state, repeated reads and desktop output agree.
+  Plan-mode access is rejected.
+- Runtime tests cover new input/parent abort during a pending Host wait, late
+  Host rejection, old Host/remote capability behavior, mixed selector rejection,
+  existing delegation controls and registration without a subagent catalog.
+- Host tests cover pre-settled observation, repeatable output, Unicode clipping,
+  ownership lookup, idempotent stop and stop acknowledgement before termination.
+  Existing Windows child/grandchild cleanup tests remain required; record native
+  failures separately from protocol success.
+- Exercise a late stop with an already reaped child before the supervisor drains the pipes. Verify the original exit outcome, final output and stable elapsed time across reads. Stall capability discovery or the first Host observation to exercise the overall wait deadline. The Electron transcript fixture renders a pending Bash stop and a mixed job list.

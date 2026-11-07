@@ -493,7 +493,7 @@ export function useTranscriptScroll({
     }
     trackHistoryPosition(windowSize);
     rememberReadingPosition();
-  }, [cancelFollowScroll, historyReadLatency, isHistoryLocked, latestNavigation, reachTop, readingPositionPendingRef, readingWindow, recordScrollPosition, rememberReadingPosition, releaseDisclosureAnchor, restoreHistoryAnchor, scheduleFollowScroll, trackHistoryPosition, windowSize]);
+  }, [cancelFollowScroll, historyReadLatency, latestNavigation, reachTop, readingPositionPendingRef, readingWindow, recordScrollPosition, rememberReadingPosition, releaseDisclosureAnchor, restoreHistoryAnchor, scheduleFollowScroll, trackHistoryPosition, windowSize]);
 
   // Send / retry / regenerate always re-pins follow mode so the new prompt and
   // its stream stay in view, even if the user had scrolled up through history.

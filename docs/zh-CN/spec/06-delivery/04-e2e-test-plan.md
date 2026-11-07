@@ -9,6 +9,20 @@
 
 ---
 
+### E2E-RUNTIME-text-tool-call-diagnostic
+
+- **Preconditions:** Isolated runtime with a fixture provider and synthetic data.
+- **Steps:** Return a complete text-form Qwen `TodoWrite` call, alone and after
+  normal prose. Repeat alongside a valid structured Bash call. Then return a
+  normal answer. Repeat with fenced/inline/quoted/indented XML examples,
+  incomplete blocks and an unknown tool name.
+- **Expected:** The literal known-tool call retains its text and displays
+  `TOOL_CALL_NOT_EXECUTED` with error message status. It never executes or
+  activates the text-form tool, and never retries automatically. Structured
+  sibling calls execute once and normal continuation succeeds. Examples,
+  unknown names and incomplete blocks remain ordinary text.
+- **Coverage:** `text-tool-call.test.ts`, `malformed-tool-recovery.test.ts`.
+
 ### E2E-PI-130-kernel-upgrade
 
 - **Preconditions:** Pi 1.3.0 with migrated patches, isolated fixture state, and
@@ -36,6 +50,23 @@
   `pi-1.4-adapter-features.test.ts`、`runtime.test.ts`、`subagent.test.ts`，以及现有
   `test:e2e:hosted-search` 和 `test:e2e:trusted-extensions` 命令。具体范围与候选验证记录见英文源及
   `docs/project/pi-140-adoption.md`。
+
+### E2E-PI-150-kernel-upgrade
+
+- **前提：** 在专属 worktree 中精确固定 Pi 1.5.0 release group（含新增的 `pi-schema`）并
+  重建包补丁，使用隔离 fixture 状态，不提供真实 Provider 凭据。
+- **步骤：** 在已安装的 1.5.0 包上运行现有 runtime、原生 Pi 会话和身份测试；经 1.5.0
+  增量解析的 Anthropic 适配器流式传输 hosted-search 块；构建拆分的 sidecar bundle；运行现有
+  hosted-search 和可信扩展离线套件。
+- **预期：** Desktop 用 TypeBox 构建的工具 schema 在 pi-schema 上校验不变。Hosted-search
+  捕获、实时查询更新、引用、重放与本地请求错误保持不变。Release group 只解析一个 `undici`
+  8.x，sidecar 入口保持在体积阈值内。身份请求头报告 1.5.0。不使用 Provider 凭据或线上服务。
+- **覆盖：** `pi-upstream-1.5-identity.test.ts`、`pi-upstream-1.5-contract.test.ts`、
+  `pi-1.5-adapter-features.test.ts`、`official-native-search.test.ts`、
+  `native-pi-session.test.ts`、`agent-runtime-bundle-package.test.mjs`、
+  `anthropic-oauth-retry.test.mjs`，以及现有 `test:e2e:hosted-search` 和
+  `test:e2e:trusted-extensions` 命令。具体范围与候选验证记录见英文源及
+  `docs/project/pi-150-adoption.md`。
 
 ### E2E-LEGACY-DICTATION-idle-model-release
 
@@ -10322,3 +10353,13 @@ Electron 一侧——工具自动签发、指示器、"停止"中止轮次、绘
   回报成功。
 - **规格**：[电脑操作](/zh-CN/spec/03-runtime/computer-use)。
 - **状态**：NOT RUN —— 需要真机运行。
+
+### E2E-TOOLS-session-background-jobs
+
+- 构建 shared、agent-runtime、host-runtime 与 Host 后，运行 `PI_DESKTOP_HOST_BIN=<candidate-host> node scripts/e2e-session-background-jobs.mjs`。
+- 使用隔离 Host 数据、工作目录、生产 runtime/pi 循环与本地 HTTP 模型夹具。
+- 后台启动测试，列举并等待失败结果；启动常驻命令，等待超时、无参停止，再显式停止并等待。
+- 验证退出码、两路末尾输出、UTF-8 上限、跨会话列表/读/停隔离、超时和无参停止保留 Bash、显式停止终态、重复查询及桌面输出一致；拒绝 Plan 模式。
+- runtime 测试补充新输入和父回合取消、延迟 RPC 错误、旧 Host/远程能力缺失、混合选择器拒绝、原委派控制及无子代理配置的工具注册。
+- Host 测试覆盖先完成后等待、重复读取、Unicode 截断、归属查找、幂等停止与停止请求待确认。Windows 子孙进程清理测试仍须执行，原生失败单独报告。
+- 在子进程已退出、监管任务尚未排空管道时请求停止，检查原退出结果、最终输出和重复读取的耗时。延迟能力探测或第一次 Host 观察，检查等待总时限。Electron 会话记录用例渲染尚待确认的 Bash 停止请求和混合作业列表。

@@ -1742,9 +1742,8 @@ storage but compose into one assistant turn until the next user message.
   view. Plain project-file references still prefer the bundled file view, whose
   open contract does not carry a line position.
 - Hover or focus a minimap marker: show the localized sender and a bounded
-  plaintext preview; multiple assistant fragments produced within one user
-  turn are combined into one AI-response marker and preview; nearby markers
-  magnify horizontally without reflowing the rail
+  plaintext preview of that user message; nearby markers magnify horizontally
+  without reflowing the rail
 - Click a minimap marker: smoothly scroll its message near the top of the
   transcript viewport
 - Scroll the transcript: update the active minimap marker against an anchor
@@ -1856,10 +1855,8 @@ storage but compose into one assistant turn until the next user message.
 - The minimap renders when at least two eligible turn markers exist **and** the
   transcript content overflows one viewport (scrollHeight > clientHeight), or
   whenever earlier history remains unmounted or unloaded (D269).
-  Each visible user message creates one marker; all contentful assistant
-  fragments until the next user message create one AI-response marker anchored
-  to the first contentful fragment. Tool-only rows do not create markers or
-  split an AI response, and a one-page transcript never shows the rail.
+  Each visible user message creates one marker; assistant and tool rows do
+  not create markers, and a one-page transcript never shows the rail.
 - Marker previews are capped at 280 source characters and are display-only
 - Derived visible rows, minimap rows, and activity grouping share the immutable
   `messages` projection with the Composer context inspector. After warm-up, an
@@ -3565,7 +3562,7 @@ See [Live Voice](../03-runtime/live-voice.md) and
 [Live Work](../03-runtime/live-work-session.md) for the unchanged ownership,
 permission, and call-scoped work contracts.
 
-### 11.8 Slash commands, @ file references, and clipboard files (D123–D125, D197, D209, D262, D362, D397, ADR 0024, ADR 0059, ADR 0070, ADR 0131, ADR 0221, ADR 0222)
+### 11.8 Slash commands, @ file references, and clipboard files (D123–D125, D197, D209, D262, D362, D397, ADR 0024, ADR 0059, ADR 0070, ADR 0131, ADR 0221, ADR 0222, ADR 0346)
 
 The composer owns an inline autocomplete menu — one component serving two
 modes. Focus never leaves the textarea (D125).
@@ -3649,6 +3646,20 @@ Anatomy:
   may be incomplete — the bare `@`, until the first search for the token
   answers, and when a search is itself capped or unavailable, as in remote
   sessions; without a workspace the menu shows an "open a project" empty state.
+- `@agent` mentions (ADR 0346): in Agent mode the `@` menu lists an
+  **Agents** group above the files — the catalog `Task` is built from, each
+  row `@name` + description with the bot glyph — and the file rows gain a
+  **Files** heading only beside it. Plan and Goal omit the group. An agent
+  whose name matches a workspace-root entry is hidden, because that token
+  belongs to the file. Accepting an agent inserts an atomic inline chip that
+  serializes to `@name`, with a separating space before and after when a
+  neighbor is not whitespace. At send, main rewrites a draft whose `@name`
+  tokens name catalog subagents (Agent mode, no same-named root entry) into an
+  explicit `Task` instruction followed by the unchanged draft; the typed text
+  persists as `command` with `agentMentions` offsets, and the transcript chips
+  each mention. Skill and agent mentions combine; a leading template or app
+  command is not rewritten. Stop restores the typed `command`, never the
+  rewritten `content`.
 - Accepting commands and directories inserts text (`/name ` / `@dir/`);
   accepting a completed file inserts the inline chip rather than deleting the
   trigger. Immediately
@@ -4183,7 +4194,9 @@ default nor provider configuration. OAuth accounts remain in their separate sect
 1. **Model selection** — chat models are selected in the Composer. Its first
    menu has persistent search over a text-only source rail (Recent, then each
    provider) and the chosen source's models. A single marker slides between
-   rail items, and the pane slides in from the direction of the move. With a
+   rail items, and the pane slides in from the direction of the move. A gear at
+   the trailing edge of the search header ("Manage models") closes the menu
+   and opens the Models settings destination. With a
    single source the rail is hidden and all models show directly.
    New chats inherit the last actually used available model. Only accepted
    message submission updates that preference; selection and reasoning changes
@@ -4652,7 +4665,10 @@ instructions, memory and OAuth dialogs retain their existing bounded layouts.
 
 Local Review defaults to Last round (the latest modified user round). Its
 scope dropdown also offers History, which reveals a separate user-round selector row,
-independent of the chat's loaded message window. Rounds without changes do not
+independent of the chat's loaded message window. Transcript summary focus requests
+carry their originating session; switching back to another conversation cannot
+replay that request there or empty its file list beneath a populated history option.
+Rounds without changes do not
 replace Latest. Main and delegated Write/Edit evidence share a file list; actual
 execution roots distinguish identically named files. The file header opens all
 of that file's recorded operations in order, without claiming a net diff.

@@ -1,3 +1,4 @@
+mod background_jobs;
 mod computer_rpc;
 mod config_sync_rpc;
 mod file_batches;
@@ -1967,6 +1968,10 @@ async fn handle_request(
             .map_err(config_sync_rpc_err);
     }
 
+    if method.starts_with("backgroundJobs.") {
+        return background_jobs::handle(state, method, params).await;
+    }
+
     if method.starts_with("tools.fileBatch") {
         return file_batches::handle(state, method, params).await;
     }
@@ -2248,9 +2253,12 @@ async fn handle_request(
                 .get("path")
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| rpc_err(1002, "path required", "INVALID_PARAMS"))?;
-            let path = crate::db::canonical_project_path(path)
-                .ok_or_else(|| rpc_err(1002, "path required", "INVALID_PARAMS"))?;
             let st = state.lock().await;
+            let path = st
+                .db
+                .stored_project_path(path)
+                .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?
+                .ok_or_else(|| rpc_err(1002, "path required", "INVALID_PARAMS"))?;
             if crate::scheduled::project::has_running_tasks(&st.db, &path)
                 .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?
             {

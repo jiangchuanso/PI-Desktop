@@ -1,5 +1,56 @@
 # 04. E2E Test Plan
 
+## E2E-PROVIDER-DASHSCOPE-terminal-parameter-error
+
+- **Preconditions:** Isolated Agent runtime and a synthetic OpenAI-compatible
+  provider; no real credentials or user history.
+- **Steps:** Submit a prompt. Return HTTP 200 with a streamed provider error
+  whose message starts `InvalidParameter: <400>` and reports repetitive tool
+  calls. Also exercise 400/422, authentication, 429 and 5xx envelopes through
+  the shared classifier.
+- **Expected:** The 400 error ends the turn as non-retriable `PROVIDER_ERROR`
+  with provider status 400, without another provider request or retry backoff.
+  The HTTP 200 transport does not override the embedded error status.
+  Authentication stays terminal; throughput limits and 5xx remain retriable.
+  Structured status takes precedence and prose numbers are ignored.
+- **Automated coverage:** `agent-errors.test.ts` and `provider-retry.test.ts`.
+- **Specs:** `03-runtime/08-error-codes.md` §3.2.
+
+
+## E2E-TASK-DOCK-tab-content-isolation
+
+- **Preconditions:** Isolated Electron renderer with synthetic todos and a running
+  task; production TaskDock, hook and store, with only host IPC stubbed.
+- **Steps:** Expand the dock, select Todo, select Background tasks, open its log,
+  switch to Todo and back. Repeat with completed todos.
+- **Expected:** Only the selected panel appears. Todo contains no task rows,
+  Stop control or log; Background tasks contains no checklist. The shared live
+  count remains visible, switching never sends Stop, and the open log survives.
+- **Entry:** `node scripts/e2e-task-dock-tabs.mjs`.
+- **Specs:** `03-runtime/03-tools-and-permissions.md`, shared task container.
+- **Acceptance:** Both switch directions preserve task state and log selection.
+- **Milestone:** Maintenance. **Status:** Automated renderer interaction test.
+
+
+## E2E-PROJECT-case-alias-upgrade-and-delete
+
+- Entry: `python scripts/e2e-project-path-case.py <candidate-host>` on native
+  Windows or a case-insensitive macOS volume. `--expect-bug` verifies the old
+  failure against an unpatched Host.
+- Create a temporary profile, real `Alpha` directory, two conversations with
+  transcript bytes, and an unrelated project/conversation. Seed the historical
+  lowercase project row and move one conversation to it while the Host is stopped.
+- Restart: require schema v28 and a v27 backup retaining both original owners,
+  one project, both conversations owned by it, and both
+  transcripts preserved. Delete by the lowercase spelling: require both owned
+  conversations/files removed, no reappearing alias row, and the unrelated
+  conversation and physical project directory preserved.
+- Repository regressions also cover a directory appearing after its first
+  registration, schedule/current-selection retention, opaque remote ids,
+  distinct case-sensitive directories, retargeted symlinks, nested import
+  transactions and failure rollback. Use synthetic data only; no installed
+  user profile, provider request or interactive Electron instance is used.
+
 ## E2E-COMPOSER-DIRECTORY-PASTE: Native folder cards and lazy context
 
 - **Preconditions**: Synthetic folders/files with spaces, Unicode and XML-significant names.
@@ -181,6 +232,20 @@
   the actual settings panes and verifies saved bindings remain editable.
 
 
+### E2E-RUNTIME-text-tool-call-diagnostic
+
+- **Preconditions:** Isolated runtime with a fixture provider and synthetic data.
+- **Steps:** Return a complete text-form Qwen `TodoWrite` call, alone and after
+  normal prose. Repeat alongside a valid structured Bash call. Then return a
+  normal answer. Repeat with fenced/inline/quoted/indented XML examples,
+  incomplete blocks and an unknown tool name.
+- **Expected:** The literal known-tool call retains its text and displays
+  `TOOL_CALL_NOT_EXECUTED` with error message status. It never executes or
+  activates the text-form tool, and never retries automatically. Structured
+  sibling calls execute once and normal continuation succeeds. Examples,
+  unknown names and incomplete blocks remain ordinary text.
+- **Coverage:** `text-tool-call.test.ts`, `malformed-tool-recovery.test.ts`.
+
 ### E2E-PI-130-kernel-upgrade
 
 - **Preconditions:** Exact Pi 1.3.0 pins and migrated patches in a dedicated
@@ -241,6 +306,32 @@
 - **Acceptance:** Offline runtime/contract and isolated process validation.
 - **Milestone:** Maintenance.
 - **Status:** Candidate validation recorded in `docs/project/pi-140-adoption.md`.
+
+### E2E-PI-150-kernel-upgrade
+
+- **Preconditions:** Exact Pi 1.5.0 release-group pins (including the new
+  `pi-schema` package) and rebased package patches in a dedicated worktree,
+  isolated fixture state, and no real provider credentials.
+- **Steps:** Run the existing runtime, native Pi session, and identity suites
+  against the installed 1.5.0 packages. Stream Anthropic hosted-search blocks
+  through the incrementally parsed 1.5.0 adapter. Build the split sidecar
+  bundle. Run the existing hosted-search and trusted-extension offline suites.
+- **Expected:** Desktop tool schemas built with TypeBox validate unchanged on
+  pi-schema. Hosted-search capture, live query updates, citations, replay, and
+  local request errors remain intact. The release group resolves a single
+  `undici` 8.x, so the sidecar entry stays below its size threshold. Identity
+  headers report 1.5.0. No provider credentials or live services are used.
+- **Coverage:** `pi-upstream-1.5-identity.test.ts`,
+  `pi-upstream-1.5-contract.test.ts`, `pi-1.5-adapter-features.test.ts`,
+  `official-native-search.test.ts`, `native-pi-session.test.ts`,
+  `agent-runtime-bundle-package.test.mjs`, `anthropic-oauth-retry.test.mjs`,
+  plus the existing `test:e2e:hosted-search` and
+  `test:e2e:trusted-extensions` commands.
+- **Specs:** [Pi dependency boundary](../02-architecture/06-pi-runtime-dependency-boundary.md),
+  [trusted extensions](../07-plugins/16-trusted-extensions.md).
+- **Acceptance:** Offline runtime/contract and isolated process validation.
+- **Milestone:** Maintenance.
+- **Status:** Candidate validation recorded in `docs/project/pi-150-adoption.md`.
 
 ### E2E-QUEUE-send-now-wakes-subagents
 
@@ -3815,8 +3906,8 @@ identify the platform validation still needed.
 #### E2E-041: Conversation minimap navigates long transcripts
 
 - **Preconditions**: A session contains enough user and assistant turns to
-  scroll beyond one viewport and densely fill the minimap, including one AI
-  response emitted as multiple assistant fragments around tool activity; a
+  scroll beyond one viewport and densely fill the minimap, including assistant
+  responses emitted as multiple fragments around tool activity; a
   second session has at least two eligible turn markers that still fit in one
   viewport.
 - **Steps**: 1) Open the long session. 2) Scroll through the transcript and
@@ -3827,13 +3918,11 @@ identify the platform validation still needed.
   window taller until content no longer overflows, then shorter again. 9) At a
   short window height, inspect and activate the first and last markers near the
   minimap's vertical bounds, including from the titlebar-facing side.
-- **Expected**: The rail contains one marker per visible user turn and one per
-  AI response. Multiple assistant fragments between two user messages share a
-  single marker and combined bounded preview, while tool-only rows create no
-  marker and do not split the response. The marker near the upper-third reading
+- **Expected**: The rail contains one marker per visible user message;
+  assistant and tool rows create no marker. The marker near the upper-third reading
   anchor exposes `aria-current`; hover and focus show the same localized sender
   and preview; nearby markers magnify horizontally without shifting the stack;
-  activation smoothly scrolls to the first contentful message in that response;
+  activation smoothly scrolls to that user message;
   the rail is absent when fewer than two eligible markers exist **or** when
   content does not overflow one viewport; the rail reappears once overflow
   returns after a resize. Dense markers remain centered in the unobstructed
@@ -8037,15 +8126,20 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
     removed. The caller's payload rewrite remains active, the repair consumes no
     transient retry budget or backoff, and both Chat Completions and Responses
     fixtures complete on their second request. A second opaque failure remains
-    terminal.
+    terminal. A 400/422 that names an output ceiling (`at most N completion
+    tokens`, `max_tokens: N > M, which is the maximum allowed number of output
+    tokens`, or `expected a value <= N`) gets one silent repair that clamps
+    those fields to that ceiling instead of removing them. Credit exhaustion
+    and context overflow do not take this repair.
   - If the turn is aborted after the first opaque failure, the repair request is
     not started and the result is `aborted`.
   - A mid-stream HTTP 429 is covered by E2E-149's separate ten-retry path; the
     two budgets do not draw from each other.
   - Authentication, model-selection, context, and descriptive
     malformed-request failures do not enter either provider replay path. The
-    opaque empty-body 400/422 case is the bounded repair exception described
-    above. Infinite mode changes no classification and only removes the retry
+    opaque empty-body 400/422 case and the explicit output-ceiling case are
+    the bounded repair exceptions described above. Infinite mode changes no
+    classification and only removes the retry
     ceiling for admitted network/transient failures; it remains abortable and
     is visibly marked with an unbounded retry indicator.
 - **Specs linked**: `03-runtime/01-ipc-protocol.md`,
@@ -9528,6 +9622,30 @@ must keep splitting are covered by `markdown-blocks.test.mjs`.
   `apps/desktop/test/composer-deep-file-search-user-path.test.mjs` in a real
   Electron renderer. The full desktop journey against a large real tree is
   Draft (run only in a capable environment when this surface changes).
+
+#### E2E-102k: `@agent` mention delegates to a named subagent
+
+- **Preconditions**: An Agent session in a project with the builtin
+  `explorer` subagent enabled and no workspace-root entry named `explorer`.
+- **Steps**: Type `look @expl`, accept the `@explorer` row from the **Agents**
+  group, finish the sentence and send. Repeat in Plan mode. Add a root file
+  named `explorer` and type `@` again.
+- **Expected**: The chip is atomic; the user row shows the typed text with
+  `@explorer` chipped; the model is instructed to call `Task` with
+  `explorer` and a Task card appears. Plan mode lists no Agents group and sends
+  the text literally. A same-named root file hides the agent row. Stop before
+  any reply restores the typed text, not the model instruction.
+- **Spec**: `04-ux/08-component-spec.md` §11.8, ADR 0346
+- **Acceptance**: C (conversation & stream)
+- **Milestone**: M5
+- **Status**: The renderer journey (group, shadowing, Plan omission, chip,
+  serialization) runs in `apps/desktop/test/composer-agent-mention-user-path.test.mjs`
+  in a real Electron renderer; send-time rewriting, mode gating, file
+  precedence and Skill composition in `composer-agent-mention.test.mjs`;
+  transcript chips in `session-message-presentation.test.mjs`; persistence in
+  `host-core` `agent_mentions_round_trip_through_record_meta`; Stop restoration
+  in `composer-smart-stop.test.mjs`. The live Task card against a real
+  provider is Draft (requires a configured model).
 
 #### E2E-102b: Unanswered Stop restores compact file-reference drafts
 
@@ -13563,9 +13681,9 @@ This test plan spec is accepted when:
 - **Preconditions**: A built Desktop checkout and existing compatible Electron
   dependencies. Use the isolated synthetic fixture, never a live user profile.
 - **Steps**:
-  1. Scroll upward into the ahead-loading band (`min(2400px, max(120px, 3 *
-     clientHeight))`, above the `120px` hard edge) while holding Host page IO;
-     continue scrolling upward during IO, then complete the page.
+  1. Scroll upward into the adaptive ahead-loading band (base three screens,
+     at most twelve screens or `12000px`) while holding Host page IO; continue
+     scrolling during IO, then complete the page. Repeat from `4000px` at speed.
   2. Start `node scripts/e2e-transcript-history-loading.mjs --manual` and click
      **Load earlier (hold)** (or reach `<= 120px`). Note the visible turn and
      its viewport offset, continuously roll the wheel upward and downward while
@@ -13578,24 +13696,31 @@ This test plan spec is accepted when:
      zero-delta, or `Ctrl`+wheel input and nested/editable/row controls. While a
      page is pending, return to latest, complete the old page, and also test
      hiding/unmounting mid-trip.
+  5. Return after loading older pages, then scroll upward again. Reveal a real
+     turn-changes card during the trip and compare with layout growth above the
+     visible text. Continue with live output and a canonical rewrite.
 - **Expected**: Ahead-loading mounts cached withheld history before Host IO,
   stays single-flight, does not set `overflow-y: hidden` or discard main scroll
   input, tracks the newest actual message anchor across ongoing upward movement,
   and keeps that message within `2px` when the page prepends; there is no
-  early-threshold observer or eager draining at rest. Only the `<= 120px` hard
-  edge, explicit earlier-history action, and underfilled `120px` observer briefly
-  lock `overflow-y` and discard main-scroller vertical wheel/touch/scroll-key
-  input through IO and three stable layout frames while preserving horizontal,
-  zero-delta, and `Ctrl`+wheel input, nested scrolling, editable fields, and
-  title activation. Return-to-latest runs one `180–420ms` cubic ease-out
-  viewport animation (immediate under reduced motion) while suppressing
-  competing follow/layout/turn-completion owners; preparing a historical view
+  early-threshold observer or eager draining at rest. The `<= 120px` hard edge,
+  explicit earlier-history action, and underfilled observer use the same moving
+  anchor without locking overflow or discarding input. Native wheel movement
+  must occur during IO, with insertion preserving the resulting reading point.
+  Nested scrolling, editable fields and title activation remain independent.
+  Return-to-latest uses the same browser-native smooth scrolling as conversation
+  turn markers (`auto` under reduced motion), without custom easing, timing, or
+  per-frame position writes. Competing follow/layout/turn-completion owners yield; preparing a historical view
   clears `loading` on a new view identity while keeping current messages visible
   until exact-identity arrival, commits on hide/unmount, cancels in place only
   on genuine main-scroller input, and may skip unloaded intermediate ranges when
-  a disjoint search/history view joins the live tail. Runtime `isRunning` stays
-  real, and existing message/page/mounted-window/retained-pane caches remain
-  unchanged without idle TTL or memory reclamation.
+  a disjoint search/history view joins the live tail. Tail-connected older pages
+  and their physical cursor survive arrival, so upward reading does not repeat
+  covered reads; they remain outside model input and accept live updates. Pane
+  eviction and canonical rewrites still invalidate them. Native `scrollend`
+  rechecks the current bottom and smoothly finishes any remaining distance after
+  a late card or layout change, without a full-height instantaneous jump.
+  Runtime `isRunning` and mounted-window bounds remain unchanged, without idle TTL or reclamation.
 - **Automation**: `node scripts/e2e-transcript-history-loading.mjs`, also run by
   `e2e-transcript-render.mjs`, plus `transcript-latest-navigation.test.mjs`,
   `transcript-reading.test.mjs`, and `transcript-scroll.test.mjs`. The direct
@@ -13616,11 +13741,40 @@ This test plan spec is accepted when:
   native browser smooth travel across the prefetch threshold, resuming follow
   during pending IO, press-only interruption plus remount, delayed failed search,
   focused and restored disjoint ranges (no automatic forward reads), stream
-  growth/completion, hide/unmount, and reduced-motion media emulation. Empty
-  layout viewports are checked after layout and before paint, not before lazy
-  rows have had their layout opportunity. Only external Host IPC is controlled;
+  growth/completion, hide/unmount, and reduced-motion media emulation. An extra
+  latest case changes height above the reader by `2400px`. The minimap jump
+  journey then clicks latest and verifies one native smooth command with no
+  instantaneous intermediate travel. Separate final travel from arrival drift.
+  Delayed-layout checks require nonempty post-layout/prepaint samples within
+  `2px`, retaining pre-layout rAF diagnostics rather than treating them as paint.
+  Only external Host IPC is controlled;
   the ordinary-motion cases still require intermediate frames. Manual procedures:
   `tests/history-loading-scroll-test-cases.md`.
+  The production `SessionPane` resource journey opens collapsed process groups,
+  traverses both ends and the middle, and checks measured prose recycling plus
+  restoration of visible content without additional history requests.
+  `node scripts/e2e-transcript-prose-state.mjs` opens a table preview and Mermaid
+  source view, moves their prose offscreen and back, and verifies both states
+  survive while ordinary prose still recycles.
+  A separate variant includes a 1,600-paragraph final answer. `--manual-smoke` drives the
+  manual toolbar through two 100-message pages and reset, sending 24 native
+  wheel events in each direction per pending page; directional movement,
+  single-flight requests, and frame-gap p95 <= 100ms are checked. This is a
+  measured fixture budget, not a universal zero-latency guarantee.
+  `node scripts/manual-transcript-desktop.mjs --interaction-smoke` complements
+  this with the complete product shell and real Host database: native upward
+  wheel input crosses the initial 100-message page without mounting all 1,000
+  messages, then the actual latest button reaches the bottom with nonblank
+  sampled frames and <=2px tail drift during 600ms after arrival. The isolated
+  instance confirms the application's normal quit dialog and exits.
+  Late-reading regressions wait until the page has settled, then change content
+  above the reading point by 120px, balance it with a -120px change below, and
+  change an earlier paragraph inside a long answer. Nonempty pre-paint samples
+  must stay within 1px. Six consecutive 20px steps additionally compare the
+  actual painted text crop byte-for-byte, not merely the eventual scrollTop.
+  Full-Desktop interaction smoke repeats the painted reading check after a real
+  Host page. Original native smooth input, resumed follow, search, disclosure,
+  hide/reveal and turn-completion paths remain required.
 - **Specs linked**: `04-ux/09-interaction-patterns.md` §2.2 / §9.1 / §10.4, ADR 0130.
 - **Acceptance**: C (conversation), Quality.
 - **Status**: Automated Electron fixture and unit regressions implemented; run
@@ -17315,6 +17469,12 @@ plugin-form fixtures in an isolated temporary directory at runtime.
 
 #### E2E-AGENT-alt-enter-steers-active-turn: Enter follows up and Alt+Enter steers the active turn
 
+Steer a long-running local foreground command. Verify cancellation, partial
+output and the waiting status, and require confirmed settlement before the next
+model request. Repeat with delayed settlement beyond the Stop grace period, an
+unconfirmed shell failure, a remote tool, parallel and queued calls, a background
+command, a delegate, and an explicit Stop. Accepted input is delivered once.
+
 - **Preconditions**: A session with a configured model and a controllable
   streaming response/tool; an image-capable model for the attachment case.
 - **Steps**:
@@ -17978,6 +18138,26 @@ plugin-form fixtures in an isolated temporary directory at runtime.
   picked directory, and a session root stands in when the window shows no
   project. The two-live-sessions desktop journey and the panel step are Draft
   (run only in a capable environment when this surface changes)
+
+##### Workspace discovery consistency and project-isolated queues
+
+- Run `node --experimental-strip-types --test
+  apps/desktop/test/plugin-workspace-session.test.mjs` on Node 22, together with
+  the existing session-root, invocation, filesystem-scope and workspace-root
+  suites. The real plugin child process checks concurrent A/B workspace
+  discovery against actual marker reads, foreground switching, no visible
+  workspace, legacy provider mismatch, remote identity, and absolute reveal
+  limited to the caller's registered roots. Only the OS reveal boundary is stubbed.
+- A companion knowledge-plugin process test runs the real PluginRuntime, actual
+  plugin entry point, project queues and temporary files. Hold A's read at an
+  explicit RPC gate; B must save before A is released. A second caller in A
+  queues behind A and must retain its own invocation after the first finishes.
+  Switch or clear the visible project, reject an A invocation targeting B,
+  cancel A while B searches, and verify both original bodies and B's saved
+  revision. No live provider, installed user instance or `verify:ui:*` is used.
+- The full two-live-session shell journey remains separate; the child-process
+  tests establish the actual host/plugin/filesystem boundary without requiring
+  a foreground Electron app or changing permission semantics.
 
 #### E2E-MODEL-catalog-window-correction-reaches-saved-bindings
 
@@ -18656,10 +18836,14 @@ the latest destination. These assertions measure work counts, not device FPS.
   the test settings API to verify recovery. Generate same-prompt variants and
   distinct images; confirm each result appears once in the conversation gallery
   while the assistant confirms completion in text. Edit a generated image,
-  inspect partial failures, then restart the host/session. Attempt the tool in a
-  durable Plan session and verify no HTTP request occurs.
+  inspect partial failures, then restart the host/session. Return a
+  multi-megabyte `b64_json` image (well above 5.5M base64 characters, below
+  the image size cap). Attempt the tool in a durable Plan session and verify no
+  HTTP request occurs.
 - **Expected:** One image binding persists without changing the chat default;
   generated files, edit sources and transcript references survive restart.
+  The large image is saved byte-for-byte instead of failing with
+  `IMAGE_REQUEST_FAILED` (#2128).
   Each successful image appears once in its result card instead of being
   repeated as a Markdown embed; unconfigured errors navigate to Models settings.
 - **Specs:** 03-runtime/21-image-generation; 03-runtime/13-model-catalog-and-selection.
@@ -20035,6 +20219,11 @@ Scenario: E2E-REVIEW-ROUNDS (local desktop, implemented)
   isolated profile; verify both the checked menu option and actual diff context
   retain that choice. Missing/invalid/blocked storage is unit-covered by
   `apps/desktop/test/review-preferences.test.mjs`.
+- With two populated sessions, visit B, then click a file in A's real transcript
+  turn-summary card and return to B. The retained focus request must belong to A;
+  B must immediately retain its own recorded files. Cycling Last round → History
+  must leave those files unchanged rather than repair an initially empty list,
+  and B's selected history totals must agree with its visible file list.
 - Open several files from the per-turn summary with enough Review content to
   scroll. Each target comes into view inside Review while the conversation and
   work-panel headers stay visible and the window content reaches the bottom edge.
@@ -20102,3 +20291,26 @@ Scenario: E2E-REVIEW-ROUNDS (local desktop, implemented)
 - Specs: ADR 0043; runtime RPC/storage specs; component spec Round review reader.
 - Milestone: maintenance. Traceability: acceptance criteria 1–9 of the approved
   native round-review enhancement map to this scenario and the tests above.
+
+
+### E2E-TOOLS-session-background-jobs
+
+- Entry: build shared/agent-runtime/host-runtime and Host, then run
+  `PI_DESKTOP_HOST_BIN=<candidate-host> node scripts/e2e-session-background-jobs.mjs`.
+- Environment: isolated Host data and workspace, production runtime and pi tool
+  loop, deterministic localhost HTTP provider. No external model account.
+- Sequence: start a background test, list it, wait for failure and Unicode
+  output tails; start a service, time out waiting, call default stop, then
+  explicitly stop and wait for the same job.
+- Expected: correct exit code and both final tails, per-stream UTF-8 limits,
+  cross-session list/read/stop isolation, timeout and default stop preserve Bash,
+  explicit stop reaches terminal state, repeated reads and desktop output agree.
+  Plan-mode access is rejected.
+- Runtime tests cover new input/parent abort during a pending Host wait, late
+  Host rejection, old Host/remote capability behavior, mixed selector rejection,
+  existing delegation controls and registration without a subagent catalog.
+- Host tests cover pre-settled observation, repeatable output, Unicode clipping,
+  ownership lookup, idempotent stop and stop acknowledgement before termination.
+  Existing Windows child/grandchild cleanup tests remain required; record native
+  failures separately from protocol success.
+- Exercise a late stop with an already reaped child before the supervisor drains the pipes. Verify the original exit outcome, final output and stable elapsed time across reads. Stall capability discovery or the first Host observation to exercise the overall wait deadline. The Electron transcript fixture renders a pending Bash stop and a mixed job list.

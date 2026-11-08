@@ -20367,6 +20367,15 @@ Scenario: E2E-REVIEW-ROUNDS (local desktop, implemented)
   failures separately from protocol success.
 - Exercise a late stop with an already reaped child before the supervisor drains the pipes. Verify the original exit outcome, final output and stable elapsed time across reads. Stall capability discovery or the first Host observation to exercise the overall wait deadline. The Electron transcript fixture renders a pending Bash stop and a mixed job list.
 
+#### E2E-ISSUE-1953
+
+MCP All uses the selected project for create/import/install, falling back to Global only without a project. Explicit filters retain ownership and an opened editor pins its project. Verify create and market installation across all/project/global and missing-project cases with `mcp-market-owner-user-path.test.mjs`.
+
+Open an editor in project A, switch the page to B and wait for B's list. A/B
+same-name definitions with different IDs do not prevent saving to A. A real
+duplicate name or ID in A still blocks creation; a real duplicate name blocks
+editing. Cover both creating and editing before changing the page selection.
+
 #### E2E-ISSUE-1789
 
 Image-model marking explains chat/default-menu exclusion and distinguishes generation from image input. Collapsed model rows retain an image-model badge. Verify marking, help, collapsing, unmarking and restored chat eligibility through `image-model-disclosure-user-path.test.mjs`.
@@ -20399,3 +20408,11 @@ While a checkpoint estimate supplies context occupancy, use its recorded provide
 - Specs: `03-runtime/02-agent-runtime.md`, Session job controls.
 - Acceptance: wait, report re-read and running-delegate cancellation complete
   through the real tool loop. Milestone: maintenance. Status: automated.
+
+#### E2E-ISSUE-1707
+
+Use synthetic Darwin x64/arm64 uname responses through production SSH bootstrap, serialize its code/details as IPC does, and resolve the renderer error. The platform explanation appears, no checksum or upload occurs. Linux and other bootstrap failures keep existing messages. Coverage: remote-host-ssh-bootstrap.test.mjs and remote-host-errors.test.mjs.
+
+#### E2E-ISSUE-2184
+
+Load the actual bundled plugin in an isolated workspace. Create a file and Unicode directory, rename and move the file; verify disk entries and response metadata. Invalid create/rename names fail before writing, and duplicate destinations are refused. Coverage: apps/desktop/test/file-manager-mutations.test.mjs. Existing Electron directory-location path also passes.

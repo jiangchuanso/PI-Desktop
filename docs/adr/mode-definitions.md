@@ -35,6 +35,11 @@ Builtins `agent`, `plan` and `goal` use the same format and ship with the app.
 The builtin ids are reserved: a user document that uses one is reported in
 settings and is not loaded. To change a builtin, duplicate it under a new id.
 Discovery is global only, so a cloned repository cannot provide a mode.
+Settings read the directory again each time they load the catalog, so a
+document written by another editor shows up without a restart. A document
+whose `name` differs from its directory keeps that file: settings read, save
+and delete it in place, and a new mode never writes into a directory that
+already holds another mode.
 
 A definition has one of two levels of complexity.
 
@@ -137,11 +142,24 @@ and `{{artifacts.<id>.path}}`. Substitution is text-only.
 - **Run states.** The states are `running`, `waiting` (for an approval, after
   retries are exhausted, or after a non-loop stage stops), `paused`,
   `budget_exhausted`, `finished` and `stopped`. The status bar shows the mode,
-  the stage, turns or budget, and the controls Pause, Resume and Stop. Pause is
-  persisted immediately and blocks Host-started turns; a turn already running
-  finishes normally. Stop ends the run, revokes the claim and interrupts the
-  active turn. The composer Stop button interrupts the turn and pauses the run.
-  After a restart, a run whose turn was in flight is paused, never replayed.
+  the stage, turns or budget, and the controls Pause, Resume, Edit, Remove and
+  Stop. Pause is persisted immediately and blocks Host-started turns. A turn
+  already running closes out: Electron main tells its runtime
+  (`agent.modeTurnNotice` `closeout`), which adds a system notice asking for a
+  short handoff and ends the turn after at most 3 more model requests; the
+  notice is never a user message and the next turn starts without it. Stop
+  ends the run, revokes the claim and interrupts the active turn. Remove ends
+  the run the same way but does not interrupt: the runtime drops the run
+  context (`release`) and the turn finishes as an ordinary turn of the
+  `returnTo` mode, with no Host-started turn after it. The composer Stop
+  button interrupts the turn and pauses the run. After a restart, a run whose
+  turn was in flight is paused, never replayed.
+- **Editing a run.** `modes.update` changes an open run's input (the
+  objective) and its `{ maxTurns, maxTokens }` budget. Both apply from the
+  next claim. The turn holding the claim keeps the input it started with;
+  its `CompleteStage` carries that input and the Host answers
+  `MODE_INPUT_CHANGED` when it is no longer current, which ends the turn.
+  A raised budget does not resume a `budget_exhausted` run; Resume does.
 - **Remote workspaces.** Staged runs are not available in remote workspaces in
   this version. Simple modes are.
 - **Mode switch.** Selecting another staged mode while a run is active asks the
@@ -203,6 +221,10 @@ One migration after the current schema:
   existing values `agent`, `plan` and `goal` map to the builtins. A session
   whose mode no longer exists falls back to `agent`; an active run keeps its
   snapshot.
+  When a run closes, the Host returns the session to `returnTo` without a
+  snapshot; Electron main then settles it through `modes.settleReturn`,
+  attaching the return mode's current definition, or moving the session to
+  `agent` when that mode was deleted during the run.
 - `mode_snapshots (hash, json)`: an immutable definition per run, so editing a
   mode never changes a running run.
 - `mode_runs`: generalized from #2141 `session_goals`. Each row stores the mode,
@@ -224,7 +246,12 @@ One migration after the current schema:
 - `goal`: stage `work` (`agent`, `loop`, artifact `goal` from a template
   seeded with `{{run.input}}`, `inject` on compaction, gate
   `require: artifact:goal` with headings Objective, Acceptance criteria and
-  Evidence). Completion stays a model self-report, as in #2141. The legacy
+  Evidence). Completion stays a model self-report, as in #2141. A new Goal run
+  takes its budget from the `goalBudget` app setting (Settings → Agent
+  behavior) when it is set and valid, otherwise from the definition (20 turns,
+  unlimited tokens); a running run keeps its own. While a Goal run is open the
+  composer's Todo / background-task dock is hidden; its data stays and the dock
+  returns when the run ends. The legacy
   Goal negotiation (`EnterGoalMode`, `SubmitGoal`) is no longer offered, and
   the Host rejects new Goal proposals with `PLAN_GOAL_ACTIVATION_DISABLED`.
   Old Goal approval rows stay readable, expire normally and never become

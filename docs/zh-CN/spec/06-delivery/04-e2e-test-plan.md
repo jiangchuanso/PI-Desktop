@@ -1,5 +1,19 @@
 # 04. E2E 测试 Plan
 
+### E2E-SUBAGENT-system-notice-reconstruction
+
+重建运行中的 Task 后接系统通知的会话，生产条目构建、运行状态选择及结果
+解析保留 Task 运行状态。结束会话或追加普通用户提示后，历史 Task 不再存活。
+覆盖：`live-delegation-system-row.test.mjs`；`turn-process.test.mjs` 验证对应
+回合边界，`turn-process-header.test.mjs` 验证渲染状态标签。
+
+### E2E-STEERING-recovery-reply-order
+
+在早先回复和下一次恢复回复之间送入已消费的 steering，旧片段结束，下一条
+回复使用新 ID。`runtime.test.ts` 覆盖提供商、溢出、空回复及进度恢复。
+`e2e-transcript-render.mjs` 验证生产事件投影，以及无 steering 时原有的
+单气泡溢出恢复行为。
+
 ### E2E-COMPOSER-screenshot-without-directory-scan
 
 `e2e-composer-paste.mjs` 使用真实 Composer、preload IPC 和有界 scratch 写入，
@@ -10466,6 +10480,26 @@ recovery, CAS, budget and permission caps; desktop `mode-definitions-user-path`,
 `mode-definitions-renderer` and `mode-runs-main` cover source editing, selection,
 run controls and Main dispatch. Runtime `modes/*` covers stage completion and
 compaction injection.
+
+### Goal run controls with a live model (opt-in, paid)
+
+Command: `PI_LIVE_BASE_URL=<url> PI_LIVE_MODEL=<model> PI_LIVE_API_KEY=<key>
+PI_DESKTOP_HOST_BIN=<candidate-host> node scripts/e2e-goal-live.mjs` with
+`PI_SCRATCH_DIR` set (`PI_LIVE_SECRETS_DIR` + `PI_LIVE_SECRET_REF` may replace
+the key; only the machine key and that one secret file are copied). It calls a
+paid model API and needs the account owner's authorization. Real pieces: an
+isolated Host, the production runtime loop and Electron main's run coordinator.
+
+1. With `goalBudget { maxTurns: 6 }` set, a Goal run starts with 6 turns, does
+   the work, calls `CompleteStage` with the three-heading artifact, finishes,
+   and the session returns to Agent.
+2. During the first turn, Edit the objective and budget, then Pause: the turn
+   receives the closeout notice and ends within 3 more model requests; the run
+   stays paused and no turn starts. Resume starts an approval turn with the
+   edited objective, which the run meets before it finishes.
+3. During a turn, Remove: the turn is not interrupted, finishes in Agent
+   without `CompleteStage`, no Host-started turn follows, and no open run is
+   left.
 #### E2E-ISSUE-2173: Redundant delegation job selectors
 
 - Entry: build shared/agent-runtime/host-runtime and Host, then run
@@ -10489,6 +10523,15 @@ compaction injection.
 #### E2E-ISSUE-2184
 
 隔离项目加载真实内置插件，创建文件和中文目录，重命名并移动文件，核查磁盘与返回元数据；非法名称及重复目标拒绝。覆盖 file-manager-mutations.test.mjs 和原有 Electron 目录定位路径。
+
+### E2E-NATIVE-workspace-file-routing
+
+运行 `node scripts/e2e-native-workspace-files.mjs`：使用隔离 Electron Main、
+生产 workspace IPC、合成 sidecar 会话元数据和真实测试文件。选中无关的
+Desktop 工作区后，列出、读取和解析 native 文件，再拒绝不存在的 native 会话。
+断言 native 会话及 scratch 请求不会进入 Desktop 存储。
+`native-workspace-files.test.mjs` 另验证 sidecar 更换后拒绝旧响应。
+不执行模型或访问用户 native 会话。
 
 #### E2E-ISSUE-1926-scratch-prefix
 

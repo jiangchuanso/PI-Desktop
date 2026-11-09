@@ -1,5 +1,22 @@
 # 04. E2E Test Plan
 
+### E2E-SUBAGENT-system-notice-reconstruction
+
+Reconstruct a transcript with a running Task followed by a system notice.
+The production entry builder, live-delegation selector and outcome resolver
+keep the Task running. End the session or add a new ordinary prompt and verify
+that historical Tasks are no longer live. Coverage:
+`live-delegation-system-row.test.mjs`; `turn-process.test.mjs` checks the
+matching turn boundary and `turn-process-header.test.mjs` the rendered labels.
+
+### E2E-STEERING-recovery-reply-order
+
+Feed consumed steering between an earlier reply and the next recovery response.
+The earlier reservation settles and the next reply gets a new ID. Cover
+provider, overflow, silent and progress recovery in `runtime.test.ts`.
+`e2e-transcript-render.mjs` verifies production event projection and the
+existing one-bubble overflow recovery when no steering is consumed.
+
 ### E2E-COMPOSER-screenshot-without-directory-scan
 
 Paste a native folder, then a synthetic screenshot through real Composer,
@@ -20434,6 +20451,26 @@ recovery, CAS, budget and permission caps; desktop `mode-definitions-user-path`,
 `mode-definitions-renderer` and `mode-runs-main` cover source editing, selection,
 run controls and Main dispatch. Runtime `modes/*` covers stage completion and
 compaction injection.
+
+### Goal run controls with a live model (opt-in, paid)
+
+Command: `PI_LIVE_BASE_URL=<url> PI_LIVE_MODEL=<model> PI_LIVE_API_KEY=<key>
+PI_DESKTOP_HOST_BIN=<candidate-host> node scripts/e2e-goal-live.mjs` with
+`PI_SCRATCH_DIR` set (`PI_LIVE_SECRETS_DIR` + `PI_LIVE_SECRET_REF` may replace
+the key; only the machine key and that one secret file are copied). It calls a
+paid model API and needs the account owner's authorization. Real pieces: an
+isolated Host, the production runtime loop and Electron main's run coordinator.
+
+1. With `goalBudget { maxTurns: 6 }` set, a Goal run starts with 6 turns, does
+   the work, calls `CompleteStage` with the three-heading artifact, finishes,
+   and the session returns to Agent.
+2. During the first turn, Edit the objective and budget, then Pause: the turn
+   receives the closeout notice and ends within 3 more model requests; the run
+   stays paused and no turn starts. Resume starts an approval turn with the
+   edited objective, which the run meets before it finishes.
+3. During a turn, Remove: the turn is not interrupted, finishes in Agent
+   without `CompleteStage`, no Host-started turn follows, and no open run is
+   left.
 #### E2E-ISSUE-2173: Redundant delegation job selectors
 
 - Entry: build shared/agent-runtime/host-runtime and Host, then run
@@ -20458,6 +20495,16 @@ Use synthetic Darwin x64/arm64 uname responses through production SSH bootstrap,
 #### E2E-ISSUE-2184
 
 Load the actual bundled plugin in an isolated workspace. Create a file and Unicode directory, rename and move the file; verify disk entries and response metadata. Invalid create/rename names fail before writing, and duplicate destinations are refused. Coverage: apps/desktop/test/file-manager-mutations.test.mjs. Existing Electron directory-location path also passes.
+
+### E2E-NATIVE-workspace-file-routing
+
+Run `node scripts/e2e-native-workspace-files.mjs`: isolated Electron Main,
+production workspace IPC, synthetic sidecar session metadata and real fixture
+files. Select an unrelated Desktop workspace; list, read and resolve a native
+file, then reject a missing native session. The test asserts no native session
+or scratch RPC reaches Desktop storage. `native-workspace-files.test.mjs`
+additionally rejects replaced sidecars. No provider execution or native user
+session data is used.
 
 #### E2E-ISSUE-1926-scratch-prefix
 

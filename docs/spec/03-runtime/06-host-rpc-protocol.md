@@ -420,7 +420,11 @@ to later refresh and inference; the vendor picker does not collect them.
   project and returns `{ session }` carrying the canonical project path. It
   upserts the project row and updates only `sessions.project_id` and
   `updated_at`; transcript, revisions, artifacts, notifications, and scratch
-  data stay with the session. Blank ids or paths are `INVALID_PARAMS`, an
+  data stay with the session. An explicit `projectPath: null` moves the
+  session out of its project into the temporary group (`project_id` becomes
+  `NULL`, `projectPath` is omitted from the summary); older hosts reject it as
+  `INVALID_PARAMS`. Blank ids, a missing key, or blank paths are
+  `INVALID_PARAMS`, an
   unknown session is `NOT_FOUND`, and a session with a running turn is
   `CONFLICT` so a live agent never switches instruction roots mid-turn.
   An isolated session is refused with `WORKTREE_MOVE_UNSUPPORTED`.
@@ -1696,3 +1700,8 @@ continuation. Only the in-process trusted origin and Host claim can do so.
 `session.get` adds display-only message `turnId` from the authoritative message
 index, including bounded windows. Root turns remain separate without synthetic
 user messages; this metadata is not an execution credential.
+
+
+### Background continuation control plane
+
+Main-only methods: `backgroundContinuations.list {}` returns ready `{id, sessionId}` entries in job start order; `claim {sessionId,id,turnId}` atomically starts one intent and returns the original bounded BackgroundJobSnapshot; `consume {sessionId,id}` records terminal tool-result receipt; `cancel {id? ,sessionId?,turnId?}` withdraws matching pending entries (id or sessionId required); `fail {sessionId,id}` records failed dispatch. None is in the model-side proxy allowlist. Only Bash `notifyOnExit: true` creates an intent, with a live source turn, enabled setting and local parent Agent identity. `backgroundTasks.list` adds optional `continuation: pending|started|consumed|cancelled|failed`. Settings writes that disable continuation revoke pending entries atomically. No persisted database schema changes are needed.

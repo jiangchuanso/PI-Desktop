@@ -362,8 +362,9 @@ may be retained while exactly one workspace supplies the visible shell context.
   falls back to latest, and read failures use the existing error notification.
 - New Task is not a cold switch. Creating a session reveals the empty home on
   the first frame (the previous conversation and retained panes clear before
-  `session.create`). Reusing the group's latest empty session commits that empty
-  transcript on the same frame rather than waiting for `session.get`. The
+  `session.create`). Reusing the target group's latest empty session commits
+  that empty transcript on the same frame rather than waiting for
+  `session.get`. The
   durable row is inserted from the `session.create` summary; send and paste wait
   for that in-flight create instead of opening a second slot (ADR 0154).
   Concurrent first-input materializations share the same project-scoped
@@ -384,6 +385,8 @@ may be retained while exactly one workspace supplies the visible shell context.
   the visible workspace. Project-scoped new-session actions pass their target
   path to that same store transaction; sidebar and project-index handlers do
   not perform a second project navigation before session creation or selection.
+  Global New Task actions pass no path, so they clear the visible workspace and
+  resolve only the temporary group.
 - Run state, permission grants, and streamed events are keyed by session id.
   A project/tab switch does not abort a background turn or copy its events into
   the visible transcript. Background message and tool events update that
@@ -1441,8 +1444,11 @@ Sidebar drag/drop is implemented:
 - The dragged row paints at opacity 0.5 and the eligible project group
   highlights with an accent outline. A session's own project group is not a
   drop target, so a same-project drag never issues a request.
-- Project reassignment is available through the drag/drop interaction only;
-  the session context menu does not contain a project list.
+- Project reassignment is also available from the conversation topbar's
+  project crumb, which can move an idle conversation into another open
+  project or out of any project (`session.moveProject` with `projectPath:
+  null`); the sidebar session context menu does not contain a project list.
+  When the moved conversation is active, the visible workspace follows it.
 - Dropping a folder on the projects list adds it as a project, or switches to
   it when it is already known; duplicate paths resolve to one project row. A
   drop that carries no folder reports why nothing happened.
@@ -2025,3 +2031,7 @@ This does not prevent state changes — it makes them instant.
 - A settled cross-display move refreshes the native minimum without enlarging a
   window already placed in a narrower tile. Normal bounds persistence and the
   internal work-panel/chat-width IPC contracts are unchanged.
+
+## Background completion continuation
+
+Agent behavior → Execution offers a default-off “Continue after background jobs” switch. Enabling it permits the assistant to arrange follow-up using the current permission mode, without separate per-job approval. The task dock labels running intents “Continue when finished” and finished intents “Waiting to resume”. Pending rows survive expiry and reload and expose “Cancel continuation”; they cannot be dismissed while still pending. Cancellation withdraws only continuation, leaving the process and log accessible. Other states distinguish started, received, cancelled and failed. Completion never switches the active conversation or steals focus.

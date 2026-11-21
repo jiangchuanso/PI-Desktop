@@ -104,6 +104,25 @@ struct CacheModelsParams {
     complete: bool,
     provider_id: String,
     models: Vec<DiscoveredModelInput>,
+    endpoint: Option<ModelDiscoveryEndpoint>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ModelDiscoveryEndpoint {
+    base_url: String,
+    api_style: String,
+}
+
+impl ModelDiscoveryEndpoint {
+    fn matches(&self, db: &crate::db::Database, provider_id: &str) -> rusqlite::Result<bool> {
+        db.conn().query_row(
+            "SELECT EXISTS(SELECT 1 FROM providers WHERE id = ?1
+             AND COALESCE(base_url, '') = ?2 AND COALESCE(api_style, '') = ?3)",
+            rusqlite::params![provider_id, self.base_url, self.api_style],
+            |row| row.get(0),
+        )
+    }
 }
 
 #[derive(Debug)]
@@ -2173,11 +2192,46 @@ async fn handle_request(
                 .map(str::to_string)
                 .collect::<Vec<_>>();
             let primary = params.get("primary").and_then(Value::as_str);
-            let st = state.lock().await;
+            let mut st = state.lock().await;
+            // The active project's id survives an explicit relocation while its
+            // stored path changes; detect that to follow it with the workspace.
+            let active_project = match st.workspace.path.as_deref() {
+                Some(path) => st
+                    .db
+                    .project_id_at_path(path)
+                    .and_then(|id| match id {
+                        Some(id) => Ok(st.db.project_path(id)?.map(|path| (id, path))),
+                        None => Ok(None),
+                    })
+                    .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?,
+                None => None,
+            };
             let group = st
                 .db
                 .update_project_group(group_id, name, &folders, primary)
                 .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
+            if let Some((id, before)) = active_project {
+                let relocated = st
+                    .db
+                    .project_path(id)
+                    .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?
+                    .filter(|after| {
+                        after != &before && group.roots.iter().any(|root| &root.path == after)
+                    });
+                if let Some(path) = relocated {
+                    // Mirror `workspace.set`: hashline anchors belong to the old
+                    // root, and the current project id follows the new path.
+                    st.hashline.drop_all();
+                    let ws = st.workspace.set(PathBuf::from(&path));
+                    let pid = st
+                        .db
+                        .ensure_project(&ws.path, true)
+                        .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
+                    st.db
+                        .kv_set("app", "currentProjectId", &json!(pid))
+                        .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
+                }
+            }
             Ok(json!({ "group": group }))
         }
         "project.group.rename" => {
@@ -2715,7 +2769,18 @@ async fn handle_request(
         }
         "providers.listModels" => {
             let provider_id = params.get("providerId").and_then(|v| v.as_str());
+            let endpoint: Option<ModelDiscoveryEndpoint> =
+                serde_json::from_value(params.get("endpoint").cloned().unwrap_or(Value::Null))
+                    .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
             let st = state.lock().await;
+            if let Some(endpoint) = endpoint {
+                if !endpoint
+                    .matches(&st.db, provider_id.unwrap_or_default())
+                    .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?
+                {
+                    return Ok(json!({ "models": [] }));
+                }
+            }
             let models = providers::list_models(&st.db, provider_id)
                 .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?;
             Ok(json!({ "models": models }))
@@ -2724,6 +2789,14 @@ async fn handle_request(
             let input: CacheModelsParams = serde_json::from_value(params)
                 .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
             let st = state.lock().await;
+            if let Some(endpoint) = input.endpoint {
+                if !endpoint
+                    .matches(&st.db, &input.provider_id)
+                    .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"))?
+                {
+                    return Ok(json!({ "cached": 0, "models": [] }));
+                }
+            }
             let cached = providers::cache_discovered_models(
                 &st.db,
                 &input.provider_id,
@@ -6544,6 +6617,167 @@ mod tests {
         .unwrap();
         assert_eq!(updated["group"]["name"], "Adjusted");
         assert_eq!(updated["group"]["roots"].as_array().unwrap().len(), 2);
+    }
+
+    #[tokio::test]
+    async fn project_group_update_rpc_relocates_the_active_single_root_workspace() {
+        let data_dir = tempfile::tempdir().unwrap();
+        let old = data_dir.path().join("old");
+        let new = data_dir.path().join("new");
+        fs::create_dir(&old).unwrap();
+        let mut app_state = AppState::open(data_dir.path()).unwrap();
+        app_state.handshook = true;
+        app_state.workspace.set(&old);
+        let state = Arc::new(Mutex::new(app_state));
+        let created = handle_request(
+            state.clone(),
+            "project.group.create",
+            json!({ "name": "Movable", "folders": [old] }),
+            mpsc::unbounded_channel().0,
+        )
+        .await
+        .unwrap();
+        let group_id = created["group"]["id"].as_str().unwrap();
+        fs::rename(&old, &new).unwrap();
+
+        handle_request(
+            state.clone(),
+            "project.group.update",
+            json!({
+                "groupId": group_id,
+                "name": "Movable",
+                "folders": [new],
+                "primary": new,
+            }),
+            mpsc::unbounded_channel().0,
+        )
+        .await
+        .unwrap();
+        let workspace = handle_request(
+            state,
+            "workspace.get",
+            json!({}),
+            mpsc::unbounded_channel().0,
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            workspace["workspace"]["path"],
+            json!(crate::db::canonical_project_path(&new.to_string_lossy()).unwrap())
+        );
+    }
+
+    #[tokio::test]
+    async fn project_group_update_rpc_follows_a_two_step_relocation() {
+        let data_dir = tempfile::tempdir().unwrap();
+        let old = data_dir.path().join("old");
+        let new = data_dir.path().join("new");
+        fs::create_dir(&old).unwrap();
+        let mut app_state = AppState::open(data_dir.path()).unwrap();
+        app_state.handshook = true;
+        app_state.workspace.set(&old);
+        let state = Arc::new(Mutex::new(app_state));
+        let send = |method: &'static str, params: Value| {
+            let state = state.clone();
+            async move {
+                handle_request(state, method, params, mpsc::unbounded_channel().0)
+                    .await
+                    .unwrap()
+            }
+        };
+        let created = send(
+            "project.group.create",
+            json!({ "name": "Movable", "folders": [old] }),
+        )
+        .await;
+        let group_id = created["group"]["id"].as_str().unwrap().to_string();
+        let old_path = created["group"]["primaryPath"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        {
+            let st = state.lock().await;
+            crate::sessions::create_session(
+                &st.db,
+                Some("Existing chat".into()),
+                Some("agent".into()),
+                None,
+                None,
+                Some(old_path.clone()),
+            )
+            .unwrap();
+        }
+        fs::rename(&old, &new).unwrap();
+        let new_path = crate::db::canonical_project_path(&new.to_string_lossy()).unwrap();
+
+        send(
+            "project.group.update",
+            json!({
+                "groupId": group_id,
+                "name": "Movable",
+                "folders": [old_path, new],
+                "primary": new,
+            }),
+        )
+        .await;
+        let workspace = send("workspace.get", json!({})).await;
+        assert_eq!(workspace["workspace"]["path"], json!(old_path));
+
+        send(
+            "project.group.update",
+            json!({
+                "groupId": group_id,
+                "name": "Movable",
+                "folders": [new],
+                "primary": new,
+            }),
+        )
+        .await;
+        let workspace = send("workspace.get", json!({})).await;
+        assert_eq!(workspace["workspace"]["path"], json!(new_path));
+    }
+
+    #[tokio::test]
+    async fn project_group_update_rpc_keeps_workspace_when_the_old_folder_exists() {
+        let data_dir = tempfile::tempdir().unwrap();
+        let old = data_dir.path().join("old");
+        let other = data_dir.path().join("other");
+        fs::create_dir(&old).unwrap();
+        fs::create_dir(&other).unwrap();
+        let mut app_state = AppState::open(data_dir.path()).unwrap();
+        app_state.handshook = true;
+        let before = app_state.workspace.set(&old).path;
+        let state = Arc::new(Mutex::new(app_state));
+        let created = handle_request(
+            state.clone(),
+            "project.group.create",
+            json!({ "name": "Swap", "folders": [old] }),
+            mpsc::unbounded_channel().0,
+        )
+        .await
+        .unwrap();
+        handle_request(
+            state.clone(),
+            "project.group.update",
+            json!({
+                "groupId": created["group"]["id"],
+                "name": "Swap",
+                "folders": [other],
+                "primary": other,
+            }),
+            mpsc::unbounded_channel().0,
+        )
+        .await
+        .unwrap();
+        let workspace = handle_request(
+            state,
+            "workspace.get",
+            json!({}),
+            mpsc::unbounded_channel().0,
+        )
+        .await
+        .unwrap();
+        assert_eq!(workspace["workspace"]["path"], json!(before));
     }
 
     #[tokio::test]
@@ -11027,22 +11261,27 @@ mod tests {
         .await
         .unwrap();
         let provider_id = created["provider"]["id"].as_str().unwrap();
+        let endpoint = json!({ "baseUrl": "http://localhost:11434/v1", "apiStyle": "" });
 
         let cached = handle_request(
             state.clone(),
             "providers.cacheModels",
             json!({
                 "providerId": provider_id,
+                "endpoint": endpoint,
                 "models": [
                     {
                         "modelId": "model-a",
                         "displayName": "Model A",
-                        "capabilities": ["text"]
+                        "capabilities": ["text"],
+                        "contextWindow": 500000,
+                        "reportedContextWindow": 500000
                     },
                     {
                         "modelId": "model-b",
                         "displayName": "Model B",
-                        "capabilities": ["text", "reasoning"]
+                        "capabilities": ["text", "reasoning"],
+                        "contextWindow": 128000
                     }
                 ]
             }),
@@ -11053,16 +11292,48 @@ mod tests {
         assert_eq!(cached["cached"], 2);
 
         let listed = handle_request(
-            state,
+            state.clone(),
             "providers.listModels",
-            json!({ "providerId": provider_id }),
-            tx,
+            json!({ "providerId": provider_id, "endpoint": endpoint }),
+            tx.clone(),
         )
         .await
         .unwrap();
         assert_eq!(listed["models"].as_array().unwrap().len(), 2);
         assert_eq!(listed["models"][1]["modelId"], "model-b");
         assert_eq!(listed["models"][1]["capabilities"][1], "reasoning");
+        assert_eq!(listed["models"][0]["reportedContextWindow"], 500000);
+        assert_eq!(listed["models"][1]["contextWindow"], 128000);
+        assert!(listed["models"][1].get("reportedContextWindow").is_none());
+
+        handle_request(
+            state.clone(),
+            "providers.update",
+            json!({ "id": provider_id, "baseUrl": "http://localhost:11435/v1" }),
+            tx.clone(),
+        )
+        .await
+        .unwrap();
+        let rejected = handle_request(
+            state.clone(),
+            "providers.cacheModels",
+            json!({ "providerId": provider_id, "endpoint": endpoint, "models": [
+                { "modelId": "stale", "displayName": "Stale", "reportedContextWindow": 500000 }
+            ] }),
+            tx.clone(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(rejected["cached"], 0);
+        let stale_read = handle_request(
+            state,
+            "providers.listModels",
+            json!({ "providerId": provider_id, "endpoint": endpoint }),
+            tx,
+        )
+        .await
+        .unwrap();
+        assert_eq!(stale_read["models"], json!([]));
     }
 
     #[tokio::test]

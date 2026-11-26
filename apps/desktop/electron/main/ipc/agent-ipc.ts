@@ -1,8 +1,10 @@
 import { backgroundContinuationOrigin, backgroundCompletionMessage } from "../runtime/background-continuations";
 import { expandMcpInvocation } from "../composer-mcp";
 import { IPC, ErrorCodes, compactionRecordId, composeMentionPrompt, findSkillMentions, isGlobalPermissionMode, isRpcTimeoutError, type AgentEventEnvelope, type AgentPromptRequest, type AgentSteerRequest, type UiMessage, type AgentQueuePushRequest, type AgentStopRequest, type AgentStopSubagentsRequest, type AskToolResolution, type GlobalPermissionMode, type MessageUsage, type PendingInteractiveRequests, type PlanExecutionFinishStatus, type PlanResolutionResult, type PlanResolveRequest, type VoiceOrigin } from "@pi-desktop/shared";
+import { modePermissionFor } from "@pi-desktop/shared";
 import type { FinishTurn } from "../runtime/plans";
 import { modeContinuationOrigin, type ModeRunCoordinator, type PreparedModeTurn } from "../runtime/mode-runs";
+import { toSidecarModeDefinition } from "../runtime/mode-sidecar-definition";
 import { goalPromptMode, goalStartRequested } from "../runtime/goal-start";
 import { expandSlashInvocation, visionFromModelConfig, type ComposerTemplate } from "@pi-desktop/agent-runtime";
 import { appendPromptFallbackPaths, durableUserMessageId, preparePromptAttachments, type PreparedPromptAttachment } from "../prompt-attachments";
@@ -441,6 +443,8 @@ export function registerAgentIpc({
         const foundAgents = await resolvePromptAgentMentions({
           content: req.content,
           mode: launch.sidecarParams?.mode,
+          bundleDelegation: !!modeDefinition?.bundle && modeDefinition.id === promptMode &&
+            modePermissionFor(modeDefinition, preparedMode?.modeTurn?.stageId) === "agent",
           subagentNames: Array.isArray(launch.sidecarParams?.subagents)
             ? launch.sidecarParams.subagents.map((definition: { name: string }) => definition.name)
             : [],
@@ -462,7 +466,9 @@ export function registerAgentIpc({
             : "";
           const commands = await composerCommandService.buildComposerCommands(
             session.remoteWorkspace ? null : launch.projectPath ?? root,
-            { remote: Boolean(session.remoteWorkspace) },
+            // The run's own definition wins over the session mode: a staged run
+            // keeps offering the skills of the mode it is executing.
+            { remote: Boolean(session.remoteWorkspace), mode: modeDefinition?.id ?? promptMode },
           );
           const command = commands.find((item) => item.name === commandName);
           const activeSkills = new Map(
@@ -654,11 +660,9 @@ export function registerAgentIpc({
         "agent.prompt",
         {
           ...launch.sidecarParams,
-          mode: promptMode,
-          ...(modeDefinition ? { modeDefinition } : {}),
-          ...(preparedMode?.modeTurn
-            ? { mode: preparedMode.definition.id, modeDefinition: preparedMode.definition, modeTurn: preparedMode.modeTurn }
-            : {}),
+          mode: preparedMode?.modeTurn ? preparedMode.definition.id : promptMode,
+          ...(modeDefinition ? { modeDefinition: toSidecarModeDefinition(modeDefinition) } : {}),
+          ...(preparedMode?.modeTurn ? { modeTurn: preparedMode.modeTurn } : {}),
           // The host-created durable turn is the approval identity used by
           // Rust. The runtime must not replace it with a provider-local UUID.
           turnId: durableTurnId,

@@ -68,6 +68,7 @@ export function useComposerCompletions({
   composing,
   enabled,
   agentsEnabled = false,
+  agentMode,
   referenceSessionId,
   fileReferencesRef,
   applyEditorDraft,
@@ -80,13 +81,14 @@ export function useComposerCompletions({
   enabled: boolean;
   /** Whether the `@` menu offers subagents (Agent mode only, ADR 0346). */
   agentsEnabled?: boolean;
+  agentMode?: string;
   referenceSessionId: string;
   fileReferencesRef: RefObject<ComposerFileReference[]>;
   applyEditorDraft: (text: string, references: ComposerFileReference[], caret: number) => void;
   handleInput: (source: string, caret: number, composing?: boolean) => string;
   invalidateComposerTransforms: () => void;
 }) {
-  const host = useComposerAutocomplete({ value, cursor, composing, enabled, agentsEnabled });
+  const host = useComposerAutocomplete({ value, cursor, composing, enabled, agentsEnabled, agentMode });
   const { triggers } = useSyncExternalStore(
     slotRegistry.subscribe,
     slotRegistry.getSnapshot,
@@ -198,21 +200,18 @@ export function useComposerCompletions({
     const result = host.accept(index);
     if (!result) return;
     invalidateComposerTransforms();
-    const acceptedAgent = result.agentReference;
-    if (acceptedAgent) {
-      // The same atomic chip a file gets: it displays and deletes as one
-      // thing, and serializes to `@name` only at send time.
+    const mention = result.mention;
+    if (mention) {
       const token = nextChipToken();
+      // Slash completion leaves the caret after an editable argument separator.
+      const insert = mention.kind === "skill" ? `${token} ` : token;
       applyEditorDraft(
-        result.value.slice(0, result.cursor) + token + result.value.slice(result.cursor),
+        result.value.slice(0, result.cursor) + insert + result.value.slice(result.cursor),
         [
           ...fileReferencesRef.current,
-          createFileReference(acceptedAgent.name, acceptedAgent.name, referenceSessionId, {
-            kind: "agent",
-            token,
-          }),
+          createFileReference(mention.id, mention.label, referenceSessionId, { kind: mention.kind, token }),
         ],
-        result.cursor + token.length,
+        result.cursor + insert.length,
       );
       return;
     }

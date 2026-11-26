@@ -364,10 +364,21 @@ so no row repeats it.
 - **Display** card, in rendered order: the **Show thinking** toggle with its
   **Auto-fold finished thinking** sub-row, the **Transcript display** segmented
   control with its **Auto-fold finished groups** sub-row, **Context usage
-  display** (remaining or used), **Smooth streaming**, and **Inline
-  visualizations**. Context usage display controls whether the composer toolbar
-  context ring and its popover lead with the remaining or the used capacity
-  figure; the default is remaining.
+  display** (remaining or used), **Smooth streaming**, **Inline
+  visualizations**, and **Subagent style**. Context usage display controls whether
+  the composer toolbar context ring and its popover lead with the remaining or
+  the used capacity figure; the default is remaining.
+- **Subagent style** defaults to **In transcript** (also for an absent or unknown
+  `subagentStyle`): delegation cards show the topology in the transcript, with no
+  avatar row above the input. **Composer bar** shows the session's delegates
+  above the input while any are active, independently of the collapsible task
+  dock. In this style the transcript shows ordinary expandable tool rows instead
+  of delegation cards, even after the last delegate settles and the bar disappears.
+  Both styles preserve tool history, lifecycle rows and Work panel records.
+  Focus or hover an avatar for its current step or result, model, input/output
+  tokens, elapsed time, average output tokens per elapsed second and turns.
+  Unavailable measurements are not estimated. After six avatars, `+N` opens
+  the grouped roster. Open a delegate's Work panel record or stop a running delegate.
 - **Input & links** card: the **Enter-to-send** control, the large text paste
   threshold, and the **Link open destination**. The threshold controls when a
   text-only paste becomes a temporary session-scratch file; it defaults to 600
@@ -429,11 +440,11 @@ so no row repeats it.
   **Transcript display**, and appears only for **Commands first** and **Fully
   folded**; **Flat** renders no activity groups, so the row is hidden there and
   has no effect. It persists the optional `autoCollapseSettledGroups` boolean,
-  absent and `true` both meaning fold: a group whose turn has settled starts
-  closed whatever its size, while a running turn, or a group that still owns a
-  running tool or delegation, stays open. Turning it off leaves every settled
-  group open - there is no size tier. Hiding the sub-row by switching to **Flat**
-  never writes a value, so the stored choice survives and returns with the mode.
+  absent and `true` both meaning fold: a group closes as soon as it is no
+  longer current and has no live work. The current group and groups still
+  running a tool, search, or delegation stay open by default. Turning it off
+  leaves every group open by default - there is no size tier. Hiding the sub-row
+  by switching to **Flat** never writes a value, so the choice survives.
   Settings search indexes both the row and its description.
 
 ### Agent behavior (`behavior` tab)

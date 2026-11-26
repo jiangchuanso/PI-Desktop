@@ -998,8 +998,9 @@ Within the process, the `Transcript display` mode decides the grouping.
 `fully-folded` (the default; absent or unknown values use it) forms ordinary
 activity groups from contiguous tool/search/thinking segments between ordinary
 assistant progress paragraphs, and keeps `Bash`/run aliases inside the group
-around them. A `Task` delegation keeps its own topology and is not duplicated
-inside an ordinary group. `command-first` keeps those groups but lifts every
+around them. With **In transcript**, a `Task` delegation keeps its own topology
+and is not duplicated inside an ordinary group. With **Composer bar**, it is an
+ordinary expandable tool row instead. `command-first` keeps those groups but lifts every
 `Bash`/run alias into a standalone row beside them: adjacent calls stay separate,
 a row's detail stays closed until the user opens it, and a normal assistant
 progress message or a command ends the current group. `flat` renders no nested
@@ -1011,21 +1012,18 @@ thinking never creates an empty wrapper. All three modes render exactly one
 top-level process disclosure and change neither what a tool received nor what is
 stored.
 
-Every group of a turn stays open while that turn is active, whether or not it
-still owns the live execution segment, so work never folds away mid-run. Once the
-turn settles both nested levels fold: expanding a completed turn lists what the
-agent did instead of a wall of rows, and two opt-out switches carry the reader's
-choice. `Auto-fold finished groups` (`autoCollapseSettledGroups`, on by default)
-folds settled groups whatever their size; turned off it leaves every settled
-group open, because the four-item tier is retired. `Auto-fold finished thinking`
+`Auto-fold finished groups` (`autoCollapseSettledGroups`, on by default) folds
+an untouched group when it is no longer current and has no live work, even while
+its turn continues. The current group and groups with running tools, searches,
+or delegations stay open by default. Turning the switch off leaves finished
+groups open regardless of size. `Auto-fold finished thinking`
 (`autoCollapseThinking`, on by default) keeps only reasoning the live turn is
 still streaming expanded. Each switch is a sub-row of the setting that gates it
 (`Show thinking`, and a non-flat `Transcript display`), it disappears with that
 parent, and hiding it never rewrites the stored value. A group does not inherit
-open state from the reasoning it contains: the group and its Thinking rows each
-answer to their own switch, so closing a group hides expanded reasoning inside
-it. Explicit user choices remain authoritative, and a running turn - or a group
-that still owns a running tool or delegation - never folds. The group header
+open state from its reasoning: folding a group hides expanded reasoning inside
+it. Explicit user choices remain authoritative, and focus or text selection
+in the group temporarily defers automatic folding. The group header
 states what the group did: the actions it contains, joined with the locale's own
 list wording and capped at three with "and more", followed by the call count as
 its own non-truncating token (`搜索并读取文件 · 12 次操作`). Reasoning is named in
@@ -1256,8 +1254,10 @@ entirely inside the plugin's isolated page:
   choices remain available. The Browser action opens a new Browser resource tab
   and requires the bundled Browser plugin to be enabled. **Show in folder**
   remains a file action. The host refuses directory paths for file actions.
-- Selecting a file replaces the tree with a focused viewer: syntax-highlighted
-  editing with save, a Markdown preview toggle, image and audio/video viewing,
+- Selecting a file opens a document tab in the viewer. Tabs retain independent
+  drafts and reuse an existing tab for the same document. Save acts on that
+  document, and closing a dirty tab asks whether to save, discard, or cancel.
+  Viewers include syntax-highlighted editing, Markdown, image and media viewing,
   CSV/TSV tables with paging and sorting, a JSON tree, and read-only SQLite
   browsing with a SQL query box. The editor's CodeMirror find/replace fields
   and buttons use the plugin theme surfaces and foreground in both light and
@@ -1265,11 +1265,16 @@ entirely inside the plugin's isolated page:
   being decoded, and every viewer names its own bound — 2 MiB for text, 8 MiB
   for images, 24 MiB for media, none for databases, whose bytes stay out of
   the page.
+- The local Git sidebar shows changes, diffs and history. Repository setup,
+  staging, commits, fetch, pull and push are explicit user actions; force push
+  requires confirmation and a lease for the reviewed remote commit. Remote SSH
+  workspaces remain read-only and do not run local Git.
 - Saving is atomic and refuses to overwrite a file that changed on disk since it
   was opened until the user confirms. Loading, read failures, unsupported
   binaries, oversized files, empty folders, and folders that fail to load each
-  have a distinct localized state, and a failed directory can be retried in
-  place.
+  have a distinct localized state. Initial reads can show skeletons that respect
+  reduced motion, while a same-target refresh keeps the current content visible.
+  A failed directory can be retried in place.
 - The view chooses which folder of the open project it browses from a control in
   its own top-left area: the project's primary folder by default, its other
   folders after that in group order (ADR 0249), remembered per project and
@@ -1716,15 +1721,24 @@ near-zero duration. A folded group keeps its rows mounted, `aria-hidden`, and
   `updatedAt` first. A project conversation therefore appears both in Recent
   and in its project group, so it stays visible while that project is folded;
   a temporary conversation appears only in Recent. Recent opens with seven
-  rows; a trailing Load more button appends ten more per click. Its body is a
-  291px window over ten compact 28px rows, their 1px row gaps, and the 2px
-  label inset; it scrolls internally when more rows are loaded. The Projects list uses the remaining
-  sidebar height and scrolls independently; neither region scrolls the footer
-  or primary navigation. Both list scrollbars use the same global 6px,
+  rows; a trailing Load more button appends ten more per click. With Projects
+  shown, Recent sessions can grow to 291px, and both Recent and Pinned sessions
+  shrink into independently scrolling lists when the sidebar runs out of room.
+  The Projects list uses the remaining height and reserves room for a project
+  header and one conversation row. When the minimum sizes exceed the
+  available height, the sidebar body scrolls so Projects and Settings remain
+  reachable. Resizing or changing zoom preserves the loaded rows. The list
+  scrollbars use the same global 6px,
   trackless, transparent-at-rest rule as the conversation and work-panel
   scrollbars; the semantic-ink thumb appears when its list is hovered, focused,
   or scrolling and remains visible while dragging, so the independent regions
   stay available without becoming persistent visual rails.
+
+  Project-bound rows in Recent keep their project label ahead of an
+  ellipsizing session title, so long titles cannot consume the label's width.
+  The label retains its full name on hover. This sizing applies only to
+  unpinned project rows in Recent; pinned rows, path-less sessions, and rows
+  inside project groups keep their existing layout and session semantics.
 
 ---
 
@@ -2652,7 +2666,7 @@ twice.
 | State | Header treatment | Expanded content |
 |---|---|---|
 | Running | Progressive action with readable text and a pulsing marker; a `run` row also shows its spinner and pulses the status dot beside `Working…` | The active multi-item group opens; no tool/search payload opens itself, except the display mode's Thinking default; live thinking follows its own indicator/disclosure policy |
-| Success | Past-tense action + result chips; no green success badge, except a `run` row's dot and `Done` | Result blocks, then arguments if not already shown; small groups and Task topology groups stay open, large untouched ordinary groups close, and manual group and item choices are retained |
+| Success | Past-tense action + result chips; no green success badge, except a `run` row's dot and `Done` | Result blocks, then arguments if not already shown; group folding follows the settings and live activity rules above, and manual group and item choices are retained |
 | Error | Past-tense action + compact danger status; details remain collapsed by default and open only on user request. A `run` row is in this state whenever its command exited nonzero, whatever the call reported (D227) | Error note first, then arguments |
 | Denied | Muted `Denied` status; payload remains closed until requested | Permission result when available |
 
@@ -2717,7 +2731,12 @@ twice.
 
 ### 9.9 Delegation cards and fan-out topology (D201, D265, D268, D271, D302, D319, D323, ADR 0062)
 
-A `Task` call is presented as a node of a delegation card, not as a compact tool
+With **Composer bar**, `Task` calls remain ordinary expandable tool rows in the
+transcript throughout their lifecycle. The bar disappears when work settles;
+no inline topology card replaces it. Switching styles changes neither tool
+history nor the delegate's Work panel record.
+
+With the default **In transcript** style, a `Task` call is a delegation node, not a compact tool
 row — one delegation reads the same as a fan-out (D265). The node names the
 delegate it ran, taken from the rows it produced or, before any arrived, from
 the call's own `agent` argument, and carries the call's short `description`. The
@@ -2809,14 +2828,18 @@ as a conversation:
 └──────────────────────────────────────────────┘
 ```
 
-- The tab is a message list, not a card: every `Task` call of the resume
-  chain renders its `task` argument as a user row (the main transcript's user
-  bubble), and the delegate's thinking, tool, and answer rows under that call
-  render with the same message-list language, so a follow-up prompt reads as
-  the next user turn.
-- The composer at the foot is a disabled two-row textarea whose placeholder
-  says subagents are driven by the main agent and cannot take input; the tab
-  is display-only and has no send path.
+- Every `Task` call in the resume chain starts its own turn: the task prompt
+  is a user bubble, followed by the shared assistant process and answer.
+  Settings → Conversation controls the same three layouts, thinking visibility,
+  and automatic folding as in MainChat. A turn has at most one outer process,
+  activity groups where the selected layout allows them, and individual tool
+  and thinking details. The final answer stays outside the process. Search
+  reveals the matching levels; manual choices are scoped to each tab and session.
+- The footer reuses the main composer shell with a localized read-only notice.
+  The latest Task’s recorded model and thinking level are passive labels,
+  omitted when unknown. There is no editor, send path, composer slot, or mode,
+  permission, or model picker. A running delegate can still be stopped without
+  stopping the parent or any other delegate.
 - Tab labels carry the agent name captured when the tab opened, with a
   strip-order `#n` suffix when the same name occurs more than once; a
   localization fallback covers a delegate with no name.
@@ -3754,8 +3777,8 @@ Anatomy:
   not support Desktop-managed MCP selections. Existing command aliases win
   collisions. See `docs/adr/composer-mcp-invocations.md`.
 - Active Skill commands use `/skill:<id>` for builtin, plugin, and user Skills.
-  Completion inserts this explicit prefix; sending resolves it to the unchanged
-  Skill ID. Unprefixed names are not Skill aliases; existing app commands and
+  Completion displays the Skill as a chip; sending resolves its explicit slash
+  token to the unchanged Skill ID. Unprefixed names are not Skill aliases; existing app commands and
   prompt templates keep their names. Saved Skill mentions remain unchanged.
 - A whitespace-delimited `/` later in the draft offers active Skills only.
   Completion replaces only the token under the cursor, so several Skills and
@@ -3798,7 +3821,9 @@ Anatomy:
   each mention. Skill and agent mentions combine; a leading template or app
   command is not rewritten. Stop restores the typed `command`, never the
   rewritten `content`.
-- Accepting commands and directories inserts text (`/name ` / `@dir/`);
+- Accepting a Skill inserts an atomic inline chip with its catalog title and an
+  editable space for arguments; it serializes to `/skill:<id>`, not a file.
+  Accepting other commands and directories inserts text (`/name ` / `@dir/`);
   accepting a completed file inserts the inline chip rather than deleting the
   trigger. Immediately
   before dispatch, ordinary references serialize in stable order after the
@@ -4789,13 +4814,20 @@ as well as its DOM, so submission and draft caching retain the path. Deleted
 reference history is local to the current draft/workspace and is cleared on send;
 pasting a private-use character alone must not restore an attachment. The input owns and disposes the native event listeners.
 
-An empty last line keeps its own caret. Chromium has no box for a line that holds
-nothing, so a caret left after the final line break types the next keystroke onto
-the line above. The editor paints a placeholder break on that line, places an
-end-of-draft caret before it when the draft ends in a newline, and restores it
-after every commit; the draft string, its indices and the caret's position in it
-are unchanged, and the placeholder disappears as soon as the line holds text. A
-middle empty line needs none: the break that ends it already gives it a box.
+An empty last line keeps its own caret. Chromium drops the last break of a block:
+a draft that ends in a newline paints no line of its own, and a caret left there
+resolves to the line above and types the next keystroke there. The editor paints a
+placeholder break — `<br data-composer-tail>` — after that newline, and every read,
+index and caret path counts it as zero characters. The placeholder carries no
+text, so it cannot be selected, copied or typed, never merges into a neighbouring
+text node, and the draft string and its indices are unchanged; the end-of-draft
+caret sits before the placeholder, on the empty line, and the placeholder is
+inert after ordinary text. A terminal placeholder can remain as the browser's
+undo anchor: undoing Backspace restores both the empty line and its caret.
+At the draft end a single native edit inserts the real break and the layout
+placeholder, so undo and redo cover both. Elsewhere Shift+Enter stays native;
+plain Enter in multiline mode uses the same native line-break command instead
+of introducing block wrappers with different caret offsets.
 
 ### Dialog long-text containment
 

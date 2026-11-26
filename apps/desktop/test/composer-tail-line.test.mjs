@@ -1,75 +1,68 @@
 /**
- * #2433: the empty last line has no box of its own, so Chromium types the next
- * keystroke one line up. The editor keeps a placeholder break on that line and
- * every read path has to ignore it.
+ * #2433 / #2555: the composer's empty last line.
+ *
+ * Chromium drops the last break of a block, so a draft that ends with a newline
+ * paints no line of its own and a caret left there resolves to the line above.
+ * The editor paints one placeholder break after it instead: a node with no text,
+ * counted as zero characters by every read, index and caret path, so nothing can
+ * be selected, copied or typed and the draft string never changes.
  */
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import test from "node:test";
-import ts from "typescript";
-import vm from "node:vm";
 import { readComposerModule } from "./helpers/source-contracts.mjs";
+import test from "node:test";
 
-function loadFunction(path, name, globals = {}) {
-  const source = readFileSync(new URL(path, import.meta.url), "utf8");
-  const tree = ts.createSourceFile("module.ts", source, ts.ScriptTarget.Latest, true);
-  const node = tree.statements.find(
-    (statement) => ts.isFunctionDeclaration(statement) && statement.name?.text === name,
-  );
-  assert.ok(node, name);
-  const code = ts.transpileModule(node.getText(tree).replace(/^export\s+/, ""), {
-    compilerOptions: { target: ts.ScriptTarget.ES2022 },
-  }).outputText;
-  return vm.runInNewContext(`${code}\n${name};`, globals);
-}
+const [editor, draft, deletion] = await Promise.all([
+  readComposerModule("editor.ts"),
+  readComposerModule("hooks/useComposerDraft.ts"),
+  readComposerModule("native-deletion.ts"),
+]);
 
-const nodeConstants = { TEXT_NODE: 3, ELEMENT_NODE: 1 };
-const isTailPlaceholder = loadFunction("../src/features/chat/composer/editor.ts", "isTailPlaceholder", {
-  Node: nodeConstants,
-  TAIL_PLACEHOLDER_ATTRIBUTE: "data-composer-tail",
-});
-const editorNodeLength = loadFunction("../src/features/chat/composer/editor.ts", "editorNodeLength", {
-  Node: nodeConstants,
-  isChipElement: () => false,
-  isTailPlaceholder: (node) => isTailPlaceholder(node),
+test("the empty last line is a placeholder break, not a character", () => {
+  assert.match(editor, /const TAIL_PLACEHOLDER = "data-composer-tail";/);
+  assert.match(editor, /function createTailPlaceholder\(\): HTMLBRElement \{/);
+  assert.match(editor, /el\.appendChild\(createTailPlaceholder\(\)\);/);
+  // The zero-width space this replaced was a real character: it could be
+  // selected, copied, and some fonts render it as a space (#2555).
+  assert.doesNotMatch(editor, /\\u200B/);
+  assert.doesNotMatch(editor, /stripTailMarkers|markedTextLength|offsetForDraftIndex/);
 });
 
-const placeholder = {
-  nodeType: 1,
-  tagName: "BR",
-  hasAttribute: (name) => name === "data-composer-tail",
-};
-const realBreak = { nodeType: 1, tagName: "BR", hasAttribute: () => false };
-const text = (value) => ({ nodeType: 3, nodeValue: value, childNodes: [] });
-
-test("only the marked break is a tail placeholder, and it has no length", () => {
-  assert.equal(isTailPlaceholder(placeholder), true);
-  assert.equal(isTailPlaceholder(realBreak), false);
-  assert.equal(isTailPlaceholder(text("\n")), false);
-  assert.equal(editorNodeLength(placeholder), 0);
-  assert.equal(editorNodeLength(realBreak), 1);
-  assert.equal(editorNodeLength(text("ab")), 2);
-});
-
-test("the editor model places, reads and paints around the tail placeholder", async () => {
-  const editor = await readComposerModule("editor.ts");
-  const draft = await readComposerModule("hooks/useComposerDraft.ts");
-  const deletion = await readComposerModule("native-deletion.ts");
-
-  // Reading and indexing skip it, so the draft string never grows a newline.
+test("every read, index and caret path counts the placeholder as nothing", () => {
+  assert.match(editor, /if \(node\.nodeType === Node\.TEXT_NODE\) return \(node\.nodeValue \?\? ""\)\.length;/);
   assert.match(editor, /if \(isTailPlaceholder\(element\)\) return;/);
-  assert.match(editor, /} else if \(isTailPlaceholder\(child\)\) \{/);
+  assert.match(editor, /if \(isTailPlaceholder\(child\)\) continue;/);
+  // The end-of-draft caret sits at the start of the empty line, before the break.
+  assert.match(
+    editor,
+    /if \(isTailPlaceholder\(child\)\) \{[\s\S]*?point = \{ node: parent, offset: index \};/,
+  );
+});
 
-  // A caret placed by draft index lands before it, never on it.
-  assert.match(editor, /if \(isTailPlaceholder\(child\)\) \{\n\s+\/\/ Not a draft position/);
-  assert.match(editor, /const placeholder = Array\.from\(el\.childNodes\)\.findIndex\(isTailPlaceholder\);/);
+test("the placeholder is re-synced after every commit and never rewritten into text", () => {
+  assert.match(editor, /export function syncTailPlaceholder\(el: HTMLElement\): void \{/);
+  assert.match(editor, /if \(el\.lastChild !== placeholder\) el\.appendChild\(placeholder\);/);
+  // The final layout node may anchor native undo after a Backspace.
+  assert.match(editor, /if \(placeholder !== el\.lastChild\) placeholder\.remove\(\);/);
+  assert.match(draft, /if \(element\) syncTailPlaceholder\(element\);/);
+  // Mutating a text node's value is what moved the caret off the tail (#2555).
+  assert.doesNotMatch(editor, /nodeValue = /);
+});
 
-  // Painting gives an empty last line its box, and every commit keeps it.
-  assert.match(editor, /paintTailPlaceholder\(el, value\);/);
-  assert.match(editor, /if \(value\.endsWith\("\\n"\)\) el\.appendChild\(buildTailPlaceholder\(\)\);/);
-  assert.match(draft, /useLayoutEffect\(\(\) => \{\n\s+const element = ref\.current;\n\s+if \(element\) syncTailPlaceholder\(element\);/);
-
-  // The invariant is restored after the event, never inside it: mutating the
-  // editor while Chromium runs an editing command makes it insert twice.
+test("Chromium does not get to add a second newline for one Enter", () => {
+  // A break command owns the draft: Chromium inserts the break plus a placeholder
+  // newline after the caret, which reached the draft as one empty line too many.
+  assert.match(deletion, /onInsertLineBreak/);
+  assert.match(deletion, /event\.inputType === "insertLineBreak"/);
   assert.doesNotMatch(deletion, /syncTailPlaceholder/);
+});
+
+test("the end-of-draft break is one native edit, so undo takes both nodes", () => {
+  assert.match(editor, /export function tailBreakFragment\(\): string \{/);
+  assert.match(editor, /return `<br><br \$\{TAIL_PLACEHOLDER\}>`;/);
+  // One edit inserts the real break and the placeholder, so Chromium records a
+  // single undo step instead of a bare DOM mutation (#2588 follow-up).
+  assert.match(draft, /document\.execCommand\("insertHTML", false, tailBreakFragment\(\)\)/);
+  // The native edit is the primary path; the DOM fallback only covers a browser
+  // that refuses insertHTML.
+  assert.ok(draft.indexOf("execCommand") < draft.indexOf("range.insertNode"));
 });

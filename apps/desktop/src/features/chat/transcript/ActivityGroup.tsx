@@ -22,6 +22,7 @@ import type {
 } from "@pi-desktop/shared";
 import {
   PROVIDER_RETRY_MAX_RETRIES,
+  resolveSubagentStyle,
 } from "@pi-desktop/shared";
 import type {
   AssistantActivityItem,
@@ -218,7 +219,8 @@ export const ActivityGroup = memo(function ActivityGroup({
   const collapseThinking = useAppStore((state) => resolveAutoCollapseThinking(state.settings));
   const { t } = useTranslation();
   const detailsId = useId();
-  const rawDelegateItems = useMemo(() => items.filter(isDelegationActivityItem), [items]);
+  const inlineTopology = useAppStore((state) => resolveSubagentStyle(state.settings) === "transcript");
+  const rawDelegateItems = useMemo(() => inlineTopology ? items.filter(isDelegationActivityItem) : [], [inlineTopology, items]);
   const delegatesRef = useRef(rawDelegateItems);
   const delegateItems = reuseReferences(delegatesRef.current, rawDelegateItems);
   delegatesRef.current = delegateItems;
@@ -227,10 +229,7 @@ export const ActivityGroup = memo(function ActivityGroup({
   const tools = reuseReferences(toolsRef.current, rawTools);
   toolsRef.current = tools;
   const delegationItems = useMemo(() => tools.map((message) => ({ kind: "tool" as const, message })), [tools]);
-  // One delegation reads the same as five: the card is how a delegation is
-  // presented, not a treatment reserved for fan-out. A lone `Task` rendered as
-  // an ordinary tool row hid the outcome, runtime and step count that the card
-  // states outright, and made the same work look like two different features.
+  // A lone delegate receives the same topology treatment as fan-out in transcript mode.
   const hasSubagentTopology = delegateItems.length > 0;
   // `Task` rows only ever say "running"; the turn's TaskWait/TaskList/TaskStop
   // rows carry how each delegate actually ended (ADR 0089). When the lifecycle
@@ -246,6 +245,12 @@ export const ActivityGroup = memo(function ActivityGroup({
   // Parent tools after a Task fan-out live in a later activity part (D319), so
   // this card is not the turn's live tail while its delegates are still running.
   const topologyLive = hasSubagentTopology && subagentSummary.running > 0;
+  // A later segment can render before a parallel tool or search has finished.
+  // Ignore stale ordinary running rows once their owning turn is no longer live.
+  const runningOperation = turnActive && items.some((item) =>
+    (item.kind === "tool" && item.message.toolStatus === "running") ||
+    (item.kind === "hostedSearch" && item.round.status === "searching"),
+  );
   const live = isActive || topologyLive;
   const searchTarget = useContext(TranscriptSearchContext);
   const revealRequest = useMemo(() => searchTarget && items.some((item) => item.message.id === searchTarget.messageId)
@@ -261,8 +266,7 @@ export const ActivityGroup = memo(function ActivityGroup({
   // their own switch, and the group's header states what it holds, so folding it
   // hides no detail the reader needs to expand the group to discover.
   const automaticallyOpen = activityGroupStartsOpen({
-    turnActive,
-    groupActive: live,
+    groupActive: live || runningOperation,
     collapseSettled: collapseSettledGroups,
   });
   const disclosure = useAutomaticDisclosure(

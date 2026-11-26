@@ -1,4 +1,5 @@
 import {
+  composerMentionText,
   fileReferenceLabel,
   formatFileInsert,
 } from "@pi-desktop/shared";
@@ -42,7 +43,7 @@ export function createFileReference(
   metadata?: {
     size?: number;
     localReference?: string;
-    kind?: "image" | "file" | "session" | "directory" | "agent";
+    kind?: ComposerFileReference["kind"];
     mimeType?: string;
     token?: string;
     lineRange?: FileLineRange;
@@ -54,11 +55,9 @@ export function createFileReference(
     id: `composer-file-${composerFileReferenceSequence}`,
     sessionId,
     path,
-    // A plugin mark's label is shown as given; it is no path.
-    // A plugin mark's label is shown as given, and a session reference is
-    // named by its conversation; neither is a path.
+    // Catalog and plugin labels are not filenames.
     name:
-      isPluginMark(metadata) || metadata?.kind === "session" || metadata?.kind === "agent"
+      isPluginMark(metadata) || metadata?.kind === "session" || metadata?.kind === "agent" || metadata?.kind === "skill"
         ? (preferredName ?? "")
         : fileReferenceLabel(path, preferredName),
     kind: metadata?.kind ?? (isImageFilePath(path) ? "image" : "file"),
@@ -100,34 +99,50 @@ function isChipElement(node: Node): boolean {
   );
 }
 
-const TAIL_PLACEHOLDER_ATTRIBUTE = "data-composer-tail";
-
-/** The break that keeps an empty last line laid out; the draft never reads it. */
-function buildTailPlaceholder(): HTMLBRElement {
-  const placeholder = document.createElement("br");
-  placeholder.setAttribute(TAIL_PLACEHOLDER_ATTRIBUTE, "");
-  placeholder.setAttribute("aria-hidden", "true");
-  return placeholder;
-}
-
-/** Paint the placeholder for a value whose last line is empty. */
-function paintTailPlaceholder(el: HTMLElement, value: string): void {
-  if (value.endsWith("\n")) el.appendChild(buildTailPlaceholder());
-}
+/**
+ * Placeholder break that keeps an empty last line laid out and caretable.
+ * Chromium drops the last break of a block — a trailing "\n" and a trailing
+ * `<br>` both end the line above and add none of their own — so a draft that ends
+ * with a newline paints one extra break after it. That break belongs to the
+ * layout, not to the draft: every read, index and caret path counts it as zero
+ * characters. Because it holds no text it cannot be selected, copied or typed,
+ * and it never merges into a neighbouring text node.
+ */
+const TAIL_PLACEHOLDER = "data-composer-tail";
 
 function isTailPlaceholder(node: Node): boolean {
   return (
     node.nodeType === Node.ELEMENT_NODE &&
     (node as HTMLElement).tagName === "BR" &&
-    (node as HTMLElement).hasAttribute(TAIL_PLACEHOLDER_ATTRIBUTE)
+    (node as HTMLElement).hasAttribute(TAIL_PLACEHOLDER)
   );
+}
+
+function createTailPlaceholder(): HTMLBRElement {
+  const br = document.createElement("br");
+  br.setAttribute(TAIL_PLACEHOLDER, "");
+  return br;
+}
+
+/** Paint the line box an empty last line needs, without adding a character. */
+function paintTailPlaceholder(el: HTMLElement, value: string): void {
+  if (value.endsWith("\n")) el.appendChild(createTailPlaceholder());
+}
+
+/**
+ * One native edit for an end-of-draft break: the real break plus the layout
+ * placeholder. Chromium records it as a single undo step, so undo and redo take
+ * the new line and its caret together.
+ */
+export function tailBreakFragment(): string {
+  return `<br><br ${TAIL_PLACEHOLDER}>`;
 }
 
 /** Rendered length of a node in draft-string characters (chip = 1 char). */
 function editorNodeLength(node: Node): number {
+  if (isTailPlaceholder(node)) return 0;
   if (node.nodeType === Node.TEXT_NODE) return (node.nodeValue ?? "").length;
   if (isChipElement(node)) return 1;
-  if (isTailPlaceholder(node)) return 0;
   if (node.nodeType === Node.ELEMENT_NODE) {
     const element = node as HTMLElement;
     if (element.tagName === "BR") return 1;
@@ -148,12 +163,12 @@ export function readEditorValue(el: HTMLElement): string {
     }
     if (node.nodeType !== Node.ELEMENT_NODE) return;
     const element = node as HTMLElement;
+    if (isTailPlaceholder(element)) return;
     if (isChipElement(element)) {
       const token = element.dataset.token ?? "";
       out += isChipTokenChar(token) ? token : "";
       return;
     }
-    if (isTailPlaceholder(element)) return;
     if (element.tagName === "BR") {
       out += "\n";
       return;
@@ -188,10 +203,9 @@ export function editorIndexAt(
     let total = 0;
     const walk = (parent: DocumentFragment | HTMLElement): void => {
       for (const child of Array.from(parent.childNodes)) {
+        if (isTailPlaceholder(child)) continue;
         if (child.nodeType === Node.TEXT_NODE) {
           total += (child.nodeValue ?? "").length;
-        } else if (isTailPlaceholder(child)) {
-          // The placeholder break is not part of the draft.
         } else if (isChipElement(child) || (child as HTMLElement).tagName === "BR") {
           total += 1;
         } else if (child.nodeType === Node.ELEMENT_NODE) {
@@ -231,6 +245,15 @@ function editorCaretPoint(el: HTMLElement, target: number): { node: Node; offset
     const children = Array.from(parent.childNodes);
     for (let index = 0; index < children.length; index += 1) {
       const child = children[index];
+      if (isTailPlaceholder(child)) {
+        // The draft ends before the placeholder, so the end-of-draft caret sits
+        // at the start of the empty line that placeholder lays out.
+        if (point === null && remaining <= 0) {
+          point = { node: parent, offset: index };
+          return true;
+        }
+        continue;
+      }
       const length = editorNodeLength(child);
       if (child.nodeType === Node.TEXT_NODE) {
         if (point === null && remaining <= length) {
@@ -238,9 +261,6 @@ function editorCaretPoint(el: HTMLElement, target: number): { node: Node; offset
           return true;
         }
         remaining -= length;
-      } else if (isTailPlaceholder(child)) {
-        // Not a draft position: a caret at the end goes before the placeholder.
-        continue;
       } else if (isChipElement(child) || (child as HTMLElement).tagName === "BR") {
         if (point === null && remaining <= 1) {
           point = { node: parent, offset: remaining === 0 ? index : index + 1 };
@@ -255,8 +275,7 @@ function editorCaretPoint(el: HTMLElement, target: number): { node: Node; offset
   };
   descend(el);
   if (point) return point;
-  const placeholder = Array.from(el.childNodes).findIndex(isTailPlaceholder);
-  return { node: el, offset: placeholder === -1 ? el.childNodes.length : placeholder };
+  return { node: el, offset: el.childNodes.length };
 }
 
 export function setEditorCaret(el: HTMLElement, index: number): void {
@@ -275,26 +294,30 @@ export function setEditorCaret(el: HTMLElement, index: number): void {
 }
 
 /**
- * Keep the empty last line laid out. Chromium has no box for a line that holds
- * nothing, so a caret left after the final break resolves backwards and the next
- * keystroke lands on the line above (#2433). A placeholder break gives that line
- * a box; `readEditorValue`, `editorIndexAt` and `editorCaretPoint` all skip it,
- * so the draft string and its indices are unchanged.
+ * Keep the empty last line laid out and caretable. Chromium drops the last break
+ * of a block, so a draft that ends with a newline paints one extra break after it
+ * and counts that break as zero characters everywhere; that keeps the line count,
+ * the draft string and its indices unchanged, without a character that could be
+ * selected or copied. Text typed into the empty line lands before the placeholder,
+ * and after text a final BR is inert but may still anchor native undo.
  */
 export function syncTailPlaceholder(el: HTMLElement): void {
-  const value = readEditorValue(el);
-  const existing = Array.from(el.childNodes).find(isTailPlaceholder) ?? null;
-  if (!value.endsWith("\n")) {
-    existing?.remove();
+  const placeholders = Array.from(
+    el.querySelectorAll<HTMLBRElement>(`br[${TAIL_PLACEHOLDER}]`),
+  );
+  if (readEditorValue(el).endsWith("\n")) {
+    const placeholder = placeholders[0] ?? createTailPlaceholder();
+    // A native edit can leave text after the placeholder while the line is still
+    // empty; the placeholder stays the last node so the line keeps its box.
+    if (el.lastChild !== placeholder) el.appendChild(placeholder);
+    for (const extra of placeholders.slice(1)) extra.remove();
     return;
   }
-  if (!existing) el.appendChild(buildTailPlaceholder());
-  // A caret after the final break is the position without a box; naming the end
-  // by draft index puts it on the placeholder side instead.
-  const selection = window.getSelection();
-  if (!selection || selection.rangeCount === 0 || !selection.isCollapsed) return;
-  if (!el.contains(selection.anchorNode)) return;
-  if (editorSelectionRange(el).start === value.length) setEditorCaret(el, value.length);
+  // A final BR after text does not paint another line. Keep its identity:
+  // Chromium may need this exact sibling to undo deletion of the preceding LF.
+  for (const placeholder of placeholders) {
+    if (placeholder !== el.lastChild) placeholder.remove();
+  }
 }
 
 /** One glyph per file family on attachment chips, as inline SVG strings. */
@@ -318,6 +341,7 @@ const CHIP_ICON_SVG: Record<string, string> = {
     '<path d="M15.39 4.39a1 1 0 0 0 1.68-.474 2.5 2.5 0 1 1 3.014 3.015 1 1 0 0 0-.474 1.68l1.683 1.682a2.414 2.414 0 0 1 0 3.414L19.61 15.39a1 1 0 0 1-1.68-.474 2.5 2.5 0 1 0-3.014 3.015 1 1 0 0 1 .474 1.68l-1.683 1.682a2.414 2.414 0 0 1-3.414 0L8.61 19.61a1 1 0 0 0-1.68.474 2.5 2.5 0 1 1-3.014-3.015 1 1 0 0 0 .474-1.68l-1.683-1.682a2.414 2.414 0 0 1 0-3.414L4.39 8.61a1 1 0 0 1 1.68.474 2.5 2.5 0 1 0 3.014-3.015 1 1 0 0 1-.474-1.68l1.683-1.682a2.414 2.414 0 0 1 3.414 0z"/>',
   agent:
     '<path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/>',
+  skill: '<path d="M12 7c-2-2-6-3-10-2v14c4-1 8 0 10 2 2-2 6-3 10-2V5c-4-1-8 0-10 2Zm0 0v14"/>',
   fold: '<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
 };
 
@@ -325,7 +349,7 @@ function chipIconKey(reference: ComposerFileReference): string {
   if (reference.plugin?.kind === "mark") return "plugin";
   if (reference.plugin?.kind === "fold") return "fold";
   if (reference.kind === "session") return "session";
-  if (reference.kind === "agent") return "agent";
+  if (reference.kind === "agent" || reference.kind === "skill") return reference.kind;
   if (reference.kind === "directory") return "dir";
   if (reference.lineRange) return "file";
   const mime = reference.mimeType ?? "";
@@ -347,7 +371,7 @@ function chipSvg(key: string, size = 13): string {
 
 export function isEditableTextReference(reference: ComposerFileReference): boolean {
   if (reference.localReference || reference.lineRange) return false;
-  if (isPluginMark(reference) || reference.kind === "directory" || reference.kind === "agent") return false;
+  if (isPluginMark(reference) || reference.kind === "directory" || reference.kind === "agent" || reference.kind === "skill") return false;
   return reference.mimeType?.toLowerCase() === "text/plain" || /\.txt$/i.test(reference.name);
 }
 
@@ -368,11 +392,10 @@ function buildChipElement(
   // A mark names the plugin that put it there where a file names its path.
   const origin = isPluginMark(reference)
     ? (reference.plugin?.pluginId ?? "")
-    : reference.kind === "agent"
-      ? `@${reference.path}`
-      : reference.path;
+    : composerMentionText(reference) ?? reference.path;
   if (isPluginMark(reference)) chip.dataset.pluginMark = reference.plugin?.kind;
   if (reference.kind === "agent") chip.dataset.agent = reference.path;
+  if (reference.kind === "skill") chip.dataset.skill = reference.path;
   chip.title = origin;
   // An image keeps the compact chip and opens its preview, a session chip opens
   // that conversation, and only plain text expands into editable draft text.

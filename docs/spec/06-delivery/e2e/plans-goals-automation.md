@@ -3,6 +3,35 @@
 > Part of the [E2E test plan](../04-e2e-test-plan.md). Plan mode, goals, user-defined modes, and scheduled tasks.
 > Scenario template, gates, and traceability live in the plan.
 
+## E2E-MODE-bundle-team-and-skills
+
+1. In an isolated modes directory, create two YAML modes with the same role
+   and skill names but distinct prompts. Keep a third mode in the legacy format.
+2. Select each mode and inspect `@` and `/`. Delegate to the role, invoke the
+   skill, disable it, switch modes and retry the old selection. Only the active
+   definitions may run; the legacy mode retains its original global catalog.
+3. Duplicate a mode, remove its original and reload. The copy keeps its relative
+   references and the original's unmanaged files are untouched. A broken YAML
+   manifest reports its error without activating a neighboring `mode.md`.
+4. From Agent and from a bundle, delegate a multiline expert request with a path
+   restriction, append an instruction while running, then cancel. Verify the
+   original request, separate coordinator context, write boundary and delivery
+   status on the actual child. A different session cannot append or resume it.
+5. Order two model candidates on one private role. A provider failure switches
+   the same child to its configured alternative without repeating a completed
+   write. Selecting a different primary pin requires per-invocation authorization.
+6. Send a prompt in both a simple YAML mode and a staged YAML mode, including
+   a bundle with no private roles or skills. Each reaches the runtime with
+   its prompt and permissions; the staged mode retains its claimed stage.
+   Remove an active run whose return mode is a YAML mode. The running turn
+   releases its run context and applies the return mode's execution definition;
+   the Host retains the full return-mode snapshot, including bundle metadata.
+7. In Settings → Modes, open an item from the built-in or custom group. The
+   detail replaces the catalog. Definition, Prompt, Subagents and Skills
+   switch the working pane without clearing the draft. Open a role; its
+   editor replaces the role list. Check the role sections, return to the list,
+   then return to the catalog with and without unsaved edits.
+
 ## E2E-SCHEDULED-independent-loading-and-route-return
 
 - **Preconditions:** Synthetic tasks; controllable task, latest-run, history and

@@ -32,13 +32,19 @@
 - **Preconditions:** Isolated Electron renderer with synthetic todos and a running
   task; production TaskDock, hook and store, with only host IPC stubbed.
 - **Steps:** Expand the dock, select Todo, select Background tasks, open its log,
-  switch to Todo and back. Repeat with completed todos.
+  switch to Todo and back. Repeat with completed todos. Then choose Todo, remove
+  every todo so the panel falls back to Background tasks without changing the
+  choice, open the log, and let the running task finish.
 - **Expected:** Only the selected panel appears. Todo contains no task rows,
   Stop control or log; Background tasks contains no checklist. The shared live
   count remains visible, switching never sends Stop, and the open log survives.
+  A read opened on the panel a remembered Todo fell back to stays a visible
+  read: the log stays on screen through the task ending instead of being
+  dropped mid-read.
 - **Entry:** `node scripts/e2e-task-dock-tabs.mjs`.
 - **Specs:** `03-runtime/03-tools-and-permissions.md`, shared task container.
-- **Acceptance:** Both switch directions preserve task state and log selection.
+- **Acceptance:** Both switch directions preserve task state and log selection,
+  and a fallback-panel read survives the task ending.
 - **Milestone:** Maintenance. **Status:** Automated renderer interaction test.
 
 ## E2E-SETTINGS-ai-tab-pickers-use-in-app-menus
@@ -311,6 +317,30 @@
 - **Milestone**: M5
 - **Status**: Unit-covered (`user-select.test.mjs`, `thinking-ui.test.mjs`,
   `markdown-prose-style.test.mjs`); full visual scenario Draft
+
+## E2E-060d: Assistant markdown follows logical alignment and list gutters
+
+- **Preconditions**: A completed assistant answer that includes an Arabic-only
+  paragraph, an Arabic unordered list, and an ordinary LTR ordered list;
+  Chromium available for `scripts/e2e-bidi.mjs`.
+- **Steps**: 1) Render the answer in the chat transcript. 2) Inspect computed
+  `direction` and `text-align` on the Arabic paragraph, list items, and a
+  heading. 3) Measure glyph placement under an inherited `text-align: left`
+  ancestor. 4) Measure list gutter geometry for the RTL unordered list and
+  the LTR ordered list (use distinct list markers so CommonMark does not
+  merge them).
+- **Expected**: The Arabic paragraph, items, and heading compute
+  `direction: rtl` and `text-align: start` (used value `right`). Glyphs sit
+  on the right under a left-aligned ancestor. The RTL list gutter is on the
+  right; the LTR list gutter is on the left.
+- **Specs linked**: `04-ux/08-component-spec.md` §8.3
+- **Acceptance**: C (chat stream), Quality
+- **Milestone**: M5
+- **Status**: Unit-covered (`markdown-bidi-alignment.test.mjs`,
+  `text-direction.test.mjs`); Chromium probe `scripts/e2e-bidi.mjs` covers
+  inherited-alignment glyph placement and RTL/LTR list gutters. The probe
+  applies `text-align: left` on its own ancestor and does not itself confirm
+  the reported Windows chat path in #2635.
 
 ## E2E-061: User message plaintext layout survives wrapping and reload
 
@@ -2724,13 +2754,13 @@ and translucent windows: a 1440 DIP display's half-width minimum must allow a
 window below 800 DIP. Zoom/Restore must return the window to its original
 position and size, and AppKit must be able to resize its edges.
 `node scripts/e2e-window-controls.mjs`
-then covers the built shell: maximized caption regions must compute to no-drag,
-and a double-click must restore through the real preload/IPC and unlock the
-normal caption. Native fullscreen enter/exit must also leave renderer maximize
-state synchronized after the AppKit transition settles, including when the
-native event precedes the final maximize flag. `maximized-window-chrome.test.mjs`
-and `window-state-sync.test.mjs` cover late-query/event races, fullscreen
-resync, repeated clicks, no-drag controls and cleanup.
+checks the built shell's caption and button drag regions while zoomed. Starting
+from zoomed, non-fullscreen state, drag empty titlebar space down on the same
+display. Repeat across two displays and verify the window stays where it is
+dropped. With system titlebar double-click set to zoom, double-click to zoom
+and restore. Titlebar buttons remain clickable. Native fullscreen enter/exit
+must still report the settled maximize state when the native event precedes
+the final flag (`window-state-sync.test.mjs`).
 Windows covers maximize/restore with the same production guard; Linux keeps
 its compositor-owned geometry. Unit tests cover cancellable edge events and
 listener cleanup (`window-native-behavior.test.mjs`).

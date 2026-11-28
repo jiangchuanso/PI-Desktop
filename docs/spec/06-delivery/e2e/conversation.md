@@ -671,15 +671,19 @@ folder/mixed-selection behavior. No system clipboard contents are changed.
   ten seconds before its first tool call.
 - **Steps**: 1) Send a prompt and let the reply stream for ~5 s. 2) Quit the
   app (Cmd+Q / tray Quit) mid-stream, relaunch, and open the session. 3) Repeat
-  the send, then kill the agent sidecar process mid-stream and observe the
-  transcript. 4) Repeat the send, press Stop mid-stream, then reopen the
+  the send, then kill the agent sidecar process mid-stream or during a tool
+  call. Repeat with the session in the background and reselect it. 4) Repeat
+  the send, press Stop mid-stream, then reopen the
   session from the sidebar and inspect `sessions/<id>.jsonl` and
   `sessions/<id>.inflight.json`. 5) Repeat the send and let it finish normally.
 - **Expected**: 2) The session shows the user prompt followed by the streamed
   text up to at most 1.5 s before the quit, as an `aborted` assistant row under
   an `aborted` turn; nothing earlier in the session is missing or truncated. 3)
-  The streaming row settles to `aborted` in place with its text, the same row
-  is present after a reload, and no `.inflight.json` remains. 4) The partial
+  The streaming row settles to `aborted` in place with its text. The session
+  timer, running badge, and tool spinner stop, and a localized crash error
+  appears. The recovered reply and one crash card remain after a reload, and
+  no `.inflight.json` remains. A queued follow-up runs on the restarted
+  sidecar and appears after the crash card on reload. 4) The partial
   reply is visible immediately after Stop and after reopening; the transcript
   file was not rewritten (its earlier lines are byte-identical) and the
   checkpoint file is gone once the aborted final row landed. 5) The completed
@@ -753,19 +757,24 @@ folder/mixed-selection behavior. No system clipboard contents are changed.
   `session-message-outbox.dead-letter.json` holds that key with its payload and
   error, and that `session-message-outbox.json` drops below the cap. 5) Restart
   the app and confirm the quarantined append is not replayed. 6) Optional:
-  delete the failing session and confirm its dead letter is dropped.
+  delete the failing session and confirm its dead letter is dropped. Repeat in
+  an isolated profile with a process exit immediately before and immediately
+  after the dead-letter rename. Reopen and enqueue a new snapshot with the
+  same key.
 - **Expected**: The failing append is paused four times with a growing backoff
   and quarantined on the fifth consecutive failure, then skipped. Later
   appends from every session drain, no enqueue is rejected with `outbox is
   full`, and the queued outbox file empties. The dead letter survives a
-  restart without being replayed.
+  restart without being replayed. At either interruption point the rejected
+  snapshot is archived once, and the new snapshot still reaches the host.
 - **Specs linked**: `03-runtime/04-data-storage.md`,
   `03-runtime/06-host-rpc-protocol.md`, ADR 0041, D318, D444, D597, D656
 - **Acceptance**: F (persistence)
 - **Milestone**: M2
-- **Status**: Unit-covered (`persistence-outbox.test.mjs` bounded retry,
-  quarantine, dead-letter persistence and cap tests); desktop journey
-  outstanding
+- **Status**: Bounded retry, dead-letter retention and capacity are covered by
+  `persistence-outbox.test.mjs`. Process interruption and filesystem errors
+  are covered by `persistence-outbox-quarantine.test.mjs`. The full desktop
+  journey is outstanding.
 
 ## E2E-SESSION-outbox-empty-snapshot-is-atomic
 
